@@ -14,7 +14,9 @@ export default function TopBar() {
     ? "Criar vídeo"
     : pathname?.startsWith("/dashboard/configuracoes")
       ? "Configurações"
-      : "Painel";
+      : pathname?.startsWith("/dashboard/series")
+        ? "Séries"
+        : "Painel";
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#05050a]/80 backdrop-blur-md">

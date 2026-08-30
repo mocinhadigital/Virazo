@@ -6,19 +6,19 @@ import { Sparkles, Zap } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
 import { useIsCriarVideoActive } from "./useCriarVideoHash";
 
+const ROUTE_TITLES: Record<string, string> = {
+  "/dashboard/configuracoes": "Configurações",
+  "/dashboard/series": "Séries",
+  "/dashboard/videos": "Meus vídeos",
+  "/dashboard/planos": "Planos",
+};
+
 export default function TopBar() {
   const { credits } = useDashboard();
   const pathname = usePathname();
   const isCriarVideo = useIsCriarVideoActive();
-  const pageTitle = isCriarVideo
-    ? "Criar vídeo"
-    : pathname?.startsWith("/dashboard/configuracoes")
-      ? "Configurações"
-      : pathname?.startsWith("/dashboard/series")
-        ? "Séries"
-        : pathname?.startsWith("/dashboard/videos")
-          ? "Meus vídeos"
-          : "Painel";
+  const matchedRoute = Object.entries(ROUTE_TITLES).find(([prefix]) => pathname?.startsWith(prefix));
+  const pageTitle = isCriarVideo ? "Criar vídeo" : (matchedRoute?.[1] ?? "Painel");
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#05050a]/80 backdrop-blur-md">

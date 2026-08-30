@@ -1,8 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Play, Loader2, Pencil, Clapperboard, Wand2, AlertTriangle, X, Download, Sparkles } from "lucide-react";
+import {
+  Play,
+  Loader2,
+  Pencil,
+  Clapperboard,
+  Wand2,
+  AlertTriangle,
+  X,
+  Download,
+  Sparkles,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { useDashboard } from "./DashboardContext";
+import { createClient } from "@/utils/supabase/client";
 import type { VideoRecord, VideoStatus } from "./types";
 
 // Reutiliza os mesmos dados já carregados no DashboardContext (populados em
@@ -24,9 +37,57 @@ const STATUS_LABEL: Record<VideoStatus, string> = {
   Erro: "Falhou",
 };
 
+// O banco só marca um vídeo como "Pronto" junto com a URL final (mesma
+// transação de mark_video_ready), então isso nunca deveria acontecer pelo
+// fluxo normal — mas registros antigos, ou uma geração interrompida no meio
+// (queda de conexão, servidor reiniciado) podem deixar um "Pronto" sem
+// arquivo de verdade. Trata isso como falha na tela, sem mexer no banco.
+function getEffectiveStatus(video: VideoRecord): VideoStatus {
+  if (video.status === "Pronto" && !video.videoUrl) return "Erro";
+  return video.status;
+}
+
 export default function MeusVideos() {
-  const { videos, openWizard } = useDashboard();
+  const { videos, openWizard, addVideo, removeVideo } = useDashboard();
   const [activeVideo, setActiveVideo] = useState<VideoRecord | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleRetry(video: VideoRecord) {
+    setRetryingId(video.id);
+    setRetryError(null);
+    try {
+      await addVideo({
+        title: video.title,
+        topic: video.topic,
+        style: video.style,
+        visualStyle: video.visualStyle,
+        duration: video.duration,
+        voice: video.voice ?? "",
+        captionsEnabled: video.captionsEnabled,
+        captionStyle: video.captionStyle,
+        gradient: video.gradient,
+      });
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "Não foi possível gerar o vídeo.");
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  async function handleDelete(video: VideoRecord) {
+    if (!confirm("Tem certeza que deseja excluir este vídeo?")) return;
+    setDeletingId(video.id);
+    const supabase = createClient();
+    const { error } = await supabase.from("videos").delete().eq("id", video.id);
+    setDeletingId(null);
+    if (error) {
+      setRetryError(error.message);
+      return;
+    }
+    removeVideo(video.id);
+  }
 
   if (videos.length === 0) {
     return (
@@ -54,9 +115,26 @@ export default function MeusVideos() {
 
   return (
     <>
+      {retryError && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <span>{retryError}</span>
+          <button type="button" onClick={() => setRetryError(null)} className="text-red-400/70 hover:text-red-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         {videos.map((video) => (
-          <VideoRow key={video.id} video={video} onOpen={() => setActiveVideo(video)} />
+          <VideoRow
+            key={video.id}
+            video={video}
+            onOpen={() => setActiveVideo(video)}
+            onRetry={() => handleRetry(video)}
+            onDelete={() => handleDelete(video)}
+            isRetrying={retryingId === video.id}
+            isDeleting={deletingId === video.id}
+          />
         ))}
       </div>
 
@@ -65,19 +143,35 @@ export default function MeusVideos() {
   );
 }
 
-function VideoRow({ video, onOpen }: { video: VideoRecord; onOpen: () => void }) {
+function VideoRow({
+  video,
+  onOpen,
+  onRetry,
+  onDelete,
+  isRetrying,
+  isDeleting,
+}: {
+  video: VideoRecord;
+  onOpen: () => void;
+  onRetry: () => void;
+  onDelete: () => void;
+  isRetrying: boolean;
+  isDeleting: boolean;
+}) {
+  const status = getEffectiveStatus(video);
   const isOrigemSerie = !!video.seriesId;
-  const canWatch = video.status === "Pronto" && !!video.videoUrl;
+  const canWatch = status === "Pronto" && !!video.videoUrl;
   const canDownload = canWatch;
+  const isFailed = status === "Erro";
 
   return (
     <div className="card-glass flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
       <button
         type="button"
         onClick={onOpen}
-        disabled={video.status !== "Pronto" && video.status !== "Erro"}
+        disabled={status !== "Pronto" && status !== "Erro"}
         className={`relative aspect-[9/16] w-20 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br sm:w-16 ${video.gradient} ${
-          video.status === "Pronto" || video.status === "Erro" ? "cursor-pointer" : "cursor-default"
+          status === "Pronto" || status === "Erro" ? "cursor-pointer" : "cursor-default"
         }`}
       >
         {video.thumbnailUrl ? (
@@ -86,11 +180,11 @@ function VideoRow({ video, onOpen }: { video: VideoRecord; onOpen: () => void })
         ) : null}
         <div className="absolute inset-0 bg-black/20" />
         <div className="absolute inset-0 flex items-center justify-center">
-          {video.status === "Processando" ? (
+          {status === "Processando" ? (
             <Loader2 className="h-5 w-5 animate-spin text-white/80" strokeWidth={2} />
-          ) : video.status === "Rascunho" ? (
+          ) : status === "Rascunho" ? (
             <Pencil className="h-4 w-4 text-white" strokeWidth={2} />
-          ) : video.status === "Erro" ? (
+          ) : status === "Erro" ? (
             <AlertTriangle className="h-4 w-4 text-red-300" strokeWidth={2} />
           ) : (
             <Play className="h-4 w-4 translate-x-0.5 fill-white text-white" />
@@ -101,10 +195,8 @@ function VideoRow({ video, onOpen }: { video: VideoRecord; onOpen: () => void })
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="truncate text-sm font-semibold text-white">{video.title}</h3>
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE[video.status]}`}
-          >
-            {STATUS_LABEL[video.status]}
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE[status]}`}>
+            {STATUS_LABEL[status]}
           </span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
@@ -124,8 +216,10 @@ function VideoRow({ video, onOpen }: { video: VideoRecord; onOpen: () => void })
           <span>·</span>
           <span>{video.createdAt}</span>
         </div>
-        {video.status === "Erro" && video.errorMessage && (
-          <p className="mt-1 truncate text-[11px] text-red-400">{video.errorMessage}</p>
+        {isFailed && (
+          <p className="mt-1 truncate text-[11px] text-red-400">
+            {video.errorMessage ?? "O vídeo não chegou a ser concluído."}
+          </p>
         )}
       </div>
 
@@ -149,17 +243,33 @@ function VideoRow({ video, onOpen }: { video: VideoRecord; onOpen: () => void })
             Baixar
           </a>
         )}
-        {video.status === "Erro" && (
-          <button
-            type="button"
-            onClick={onOpen}
-            className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10"
-          >
-            <AlertTriangle className="h-3.5 w-3.5" />
-            Ver erro
-          </button>
+        {isFailed && (
+          <>
+            <button
+              type="button"
+              disabled={isRetrying || isDeleting}
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isRetrying ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="h-3.5 w-3.5" />
+              )}
+              Tentar novamente
+            </button>
+            <button
+              type="button"
+              disabled={isRetrying || isDeleting}
+              onClick={onDelete}
+              className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Excluir
+            </button>
+          </>
         )}
-        {video.status === "Processando" && (
+        {status === "Processando" && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-400">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Gerando...
@@ -171,6 +281,7 @@ function VideoRow({ video, onOpen }: { video: VideoRecord; onOpen: () => void })
 }
 
 function VideoModal({ video, onClose }: { video: VideoRecord; onClose: () => void }) {
+  const status = getEffectiveStatus(video);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
@@ -189,7 +300,7 @@ function VideoModal({ video, onClose }: { video: VideoRecord; onClose: () => voi
           <X className="h-4 w-4" />
         </button>
 
-        {video.status === "Pronto" && video.videoUrl ? (
+        {status === "Pronto" && video.videoUrl ? (
           <>
             <video
               src={video.videoUrl}
@@ -211,7 +322,9 @@ function VideoModal({ video, onClose }: { video: VideoRecord; onClose: () => voi
               <AlertTriangle className="h-5 w-5 text-red-400" strokeWidth={2} />
             </span>
             <h3 className="text-sm font-semibold text-white">Não foi possível gerar este vídeo</h3>
-            <p className="max-w-xs text-xs text-zinc-400">{video.errorMessage ?? "Erro desconhecido."}</p>
+            <p className="max-w-xs text-xs text-zinc-400">
+              {video.errorMessage ?? "O vídeo não chegou a ser concluído."}
+            </p>
           </div>
         )}
       </div>

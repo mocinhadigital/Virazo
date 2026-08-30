@@ -3,10 +3,14 @@ export type VideoStatus = "Pronto" | "Processando" | "Rascunho" | "Erro";
 export type VideoRecord = {
   id: string;
   title: string;
+  topic: string;
   style: string;
   visualStyle: string | null;
   status: VideoStatus;
   duration: string;
+  voice: string | null;
+  captionsEnabled: boolean;
+  captionStyle: string | null;
   createdAt: string;
   gradient: string;
   videoUrl: string | null;

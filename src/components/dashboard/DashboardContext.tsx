@@ -25,6 +25,7 @@ export type NewVideoInput = {
 type DashboardContextValue = {
   videos: VideoRecord[];
   addVideo: (input: NewVideoInput) => Promise<void>;
+  removeVideo: (id: string) => void;
   credits: number;
   isWizardOpen: boolean;
   wizardInitial: WizardInitial;
@@ -56,10 +57,14 @@ export function DashboardProvider({
     const placeholder: VideoRecord = {
       id: tempId,
       title: input.title,
+      topic: input.topic,
       style: input.style,
       visualStyle: input.visualStyle,
       status: "Processando",
       duration: input.duration,
+      voice: input.voice,
+      captionsEnabled: input.captionsEnabled,
+      captionStyle: input.captionStyle,
       createdAt: "agora",
       gradient: input.gradient,
       videoUrl: null,
@@ -103,6 +108,10 @@ export function DashboardProvider({
     }
   }, []);
 
+  const removeVideo = useCallback((id: string) => {
+    setVideos((prev) => prev.filter((v) => v.id !== id));
+  }, []);
+
   const openWizard = useCallback((initial: WizardInitial = {}) => {
     setWizardInitial(initial);
     setIsWizardOpen(true);
@@ -141,6 +150,7 @@ export function DashboardProvider({
       value={{
         videos,
         addVideo,
+        removeVideo,
         credits,
         isWizardOpen,
         wizardInitial,

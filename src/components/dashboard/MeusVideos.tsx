@@ -79,14 +79,60 @@ export default function MeusVideos() {
   async function handleDelete(video: VideoRecord) {
     if (!confirm("Tem certeza que deseja excluir este vídeo?")) return;
     setDeletingId(video.id);
-    const supabase = createClient();
-    const { error } = await supabase.from("videos").delete().eq("id", video.id);
-    setDeletingId(null);
-    if (error) {
-      setRetryError(error.message);
-      return;
+    setRetryError(null);
+    try {
+      const supabase = createClient();
+
+      // `.select("id")` depois do delete é o único jeito confiável de saber
+      // se alguma linha foi REALMENTE apagada: sem isso, o Postgrest retorna
+      // sucesso (sem `error`) mesmo quando o RLS bloqueia silenciosamente e
+      // 0 linhas são afetadas — o que faria o card sumir da tela sem o
+      // registro ter sido excluído de fato no banco.
+      const { data: deletedRows, error: deleteError } = await supabase
+        .from("videos")
+        .delete()
+        .eq("id", video.id)
+        .select("id");
+
+      if (deleteError) {
+        console.error("[MeusVideos] falha ao excluir vídeo:", video.id, deleteError);
+        setRetryError(`Não foi possível excluir o vídeo: ${deleteError.message}`);
+        return;
+      }
+      if (!deletedRows || deletedRows.length === 0) {
+        console.error(
+          "[MeusVideos] delete não afetou nenhuma linha (possível bloqueio de RLS) para o vídeo:",
+          video.id,
+        );
+        setRetryError("Não foi possível excluir este vídeo — nenhum registro foi removido no banco.");
+        return;
+      }
+
+      // Best effort: apaga o arquivo do Storage também, mas uma falha aqui
+      // não pode impedir a exclusão do registro (já confirmada acima).
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { error: storageError } = await supabase.storage
+            .from("videos")
+            .remove([`${user.id}/${video.id}.mp4`, `${user.id}/${video.id}-thumb.jpg`]);
+          if (storageError) {
+            console.warn("[MeusVideos] não foi possível remover arquivos do Storage:", storageError);
+          }
+        }
+      } catch (storageErr) {
+        console.warn("[MeusVideos] erro inesperado ao remover arquivos do Storage:", storageErr);
+      }
+
+      removeVideo(video.id);
+    } catch (err) {
+      console.error("[MeusVideos] erro inesperado ao excluir vídeo:", video.id, err);
+      setRetryError(err instanceof Error ? err.message : "Não foi possível excluir o vídeo.");
+    } finally {
+      setDeletingId(null);
     }
-    removeVideo(video.id);
   }
 
   if (videos.length === 0) {

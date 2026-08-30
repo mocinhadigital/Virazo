@@ -100,9 +100,34 @@ export default function MeusVideos() {
         return;
       }
       if (!deletedRows || deletedRows.length === 0) {
+        // 0 linhas afetadas tem duas causas possíveis, e são bem diferentes:
+        // (a) o registro já não existe mais (já foi excluído antes — um
+        //     clique duplo, uma tentativa anterior que teve sucesso mas cuja
+        //     resposta demorou) — aqui o resultado correto é sucesso; ou
+        // (b) o RLS realmente bloqueou (registro de outro usuário, por
+        //     exemplo) — aqui sim é um erro de verdade.
+        // Sem checar qual dos dois é, tratávamos as duas como erro e nunca
+        // tirávamos o card da tela mesmo quando o vídeo já tinha sumido do
+        // banco de fato.
+        const { data: stillExists, error: checkError } = await supabase
+          .from("videos")
+          .select("id")
+          .eq("id", video.id)
+          .maybeSingle();
+
+        if (!stillExists && !checkError) {
+          console.warn(
+            "[MeusVideos] delete não afetou linhas, mas o registro já não existe (excluído anteriormente):",
+            video.id,
+          );
+          removeVideo(video.id);
+          return;
+        }
+
         console.error(
-          "[MeusVideos] delete não afetou nenhuma linha (possível bloqueio de RLS) para o vídeo:",
+          "[MeusVideos] delete não afetou nenhuma linha e o registro ainda existe (possível bloqueio de RLS) para o vídeo:",
           video.id,
+          checkError,
         );
         setRetryError("Não foi possível excluir este vídeo — nenhum registro foi removido no banco.");
         return;

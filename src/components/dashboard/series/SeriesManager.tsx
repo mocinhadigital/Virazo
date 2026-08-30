@@ -17,6 +17,7 @@ import type { SeriesRecord, SeriesStatus } from "../types";
 import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
 import Select from "@/components/ui/Select";
+import Combobox from "@/components/ui/Combobox";
 import {
   SERIES_DURATIONS,
   SERIES_VOICES,
@@ -358,18 +359,13 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 </Field>
 
                 <Field label="Nicho">
-                  <input
+                  <Combobox
                     value={form.nicho}
-                    onChange={(e) => setForm((f) => ({ ...f, nicho: e.target.value }))}
-                    placeholder="Ex.: Curiosidades históricas"
-                    list="nicho-sugestoes"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#FF6B5B]/50 focus:outline-none"
+                    onChange={(v) => setForm((f) => ({ ...f, nicho: v }))}
+                    options={NICHO_SUGESTOES}
+                    placeholder="Ex.: Curiosidades históricas (ou digite o seu)"
+                    aria-label="Nicho"
                   />
-                  <datalist id="nicho-sugestoes">
-                    {NICHO_SUGESTOES.map((n) => (
-                      <option key={n} value={n} />
-                    ))}
-                  </datalist>
                 </Field>
 
                 <Field label="Tom de voz do conteúdo">

@@ -18,15 +18,28 @@ export const SERIES_VOICES = [
 
 export const SERIES_CAPTION_STYLES = ["Clássica", "Destaque", "Minimalista"];
 
+// Só sugestões — o campo Nicho no formulário de Série é um combobox livre,
+// o usuário nunca fica preso a esta lista.
 export const NICHO_SUGESTOES = [
+  "Fé e Cristianismo",
+  "Histórias Bíblicas",
+  "Orações e Devocionais",
   "Curiosidades históricas",
   "Motivação diária",
   "Fatos de ciência",
   "Mitologia e lendas",
   "Finanças pessoais",
+  "Empreendedorismo",
+  "Inteligência artificial",
+  "Tecnologia",
+  "Saúde e bem-estar",
   "Receitas rápidas",
-  "Bem-estar e saúde",
   "Terror e mistério",
+  "Relacionamentos",
+  "Desenvolvimento pessoal",
+  "Direito",
+  "Futebol",
+  "Curiosidades gerais",
 ];
 
 export const FREQUENCIA_OPTIONS = [

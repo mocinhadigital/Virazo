@@ -26,6 +26,7 @@ type DashboardContextValue = {
   videos: VideoRecord[];
   addVideo: (input: NewVideoInput) => Promise<void>;
   removeVideo: (id: string) => void;
+  refetchVideos: () => Promise<void>;
   credits: number;
   isWizardOpen: boolean;
   wizardInitial: WizardInitial;
@@ -112,6 +113,32 @@ export function DashboardProvider({
     setVideos((prev) => prev.filter((v) => v.id !== id));
   }, []);
 
+  // `videos` só é carregado do Supabase UMA vez, no primeiro carregamento do
+  // layout (server-side); depois disso fica só em memória, mantido por
+  // `addVideo`/`removeVideo`. Isso busca de novo direto no Supabase (a
+  // fonte da verdade), pra corrigir qualquer divergência — inclusive um
+  // registro que já foi apagado mas ainda está nesse estado em memória.
+  const refetchVideos = useCallback(async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("videos")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .returns<VideoRow[]>();
+
+    if (error) {
+      console.error("[DashboardContext] falha ao rebuscar vídeos:", error);
+      return;
+    }
+    setVideos((data ?? []).map(mapVideoRow));
+  }, []);
+
   const openWizard = useCallback((initial: WizardInitial = {}) => {
     setWizardInitial(initial);
     setIsWizardOpen(true);
@@ -151,6 +178,7 @@ export function DashboardProvider({
         videos,
         addVideo,
         removeVideo,
+        refetchVideos,
         credits,
         isWizardOpen,
         wizardInitial,

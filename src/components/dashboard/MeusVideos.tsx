@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Play,
   Loader2,
@@ -61,11 +61,20 @@ function getEffectiveStatus(video: VideoRecord): VideoStatus {
 }
 
 export default function MeusVideos() {
-  const { videos, openWizard, addVideo, removeVideo } = useDashboard();
+  const { videos, openWizard, addVideo, removeVideo, refetchVideos } = useDashboard();
   const [activeVideo, setActiveVideo] = useState<VideoRecord | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // `videos` no contexto é um retrato do banco carregado uma vez no layout —
+  // não é reatualizado sozinho ao navegar entre páginas do dashboard. Rebusca
+  // ao entrar aqui pra garantir que "Meus vídeos" sempre reflita o Supabase
+  // de verdade, mesmo que o layout tenha sido carregado há um tempo.
+  useEffect(() => {
+    void refetchVideos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleRetry(video: VideoRecord) {
     setRetryingId(video.id);
@@ -134,6 +143,7 @@ export default function MeusVideos() {
             video.id,
           );
           removeVideo(video.id);
+          void refetchVideos();
           return;
         }
 
@@ -151,6 +161,7 @@ export default function MeusVideos() {
       // (nem é esperada aqui), então mesmo que trave ou falhe não segura o
       // botão nem o card por mais um segundo sequer.
       removeVideo(video.id);
+      void refetchVideos();
 
       void (async () => {
         try {

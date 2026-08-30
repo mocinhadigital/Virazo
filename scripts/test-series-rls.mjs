@@ -66,6 +66,7 @@ async function main() {
     const { data: seriesA, error: createErr } = await userA.client
       .from("series")
       .insert({
+        user_id: userA.id,
         title: "Série de teste RLS",
         nicho: "Curiosidades",
         tom_de_voz: "Storytelling",
@@ -76,6 +77,7 @@ async function main() {
       .select("*")
       .single();
     check("insert da própria série funcionou", !createErr && !!seriesA);
+    if (createErr) console.error("  detalhe do erro:", createErr);
     if (!seriesA) throw new Error("Não deu pra continuar sem a série de teste.");
 
     console.log("\n2) Usuário B tenta LER a série do usuário A (deve vir vazio, sem erro)");

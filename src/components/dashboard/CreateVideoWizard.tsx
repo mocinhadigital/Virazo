@@ -47,13 +47,31 @@ const STEP_TITLES: Record<StepKey, string> = {
   geracao: "Gerando seu vídeo",
 };
 
+const STORAGE_BASE = "https://bjxfrufuuosufnhnzajc.supabase.co/storage/v1/object/public/videos/_style-thumbnails";
+
 const VISUAL_STYLES = [
-  { name: "Anime", gradient: "from-cyan-400 to-blue-600" },
-  { name: "Comic", gradient: "from-yellow-400 to-red-500" },
-  { name: "Cartoon 3D", gradient: "from-emerald-400 to-teal-600" },
-  { name: "Realista", gradient: "from-zinc-500 to-slate-700" },
-  { name: "Dark Fantasy", gradient: "from-slate-800 to-red-900" },
-  { name: "Pintura Clássica", gradient: "from-amber-600 to-orange-800" },
+  { name: "Anime", gradient: "from-cyan-400 to-blue-600", thumbnail: `${STORAGE_BASE}/anime.jpg` },
+  { name: "Comic", gradient: "from-yellow-400 to-red-500", thumbnail: `${STORAGE_BASE}/comic.jpg` },
+  {
+    name: "Cartoon 3D",
+    gradient: "from-emerald-400 to-teal-600",
+    thumbnail: `${STORAGE_BASE}/cartoon-3d.jpg`,
+  },
+  {
+    name: "Realista",
+    gradient: "from-zinc-500 to-slate-700",
+    thumbnail: `${STORAGE_BASE}/realista.jpg`,
+  },
+  {
+    name: "Dark Fantasy",
+    gradient: "from-slate-800 to-red-900",
+    thumbnail: `${STORAGE_BASE}/dark-fantasy.jpg`,
+  },
+  {
+    name: "Pintura Clássica",
+    gradient: "from-amber-600 to-orange-800",
+    thumbnail: `${STORAGE_BASE}/pintura-classica.jpg`,
+  },
 ];
 
 const DURATIONS = [
@@ -284,7 +302,7 @@ function WizardPanel() {
 
           {step === "estiloVisual" && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {VISUAL_STYLES.map(({ name, gradient }) => {
+              {VISUAL_STYLES.map(({ name, gradient, thumbnail }) => {
                 const isSelected = visualStyle === name;
                 return (
                   <button
@@ -297,7 +315,15 @@ function WizardPanel() {
                         : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
-                    <div className={`aspect-[3/4] w-full bg-gradient-to-br ${gradient}`} />
+                    <div className={`aspect-[3/4] w-full bg-gradient-to-br ${gradient}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={thumbnail}
+                        alt={`Exemplo do estilo ${name}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
                     <span className="block px-2.5 py-2 text-xs font-medium text-white">
                       {name}
                     </span>

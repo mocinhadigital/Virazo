@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { DROPDOWN_MENU_CLASSNAME, DropdownOption } from "./dropdown-shared";
+import { DROPDOWN_MENU_CLASSNAME, DropdownOption, NO_BROWSER_AUTOFILL_PROPS, useDropdownListNav } from "./dropdown-shared";
 
 type ComboboxProps = {
   value: string;
@@ -14,8 +14,8 @@ type ComboboxProps = {
 
 // Combobox pesquisável e editável: o usuário digita livremente (o valor
 // digitado É o valor do campo, sempre) e opcionalmente escolhe uma sugestão
-// da lista filtrada. Menu em portal, tema escuro — nada de <select>/
-// <datalist> nativo, que o navegador sempre desenha com fundo claro.
+// da lista filtrada. Menu em portal, tema escuro, mesmas peças visuais do
+// Select (ver dropdown-shared.tsx) — nada de <select>/<datalist> nativo.
 export default function Combobox({ value, onChange, options, placeholder, ...aria }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number; width: number } | null>(
@@ -23,11 +23,10 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
 
   const query = value.trim().toLowerCase();
-  const filtered = query
-    ? options.filter((o) => o.toLowerCase().includes(query))
-    : options;
+  const filtered = query ? options.filter((o) => o.toLowerCase().includes(query)) : options;
   const hasExactMatch = options.some((o) => o.toLowerCase() === query);
 
   function openMenu() {
@@ -35,7 +34,23 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
     if (!rect) return;
     setMenuStyle({ top: rect.bottom + 6, left: rect.left, width: rect.width });
     setOpen(true);
+    setActiveIndex(-1);
   }
+  function closeMenu() {
+    setOpen(false);
+    setActiveIndex(-1);
+  }
+
+  const { activeIndex, setActiveIndex, itemRefs, handleKeyDown } = useDropdownListNav({
+    open,
+    itemCount: filtered.length,
+    onSelectIndex: (i) => {
+      onChange(filtered[i]);
+      closeMenu();
+    },
+    onClose: closeMenu,
+    onOpen: openMenu,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -46,20 +61,15 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
       if (menuRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
     function handleScrollOrResize() {
       setOpen(false);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
     window.addEventListener("scroll", handleScrollOrResize, true);
     window.addEventListener("resize", handleScrollOrResize);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
     };
@@ -70,12 +80,20 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
       <input
         ref={inputRef}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          if (!open) openMenu();
+        }}
         onFocus={openMenu}
         onClick={openMenu}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         aria-label={aria["aria-label"]}
-        autoComplete="off"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        aria-controls={listboxId}
+        {...NO_BROWSER_AUTOFILL_PROPS}
         className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#FF6B5B]/50 focus:outline-none"
       />
 
@@ -84,6 +102,7 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
         createPortal(
           <div
             ref={menuRef}
+            id={listboxId}
             role="listbox"
             style={{ position: "fixed", top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
             className={DROPDOWN_MENU_CLASSNAME}
@@ -93,14 +112,19 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
                 Nenhuma sugestão encontrada — seu texto será usado como nicho personalizado.
               </p>
             )}
-            {filtered.map((option) => (
+            {filtered.map((option, i) => (
               <DropdownOption
                 key={option}
+                refCallback={(el) => {
+                  itemRefs.current[i] = el;
+                }}
+                onMouseEnter={() => setActiveIndex(i)}
                 label={option}
                 isSelected={option.toLowerCase() === query}
+                isActive={i === activeIndex}
                 onClick={() => {
                   onChange(option);
-                  setOpen(false);
+                  closeMenu();
                 }}
               />
             ))}

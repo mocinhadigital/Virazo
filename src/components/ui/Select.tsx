@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
-import { DROPDOWN_MENU_CLASSNAME, DropdownOption } from "./dropdown-shared";
+import { DROPDOWN_MENU_CLASSNAME, DropdownOption, useDropdownListNav } from "./dropdown-shared";
 
 export type SelectOption = {
   value: string;
@@ -38,7 +38,23 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
     if (!rect) return;
     setMenuStyle({ top: rect.bottom + 6, left: rect.left, width: rect.width });
     setOpen(true);
+    setActiveIndex(-1);
   }
+  function closeMenu() {
+    setOpen(false);
+    setActiveIndex(-1);
+  }
+
+  const { activeIndex, setActiveIndex, itemRefs, handleKeyDown } = useDropdownListNav({
+    open,
+    itemCount: options.length,
+    onSelectIndex: (i) => {
+      onChange(options[i].value);
+      closeMenu();
+    },
+    onClose: closeMenu,
+    onOpen: openMenu,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -49,20 +65,15 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
       if (menuRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
     function handleScrollOrResize() {
       setOpen(false);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
     window.addEventListener("scroll", handleScrollOrResize, true);
     window.addEventListener("resize", handleScrollOrResize);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
     };
@@ -73,7 +84,8 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
       <button
         type="button"
         ref={triggerRef}
-        onClick={() => (open ? setOpen(false) : openMenu())}
+        onClick={() => (open ? closeMenu() : openMenu())}
+        onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={aria["aria-label"]}
@@ -94,15 +106,20 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
             style={{ position: "fixed", top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
             className={DROPDOWN_MENU_CLASSNAME}
           >
-            {options.map((option) => (
+            {options.map((option, i) => (
               <DropdownOption
                 key={option.value}
+                refCallback={(el) => {
+                  itemRefs.current[i] = el;
+                }}
+                onMouseEnter={() => setActiveIndex(i)}
                 label={option.label}
                 description={option.description}
                 isSelected={option.value === value}
+                isActive={i === activeIndex}
                 onClick={() => {
                   onChange(option.value);
-                  setOpen(false);
+                  closeMenu();
                 }}
               />
             ))}

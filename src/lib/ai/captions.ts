@@ -27,13 +27,14 @@ type VerboseTranscription = {
 export async function transcribeForCaptions(
   audio: Buffer,
   filename = "narration.mp3",
+  language: "pt" | "en" | "es" = "pt",
 ): Promise<Transcript> {
   const response = await groq.audio.transcriptions.create({
     model: "whisper-large-v3-turbo",
     file: await toFile(audio, filename),
     response_format: "verbose_json",
     timestamp_granularities: ["word"],
-    language: "pt",
+    language,
   });
 
   const verbose = response as unknown as VerboseTranscription;

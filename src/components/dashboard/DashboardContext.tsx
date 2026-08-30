@@ -65,6 +65,7 @@ export function DashboardProvider({
       videoUrl: null,
       thumbnailUrl: null,
       errorMessage: null,
+      seriesId: null,
     };
     setVideos((prev) => [placeholder, ...prev]);
     setCredits((prev) => Math.max(0, prev - 1));

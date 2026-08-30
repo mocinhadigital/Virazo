@@ -12,4 +12,27 @@ export type VideoRecord = {
   videoUrl: string | null;
   thumbnailUrl: string | null;
   errorMessage: string | null;
+  seriesId: string | null;
+};
+
+export type SeriesStatus = "ativa" | "pausada" | "arquivada";
+
+export type SeriesRecord = {
+  id: string;
+  title: string;
+  nicho: string;
+  tomDeVoz: string;
+  idioma: "pt" | "en" | "es";
+  visualStyle: string;
+  voice: string | null;
+  duration: string;
+  captionsEnabled: boolean;
+  captionStyle: string | null;
+  frequenciaDias: number;
+  horario: string;
+  status: SeriesStatus;
+  nextGenerationAt: string | null;
+  lastGeneratedAt: string | null;
+  totalVideosGerados: number;
+  createdAt: string;
 };

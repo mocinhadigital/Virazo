@@ -18,51 +18,61 @@ const SCENES_PER_DURATION: Record<string, number> = {
   "90s": 12,
 };
 
-const RETURN_SCRIPT_TOOL = {
-  name: "return_script",
-  description: "Retorna o roteiro do vídeo dividido em cenas.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      title: {
-        type: "string",
-        description: "Título curto e chamativo para o vídeo",
-      },
-      scenes: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            narration: {
-              type: "string",
-              description: "Texto que o narrador vai falar nesta cena, em português do Brasil",
+const LANGUAGE_LABELS = {
+  pt: "português do Brasil",
+  en: "English",
+  es: "español",
+} as const;
+
+function buildReturnScriptTool(languageLabel: string) {
+  return {
+    name: "return_script",
+    description: "Retorna o roteiro do vídeo dividido em cenas.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        title: {
+          type: "string",
+          description: "Título curto e chamativo para o vídeo",
+        },
+        scenes: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              narration: {
+                type: "string",
+                description: `Texto que o narrador vai falar nesta cena, em ${languageLabel}`,
+              },
+              imagePrompt: {
+                type: "string",
+                description:
+                  "Descrição visual da cena, em inglês, para um gerador de imagens de IA (sem mencionar texto/legendas)",
+              },
             },
-            imagePrompt: {
-              type: "string",
-              description:
-                "Descrição visual da cena, em inglês, para um gerador de imagens de IA (sem mencionar texto/legendas)",
-            },
+            required: ["narration", "imagePrompt"],
           },
-          required: ["narration", "imagePrompt"],
         },
       },
+      required: ["title", "scenes"],
     },
-    required: ["title", "scenes"],
-  },
-};
+  };
+}
 
 export async function generateScript(input: {
   topic: string;
   contentStyle: string;
   visualStyle: string;
   duration: string;
+  language?: "pt" | "en" | "es";
 }): Promise<Script> {
   const sceneCount = SCENES_PER_DURATION[input.duration] ?? 5;
+  const languageLabel = LANGUAGE_LABELS[input.language ?? "pt"];
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 2048,
-    tools: [RETURN_SCRIPT_TOOL],
+    tools: [buildReturnScriptTool(languageLabel)],
     tool_choice: { type: "tool", name: "return_script" },
     messages: [
       {
@@ -70,7 +80,7 @@ export async function generateScript(input: {
         content: `Escreva o roteiro de um vídeo curto vertical (estilo Reels/TikTok) sobre: "${input.topic}".
 Estilo de conteúdo: ${input.contentStyle}.
 Estilo visual das imagens: ${input.visualStyle}.
-Divida em exatamente ${sceneCount} cenas. Cada cena tem 1-2 frases de narração em português do Brasil, e uma descrição visual em inglês para gerar uma imagem nesse estilo visual.`,
+Divida em exatamente ${sceneCount} cenas. Cada cena tem 1-2 frases de narração em ${languageLabel}, e uma descrição visual em inglês para gerar uma imagem nesse estilo visual.`,
       },
     ],
   });

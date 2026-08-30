@@ -16,6 +16,7 @@ import {
 import type { SeriesRecord, SeriesStatus } from "../types";
 import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
+import Select from "@/components/ui/Select";
 import {
   SERIES_DURATIONS,
   SERIES_VOICES,
@@ -372,77 +373,50 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 </Field>
 
                 <Field label="Tom de voz do conteúdo">
-                  <select
+                  <Select
                     value={form.tomDeVoz}
-                    onChange={(e) => setForm((f) => ({ ...f, tomDeVoz: e.target.value }))}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
-                  >
-                    {styleOptions.map((s) => (
-                      <option key={s.title} value={s.title}>
-                        {s.title}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((f) => ({ ...f, tomDeVoz: v }))}
+                    options={styleOptions.map((s) => ({ value: s.title, label: s.title }))}
+                    aria-label="Tom de voz do conteúdo"
+                  />
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Idioma">
-                    <select
+                    <Select
                       value={form.idioma}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, idioma: e.target.value as FormState["idioma"] }))
-                      }
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
-                    >
-                      {IDIOMA_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setForm((f) => ({ ...f, idioma: v as FormState["idioma"] }))}
+                      options={IDIOMA_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                      aria-label="Idioma"
+                    />
                   </Field>
 
                   <Field label="Duração">
-                    <select
+                    <Select
                       value={form.duration}
-                      onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
-                    >
-                      {SERIES_DURATIONS.map((d) => (
-                        <option key={d.value} value={d.value}>
-                          {d.value}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setForm((f) => ({ ...f, duration: v }))}
+                      options={SERIES_DURATIONS.map((d) => ({ value: d.value, label: d.value, description: d.label }))}
+                      aria-label="Duração"
+                    />
                   </Field>
                 </div>
 
                 <Field label="Estilo visual">
-                  <select
+                  <Select
                     value={form.visualStyle}
-                    onChange={(e) => setForm((f) => ({ ...f, visualStyle: e.target.value }))}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
-                  >
-                    {VISUAL_STYLES.map((v) => (
-                      <option key={v.name} value={v.name}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((f) => ({ ...f, visualStyle: v }))}
+                    options={VISUAL_STYLES.map((v) => ({ value: v.name, label: v.name }))}
+                    aria-label="Estilo visual"
+                  />
                 </Field>
 
                 <Field label="Voz da narração">
-                  <select
+                  <Select
                     value={form.voice}
-                    onChange={(e) => setForm((f) => ({ ...f, voice: e.target.value }))}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
-                  >
-                    {SERIES_VOICES.map((v) => (
-                      <option key={v.name} value={v.name}>
-                        {v.name} — {v.tag}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((f) => ({ ...f, voice: v }))}
+                    options={SERIES_VOICES.map((v) => ({ value: v.name, label: v.name, description: v.tag }))}
+                    aria-label="Voz da narração"
+                  />
                 </Field>
 
                 <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3">
@@ -466,35 +440,23 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
 
                 {form.captionsEnabled && (
                   <Field label="Estilo da legenda">
-                    <select
+                    <Select
                       value={form.captionStyle ?? SERIES_CAPTION_STYLES[0]}
-                      onChange={(e) => setForm((f) => ({ ...f, captionStyle: e.target.value }))}
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
-                    >
-                      {SERIES_CAPTION_STYLES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setForm((f) => ({ ...f, captionStyle: v }))}
+                      options={SERIES_CAPTION_STYLES.map((c) => ({ value: c, label: c }))}
+                      aria-label="Estilo da legenda"
+                    />
                   </Field>
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Frequência">
-                    <select
-                      value={form.frequenciaDias}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, frequenciaDias: Number(e.target.value) }))
-                      }
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
-                    >
-                      {FREQUENCIA_OPTIONS.map((f) => (
-                        <option key={f.value} value={f.value}>
-                          {f.label}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      value={String(form.frequenciaDias)}
+                      onChange={(v) => setForm((f) => ({ ...f, frequenciaDias: Number(v) }))}
+                      options={FREQUENCIA_OPTIONS.map((f) => ({ value: String(f.value), label: f.label }))}
+                      aria-label="Frequência"
+                    />
                   </Field>
 
                   <Field label="Horário">

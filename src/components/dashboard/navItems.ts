@@ -12,7 +12,7 @@ export const navItems: NavItem[] = [
   { label: "Painel", href: "/dashboard", icon: LayoutDashboard },
   { label: "Criar vídeo", href: "/dashboard#criar", icon: Wand2 },
   { label: "Séries", href: "/dashboard/series", icon: Sparkles },
-  { label: "Meus vídeos", href: "#", icon: Film, soon: true },
+  { label: "Meus vídeos", href: "/dashboard/videos", icon: Film },
   { label: "Planos", href: "/dashboard/planos", icon: CreditCard },
   { label: "Configurações", href: "#", icon: Settings, soon: true },
 ];

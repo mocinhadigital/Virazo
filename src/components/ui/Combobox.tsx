@@ -61,17 +61,27 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
       if (menuRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function handleScrollOrResize() {
+    // "scroll" não borbulha (bubbles: false), mas ainda passa pela fase de
+    // captura por todos os ancestrais — inclusive `window`. Sem o filtro por
+    // `target` abaixo, todo scroll DENTRO da própria lista (roda do mouse,
+    // touchpad, arrastar a scrollbar) também disparava este listener e
+    // fechava o menu na hora, o que impedia rolar até o fim da lista.
+    function handleScroll(e: Event) {
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    function handleResize() {
       setOpen(false);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("scroll", handleScrollOrResize, true);
-    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("scroll", handleScrollOrResize, true);
-      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
     };
   }, [open]);
 

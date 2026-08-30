@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Sparkles, Zap } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
 
 export default function TopBar() {
   const { credits } = useDashboard();
+  const pathname = usePathname();
+  const pageTitle = pathname?.startsWith("/dashboard/configuracoes") ? "Configurações" : "Painel";
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#05050a]/80 backdrop-blur-md">
@@ -20,7 +23,7 @@ export default function TopBar() {
         </Link>
 
         <h1 className="hidden text-base font-semibold text-white lg:block">
-          Painel
+          {pageTitle}
         </h1>
 
         <div className="flex items-center gap-3">

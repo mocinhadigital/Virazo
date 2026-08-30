@@ -1,9 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { navItems } from "./navItems";
 import SignOutButton from "./SignOutButton";
+import { useIsCriarVideoActive } from "./useCriarVideoHash";
 
 export default function Sidebar() {
+  const isCriarVideoActive = useIsCriarVideoActive();
+
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-white/[0.06] lg:bg-[#05050a]">
       <div className="flex h-16 items-center gap-2 px-6">
@@ -17,7 +22,12 @@ export default function Sidebar() {
 
       <nav className="flex flex-1 flex-col gap-1 px-4 py-4">
         {navItems.map(({ label, href, icon: Icon, soon }) => {
-          const isActive = label === "Painel";
+          const isActive =
+            label === "Criar vídeo"
+              ? isCriarVideoActive
+              : label === "Painel"
+                ? !isCriarVideoActive
+                : false;
           return (
             <Link
               key={label}

@@ -4,11 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, Zap } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
+import { useIsCriarVideoActive } from "./useCriarVideoHash";
 
 export default function TopBar() {
   const { credits } = useDashboard();
   const pathname = usePathname();
-  const pageTitle = pathname?.startsWith("/dashboard/configuracoes") ? "Configurações" : "Painel";
+  const isCriarVideo = useIsCriarVideoActive();
+  const pageTitle = isCriarVideo
+    ? "Criar vídeo"
+    : pathname?.startsWith("/dashboard/configuracoes")
+      ? "Configurações"
+      : "Painel";
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#05050a]/80 backdrop-blur-md">

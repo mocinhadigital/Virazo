@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { mapVideoRow, type VideoRow } from "./videoMapping";
 import type { VideoRecord } from "./types";
@@ -110,37 +110,15 @@ export function DashboardProvider({
   }, []);
 
   const removeVideo = useCallback((id: string) => {
-    console.log(
-      "[VIDEOS STATE] REMOVENDO",
-      id,
-    );
-    setVideos((prev) => {
-      console.log("[VIDEOS STATE] ANTES", prev.map((v) => v.id));
-      const next = prev.filter((v) => v.id !== id);
-      console.log("[VIDEOS STATE] DEPOIS DO FILTER LOCAL", next.map((v) => v.id));
-      return next;
-    });
+    setVideos((prev) => prev.filter((v) => v.id !== id));
   }, []);
 
-  // `videos` só é carregado do Supabase UMA vez — no primeiro carregamento
-  // do layout (server-side, `dashboard/layout.tsx`). Layouts do Next.js NÃO
-  // re-executam ao navegar entre páginas-irmãs (Painel -> Meus vídeos), só
-  // no primeiro mount da árvore, ou num F5 de verdade. Isso significa que
-  // `initialVideos` pode já estar desatualizado quando o usuário chega em
-  // "Meus vídeos" (por exemplo, um vídeo apagado em outra aba/sessão antes
-  // desse layout ter montado). Esta função busca de novo, direto no
-  // Supabase, e SUBSTITUI o state inteiro pela resposta real do banco — sem
-  // mesclar com o array antigo.
-  //
-  // `requestId` evita que uma chamada mais ANTIGA (que por algum motivo da
-  // rede demore mais) sobrescreva o resultado de uma chamada mais NOVA que
-  // já respondeu — sem isso, duas chamadas concorrentes (ex.: o refetch do
-  // mount da página e o refetch disparado por uma exclusão) podem resolver
-  // fora de ordem e a resposta desatualizada "vencer" por último.
-  const refetchRequestId = useRef(0);
-
+  // `videos` só é carregado do Supabase UMA vez, no primeiro carregamento do
+  // layout (server-side); depois disso fica só em memória, mantido por
+  // `addVideo`/`removeVideo`. Isso busca de novo direto no Supabase (a
+  // fonte da verdade), pra corrigir qualquer divergência — inclusive um
+  // registro que já foi apagado mas ainda está nesse estado em memória.
   const refetchVideos = useCallback(async () => {
-    const requestId = ++refetchRequestId.current;
     const supabase = createClient();
     const {
       data: { user },
@@ -158,17 +136,7 @@ export function DashboardProvider({
       console.error("[DashboardContext] falha ao rebuscar vídeos:", error);
       return;
     }
-
-    if (requestId !== refetchRequestId.current) {
-      console.warn(
-        "[DashboardContext] refetch descartado — uma chamada mais nova já respondeu antes dessa (evita reinserir vídeo já excluído).",
-      );
-      return;
-    }
-
-    const freshVideos = (data ?? []).map(mapVideoRow);
-    console.log("[VIDEOS STATE] APOS REFRESH SUPABASE", freshVideos.map((v) => v.id));
-    setVideos(freshVideos);
+    setVideos((data ?? []).map(mapVideoRow));
   }, []);
 
   const openWizard = useCallback((initial: WizardInitial = {}) => {

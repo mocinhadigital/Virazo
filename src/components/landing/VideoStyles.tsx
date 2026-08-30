@@ -49,7 +49,7 @@ const styles = [
 
 export default function VideoStyles() {
   return (
-    <section className="py-14 sm:py-20">
+    <section id="estilos" className="py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Estilos prontos"

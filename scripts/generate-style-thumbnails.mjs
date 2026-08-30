@@ -69,6 +69,36 @@ const STYLES = [
     prompt:
       "classical oil painting, renaissance-style portrait, rich warm tones, visible painterly brushstrokes, museum masterpiece style",
   },
+  {
+    slug: "comic-terror",
+    name: "Comic de Terror",
+    prompt:
+      "creepy horror comic book illustration, dark ink outlines, eerie green and purple atmosphere, halftone shading, spooky original monster character in shadows, original horror comic art style",
+  },
+  {
+    slug: "cartoon-2d",
+    name: "Cartoon 2D",
+    prompt:
+      "modern 2D flat cartoon illustration, bold clean outlines, simple flat vibrant colors, cheerful original character design, contemporary animated series art style",
+  },
+  {
+    slug: "mitologia",
+    name: "Mitologia",
+    prompt:
+      "epic mythological illustration, ancient greek deity character with dramatic lighting, marble and gold tones, classical mythology concept art",
+  },
+  {
+    slug: "pixel-art",
+    name: "Pixel Art",
+    prompt:
+      "retro pixel art illustration, 16-bit video game style character, vibrant colorful pixels, nostalgic arcade aesthetic",
+  },
+  {
+    slug: "fantasia",
+    name: "Fantasia",
+    prompt:
+      "epic high fantasy illustration, a knight facing a majestic dragon inside a glowing crystal cave, dramatic cinematic lighting, detailed digital painting, fantasy book cover art style, no cute creatures",
+  },
 ];
 
 async function main() {

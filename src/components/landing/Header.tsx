@@ -14,6 +14,27 @@ export default function Header() {
           </span>
         </a>
 
+        <nav className="hidden items-center gap-6 md:flex">
+          <a
+            href="#como-funciona"
+            className="text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+          >
+            Como funciona
+          </a>
+          <a
+            href="#estilos-visuais"
+            className="text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+          >
+            Estilos
+          </a>
+          <a
+            href="#faq"
+            className="text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+          >
+            FAQ
+          </a>
+        </nav>
+
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/login"

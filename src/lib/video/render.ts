@@ -24,7 +24,7 @@ export async function renderFinalVideo(scenes: RenderScene[], burnCaptions: bool
   const workDir = await mkdtemp(path.join(tmpdir(), "virazo-"));
   try {
     const sceneClipPaths: string[] = [];
-    const srtCues: { start: number; end: number; text: string }[] = [];
+    const captionCues: { start: number; end: number; text: string }[] = [];
     let cumulativeSeconds = 0;
 
     for (let i = 0; i < scenes.length; i++) {
@@ -67,7 +67,7 @@ export async function renderFinalVideo(scenes: RenderScene[], burnCaptions: bool
 
       if (burnCaptions) {
         for (const cue of groupWordsIntoCues(scene.words)) {
-          srtCues.push({
+          captionCues.push({
             start: cumulativeSeconds + cue.start,
             end: cumulativeSeconds + cue.end,
             text: cue.text,
@@ -97,24 +97,24 @@ export async function renderFinalVideo(scenes: RenderScene[], burnCaptions: bool
       concatPath,
     ]);
 
-    if (!burnCaptions || srtCues.length === 0) {
+    if (!burnCaptions || captionCues.length === 0) {
       return await readFile(concatPath);
     }
 
-    const srtPath = path.join(workDir, "captions.srt");
-    await writeFile(srtPath, buildSrt(srtCues), "utf-8");
+    const assPath = path.join(workDir, "captions.ass");
+    await writeFile(assPath, buildAss(captionCues), "utf-8");
 
     const finalPath = path.join(workDir, "final.mp4");
-    // O filtro "subtitles" do ffmpeg exige escapar ":" no caminho (por causa
-    // da letra de unidade no Windows, ex. "C:") e usar barras normais.
-    const escapedSrtPath = srtPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+    // O filtro "ass" do ffmpeg exige escapar ":" no caminho (por causa da
+    // letra de unidade no Windows, ex. "C:") e usar barras normais.
+    const escapedAssPath = assPath.replace(/\\/g, "/").replace(/:/g, "\\:");
 
     await execFileAsync(ffmpeg.path, [
       "-y",
       "-i",
       concatPath,
       "-vf",
-      `subtitles='${escapedSrtPath}':force_style='FontName=Arial,FontSize=20,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2,Alignment=2,MarginV=140'`,
+      `ass='${escapedAssPath}'`,
       "-c:a",
       "copy",
       finalPath,
@@ -140,20 +140,44 @@ function groupWordsIntoCues(words: WordTiming[], groupSize = 4) {
   return cues;
 }
 
-function formatSrtTime(totalSeconds: number): string {
-  const ms = Math.max(0, Math.round(totalSeconds * 1000));
-  const hours = Math.floor(ms / 3_600_000);
-  const minutes = Math.floor((ms % 3_600_000) / 60_000);
-  const seconds = Math.floor((ms % 60_000) / 1000);
-  const millis = ms % 1000;
+function formatAssTime(totalSeconds: number): string {
+  const centis = Math.max(0, Math.round(totalSeconds * 100));
+  const hours = Math.floor(centis / 360_000);
+  const minutes = Math.floor((centis % 360_000) / 6_000);
+  const seconds = Math.floor((centis % 6_000) / 100);
+  const remainingCentis = centis % 100;
   const pad = (n: number, len = 2) => String(n).padStart(len, "0");
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)},${pad(millis, 3)}`;
+  return `${hours}:${pad(minutes)}:${pad(seconds)}.${pad(remainingCentis)}`;
 }
 
-function buildSrt(cues: { start: number; end: number; text: string }[]): string {
-  return cues
+// Gera um .ass com PlayResX/PlayResY iguais à resolução real do vídeo — sem
+// isso, o filtro "subtitles"/"ass" do ffmpeg tenta adivinhar a resolução de
+// referência (geralmente um valor pequeno, tipo 384x288) e o texto sai
+// desproporcionalmente enorme e mal posicionado quando escalado pro tamanho
+// real do vídeo (1080x1920). Estilo pensado pra parecer legenda de
+// Reels/TikTok: texto discreto, negrito, contorno fino (sem caixa sólida),
+// perto da base da tela.
+function buildAss(cues: { start: number; end: number; text: string }[]): string {
+  const header = `[Script Info]
+ScriptType: v4.00+
+PlayResX: ${WIDTH}
+PlayResY: ${HEIGHT}
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,52,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,3,1,2,60,60,180,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+  const events = cues
     .map(
-      (cue, i) => `${i + 1}\n${formatSrtTime(cue.start)} --> ${formatSrtTime(cue.end)}\n${cue.text}\n`,
+      (cue) =>
+        `Dialogue: 0,${formatAssTime(cue.start)},${formatAssTime(cue.end)},Default,,0,0,0,,${cue.text.replace(/[{}]/g, "")}`,
     )
     .join("\n");
+
+  return header + events + "\n";
 }

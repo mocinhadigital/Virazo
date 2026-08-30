@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check } from "lucide-react";
+import { DROPDOWN_MENU_CLASSNAME, DropdownOption } from "./dropdown-shared";
 
 type ComboboxProps = {
   value: string;
@@ -86,34 +86,24 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
             ref={menuRef}
             role="listbox"
             style={{ position: "fixed", top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
-            className="z-[100] max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-[#14141f] p-1.5 shadow-2xl shadow-black/50"
+            className={DROPDOWN_MENU_CLASSNAME}
           >
             {filtered.length === 0 && (
               <p className="px-3 py-2 text-xs text-zinc-500">
                 Nenhuma sugestão encontrada — seu texto será usado como nicho personalizado.
               </p>
             )}
-            {filtered.map((option) => {
-              const isSelected = option.toLowerCase() === query;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  onClick={() => {
-                    onChange(option);
-                    setOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    isSelected ? "bg-[#FF6B5B]/15 text-white" : "text-zinc-300 hover:bg-white/[0.06]"
-                  }`}
-                >
-                  <span className="truncate">{option}</span>
-                  {isSelected && <Check className="h-4 w-4 shrink-0 text-[#FF6B5B]" />}
-                </button>
-              );
-            })}
+            {filtered.map((option) => (
+              <DropdownOption
+                key={option}
+                label={option}
+                isSelected={option.toLowerCase() === query}
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+              />
+            ))}
             {query && !hasExactMatch && (
               <button
                 type="button"

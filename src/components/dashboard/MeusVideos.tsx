@@ -99,6 +99,7 @@ export default function MeusVideos() {
   }
 
   async function handleDelete(video: VideoRecord) {
+    console.log("[DELETE REAL] HANDLER INICIO", video.id);
     if (!confirm("Tem certeza que deseja excluir este vídeo?")) return;
     setDeletingId(video.id);
     setRetryError(null);
@@ -160,6 +161,7 @@ export default function MeusVideos() {
       // isso já, sem esperar o Storage. A limpeza dos arquivos roda à parte
       // (nem é esperada aqui), então mesmo que trave ou falhe não segura o
       // botão nem o card por mais um segundo sequer.
+      console.log("[DELETE REAL] SUCESSO", video.id);
       removeVideo(video.id);
       void refetchVideos();
 
@@ -361,7 +363,10 @@ function VideoRow({
             <button
               type="button"
               disabled={isRetrying || isDeleting}
-              onClick={onDelete}
+              onClick={() => {
+                console.log("[DELETE REAL] CLIQUE", video.id, video.title);
+                onDelete();
+              }}
               className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}

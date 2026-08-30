@@ -18,6 +18,19 @@ import { useDashboard } from "./DashboardContext";
 import { createClient } from "@/utils/supabase/client";
 import type { VideoRecord, VideoStatus } from "./types";
 
+// `finally` só executa quando uma Promise resolve OU rejeita — se uma
+// chamada de rede travar (sem resposta, sem erro, sem timeout próprio),
+// nada dispara e o botão fica girando pra sempre. Isso força um limite de
+// tempo em qualquer chamada ao Supabase usada na exclusão.
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} demorou demais e foi cancelado.`)), ms),
+    ),
+  ]);
+}
+
 // Reutiliza os mesmos dados já carregados no DashboardContext (populados em
 // dashboard/layout.tsx com `select("*")` na tabela `videos`, sem limite) —
 // já inclui tanto vídeos manuais quanto os gerados por Séries (distinguidos
@@ -88,11 +101,11 @@ export default function MeusVideos() {
       // sucesso (sem `error`) mesmo quando o RLS bloqueia silenciosamente e
       // 0 linhas são afetadas — o que faria o card sumir da tela sem o
       // registro ter sido excluído de fato no banco.
-      const { data: deletedRows, error: deleteError } = await supabase
-        .from("videos")
-        .delete()
-        .eq("id", video.id)
-        .select("id");
+      const { data: deletedRows, error: deleteError } = await withTimeout(
+        supabase.from("videos").delete().eq("id", video.id).select("id"),
+        15000,
+        "Exclusão do vídeo",
+      );
 
       if (deleteError) {
         console.error("[MeusVideos] falha ao excluir vídeo:", video.id, deleteError);
@@ -109,11 +122,11 @@ export default function MeusVideos() {
         // Sem checar qual dos dois é, tratávamos as duas como erro e nunca
         // tirávamos o card da tela mesmo quando o vídeo já tinha sumido do
         // banco de fato.
-        const { data: stillExists, error: checkError } = await supabase
-          .from("videos")
-          .select("id")
-          .eq("id", video.id)
-          .maybeSingle();
+        const { data: stillExists, error: checkError } = await withTimeout(
+          supabase.from("videos").select("id").eq("id", video.id).maybeSingle(),
+          10000,
+          "Verificação do vídeo",
+        );
 
         if (!stillExists && !checkError) {
           console.warn(
@@ -133,25 +146,30 @@ export default function MeusVideos() {
         return;
       }
 
-      // Best effort: apaga o arquivo do Storage também, mas uma falha aqui
-      // não pode impedir a exclusão do registro (já confirmada acima).
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          const { error: storageError } = await supabase.storage
-            .from("videos")
-            .remove([`${user.id}/${video.id}.mp4`, `${user.id}/${video.id}-thumb.jpg`]);
+      // O registro já foi confirmadamente excluído do banco — a tela reflete
+      // isso já, sem esperar o Storage. A limpeza dos arquivos roda à parte
+      // (nem é esperada aqui), então mesmo que trave ou falhe não segura o
+      // botão nem o card por mais um segundo sequer.
+      removeVideo(video.id);
+
+      void (async () => {
+        try {
+          const {
+            data: { user },
+          } = await withTimeout(supabase.auth.getUser(), 8000, "Verificação de sessão");
+          if (!user) return;
+          const { error: storageError } = await withTimeout(
+            supabase.storage.from("videos").remove([`${user.id}/${video.id}.mp4`, `${user.id}/${video.id}-thumb.jpg`]),
+            8000,
+            "Limpeza do Storage",
+          );
           if (storageError) {
             console.warn("[MeusVideos] não foi possível remover arquivos do Storage:", storageError);
           }
+        } catch (storageErr) {
+          console.warn("[MeusVideos] erro inesperado ao remover arquivos do Storage:", storageErr);
         }
-      } catch (storageErr) {
-        console.warn("[MeusVideos] erro inesperado ao remover arquivos do Storage:", storageErr);
-      }
-
-      removeVideo(video.id);
+      })();
     } catch (err) {
       console.error("[MeusVideos] erro inesperado ao excluir vídeo:", video.id, err);
       setRetryError(err instanceof Error ? err.message : "Não foi possível excluir o vídeo.");

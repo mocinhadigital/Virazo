@@ -2,6 +2,7 @@ import CreateVideoCard from "@/components/dashboard/CreateVideoCard";
 import StatsRow from "@/components/dashboard/StatsRow";
 import StylePicker from "@/components/dashboard/StylePicker";
 import RecentVideos from "@/components/dashboard/RecentVideos";
+import SeriesSummaryCard from "@/components/dashboard/series/SeriesSummaryCard";
 
 export default function DashboardPage() {
   return (
@@ -16,6 +17,7 @@ export default function DashboardPage() {
       </div>
 
       <CreateVideoCard />
+      <SeriesSummaryCard />
       <StatsRow />
       <StylePicker />
       <RecentVideos />

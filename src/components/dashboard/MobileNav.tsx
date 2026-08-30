@@ -27,10 +27,13 @@ export default function MobileNav() {
           </span>
         </Link>
 
-        <span className="flex flex-col items-center gap-1 px-2 py-1 text-zinc-600">
+        <Link
+          href="/dashboard/configuracoes"
+          className="flex flex-col items-center gap-1 px-2 py-1 text-zinc-400"
+        >
           <Settings className="h-5 w-5" strokeWidth={2} />
           <span className="text-[10px] font-medium">Config</span>
-        </span>
+        </Link>
 
         <span className="flex flex-col items-center gap-1 px-2 py-1">
           <span className="h-5 w-5 rounded-full bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] ring-2 ring-white/10" />

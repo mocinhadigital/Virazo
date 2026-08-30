@@ -14,5 +14,5 @@ export const navItems: NavItem[] = [
   { label: "Séries", href: "/dashboard/series", icon: Sparkles },
   { label: "Meus vídeos", href: "/dashboard/videos", icon: Film },
   { label: "Planos", href: "/dashboard/planos", icon: CreditCard },
-  { label: "Configurações", href: "#", icon: Settings, soon: true },
+  { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
 ];

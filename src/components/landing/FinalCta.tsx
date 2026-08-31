@@ -25,9 +25,6 @@ export default function FinalCta() {
               Começar agora gratuitamente
             </Link>
           </div>
-          <p className="mt-4 text-xs text-white/70">
-            Não precisa de cartão de crédito · Cancele quando quiser
-          </p>
         </div>
       </div>
     </section>

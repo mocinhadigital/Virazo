@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Star, Wand2 } from "lucide-react";
 
-const avatarGradients = [
-  "from-amber-400 to-orange-500",
-  "from-emerald-400 to-teal-500",
-  "from-sky-400 to-blue-500",
-  "from-orange-400 to-rose-500",
+const AVATARS = [
+  "/assets/avatars/avatar-1.webp",
+  "/assets/avatars/avatar-2.webp",
+  "/assets/avatars/avatar-3.webp",
+  "/assets/avatars/avatar-4.webp",
 ];
 
 export default function Hero() {
@@ -18,10 +18,14 @@ export default function Hero() {
         <div className="mx-auto flex max-w-md flex-col items-center text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1.5 pr-3 text-xs font-medium text-zinc-300">
             <div className="flex -space-x-1.5">
-              {avatarGradients.map((gradient, i) => (
-                <span
-                  key={i}
-                  className={`h-5 w-5 rounded-full bg-gradient-to-br ${gradient} ring-2 ring-[#05050a]`}
+              {AVATARS.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={src}
+                  src={src}
+                  alt=""
+                  className="h-5 w-5 rounded-full object-cover ring-2 ring-[#05050a]"
+                  style={{ zIndex: AVATARS.length - i }}
                 />
               ))}
             </div>

@@ -6,39 +6,44 @@ import SectionHeading from "./SectionHeading";
 
 const FAQ_ITEMS = [
   {
-    question: "O que é uma \"série\" no Virazo?",
+    question: "O que é uma série?",
     answer:
-      "Uma série é um fluxo de vídeos com o mesmo nicho, tom de voz e estilo visual. Você configura uma vez e gera novos vídeos dentro dela sempre que quiser, respeitando o limite de séries simultâneas do seu plano.",
+      "Uma série é um fluxo de vídeos com o mesmo nicho, tom de voz e estilo visual. Você configura uma vez e a IA gera novos vídeos dentro dela sempre que quiser, respeitando o limite de séries simultâneas do seu plano.",
   },
   {
-    question: "Posso editar o vídeo depois que a IA gera?",
+    question: "Preciso saber editar vídeo?",
     answer:
-      "Você revisa e ajusta tema, estilo visual, categoria, duração, voz e legenda antes de gerar. Depois de pronto, o vídeo pode ser baixado e editado em qualquer editor externo, se quiser um ajuste fino.",
+      "Não. Você escolhe tema, estilo visual, duração, voz e legenda antes de gerar, e a IA cuida de roteiro, narração, imagens e montagem. O vídeo pronto pode ser baixado e ajustado num editor externo se quiser um refino manual.",
   },
   {
-    question: "Em quais plataformas posso postar os vídeos?",
+    question: "Quais plataformas funcionam?",
     answer:
-      "Os vídeos saem no formato vertical (9:16), ideal para Reels, TikTok e YouTube Shorts. Hoje você baixa o arquivo pronto e publica manualmente na plataforma escolhida.",
+      "Os vídeos saem no formato vertical (9:16), ideal para Reels, TikTok e YouTube Shorts.",
+  },
+  {
+    question: "Como os vídeos são publicados?",
+    answer:
+      "Hoje você baixa o arquivo pronto direto do painel e publica manualmente na plataforma escolhida.",
+  },
+  {
+    question: "Em que idioma os vídeos são feitos?",
+    answer:
+      "Ao criar uma série você escolhe o idioma — português, inglês ou espanhol —, e roteiro, narração e legenda saem nesse idioma.",
+  },
+  {
+    question: "Quantos vídeos posso criar por mês?",
+    answer:
+      "De acordo com o plano escolhido: cada plano tem uma quantidade de créditos por mês (1 crédito = 1 vídeo) e um limite de séries geradas ao mesmo tempo.",
+  },
+  {
+    question: "Posso cancelar quando quiser?",
+    answer:
+      "Sim, o cancelamento é feito a qualquer momento direto pela Stripe, sem multa. Você continua com acesso até o fim do período já pago.",
   },
   {
     question: "Meus dados e pagamentos estão seguros?",
     answer:
       "Sim. A autenticação usa Supabase com criptografia padrão de mercado, e os pagamentos são processados pela Stripe — o Virazo nunca armazena os dados do seu cartão.",
-  },
-  {
-    question: "Os vídeos podem ser gerados em outros idiomas?",
-    answer:
-      "Hoje o roteiro e a narração são gerados em português do Brasil. Suporte a outros idiomas está no radar para versões futuras.",
-  },
-  {
-    question: "Existe limite de vídeos que posso gerar?",
-    answer:
-      "Sim, de acordo com o plano escolhido: cada plano tem uma quantidade de créditos por mês (1 crédito = 1 vídeo) e um limite de séries geradas ao mesmo tempo.",
-  },
-  {
-    question: "Posso cancelar minha assinatura quando quiser?",
-    answer:
-      "Sim, o cancelamento é feito a qualquer momento direto pela Stripe, sem multa. Você continua com acesso até o fim do período já pago.",
   },
 ];
 

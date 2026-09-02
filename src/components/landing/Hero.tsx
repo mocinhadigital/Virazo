@@ -32,14 +32,12 @@ export default function Hero() {
           </div>
 
           <h1 className="mt-5 text-[2.5rem] font-bold leading-[1.05] tracking-tight text-white sm:text-5xl">
-            Vídeos virais,
-            <br />
-            <span className="text-gradient">sem você aparecer</span>
+            Vídeos virais no piloto automático,{" "}
+            <span className="text-gradient">sem precisar aparecer</span>
           </h1>
 
           <p className="mt-4 max-w-[300px] text-sm leading-snug text-zinc-400 sm:max-w-sm sm:text-base">
-            Roteiro, narração, legenda e edição gerados por IA — pronto pra
-            postar em minutos.
+            A IA cria seus vídeos todos os dias. Você só posta.
           </p>
 
           <Link
@@ -47,11 +45,11 @@ export default function Hero() {
             className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#FF6B5B]/25 transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
           >
             <Wand2 className="h-4 w-4" />
-            Criar meu vídeo grátis
+            Criar meu primeiro vídeo
           </Link>
 
           <p className="mt-3 text-xs text-zinc-500">
-            Grátis para começar · sem cartão de crédito
+            Seu primeiro vídeo pronto em menos de 5 minutos.
           </p>
         </div>
       </div>

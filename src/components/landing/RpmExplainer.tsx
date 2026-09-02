@@ -46,6 +46,21 @@ export default function RpmExplainer() {
           Faixa aproximada por mil visualizações monetizadas — varia por nicho, idioma e
           audiência.
         </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {["rpm-1.webp", "rpm-2.webp", "rpm-3.webp"].map((file) => (
+            <div key={file} className="overflow-hidden rounded-2xl border border-white/10 bg-white p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/assets/rpm/${file}`}
+                alt="Print de painel de monetização mostrando o RPM"
+                className="w-full rounded-lg"
+                loading="lazy"
+              />
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-center text-xs text-zinc-500">Prints reais de painéis de monetização.</p>
       </div>
     </section>
   );

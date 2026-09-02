@@ -1,4 +1,29 @@
+import Link from "next/link";
 import { Sparkles } from "lucide-react";
+
+const COLUMNS = [
+  {
+    title: "Produto",
+    links: [
+      { label: "Como funciona", href: "/#como-funciona" },
+      { label: "FAQ", href: "/#faq" },
+    ],
+  },
+  {
+    title: "Empresa",
+    links: [
+      { label: "Sobre", href: "/sobre" },
+      { label: "Contato", href: "/contato" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Termos de uso", href: "/termos" },
+      { label: "Privacidade", href: "/privacidade" },
+    ],
+  },
+];
 
 export default function Footer() {
   return (
@@ -12,24 +37,23 @@ export default function Footer() {
             <span className="text-sm font-semibold text-white">Virazo</span>
           </a>
 
-          <div className="grid grid-cols-2 gap-8 sm:flex sm:gap-16">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Produto
-              </h3>
-              <ul className="mt-3 flex flex-col gap-2">
-                <li>
-                  <a href="#como-funciona" className="text-sm text-zinc-400 hover:text-white">
-                    Como funciona
-                  </a>
-                </li>
-                <li>
-                  <a href="#faq" className="text-sm text-zinc-400 hover:text-white">
-                    FAQ
-                  </a>
-                </li>
-              </ul>
-            </div>
+          <div className="grid grid-cols-3 gap-8 sm:flex sm:gap-16">
+            {COLUMNS.map(({ title, links }) => (
+              <div key={title}>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  {title}
+                </h3>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {links.map(({ label, href }) => (
+                    <li key={label}>
+                      <Link href={href} className="text-sm text-zinc-400 hover:text-white">
+                        {label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
 

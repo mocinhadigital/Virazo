@@ -127,7 +127,7 @@ function LoginForm() {
 
       <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6">
         <Link href="/" className="mb-8 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">
             <Sparkles className="h-4 w-4 text-white" strokeWidth={2.5} />
           </span>
           <span className="text-lg font-semibold tracking-tight text-white">
@@ -212,7 +212,7 @@ function LoginForm() {
                   <span className="mb-1.5 block text-xs font-medium text-zinc-400">
                     E-mail
                   </span>
-                  <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 transition-colors focus-within:border-[#FF6B5B]/50">
+                  <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 transition-colors focus-within:border-[#4C3BFF]/50">
                     <Mail className="h-4 w-4 shrink-0 text-zinc-500" />
                     <input
                       type="email"
@@ -229,7 +229,7 @@ function LoginForm() {
                   <span className="mb-1.5 block text-xs font-medium text-zinc-400">
                     Senha
                   </span>
-                  <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 transition-colors focus-within:border-[#FF6B5B]/50">
+                  <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 transition-colors focus-within:border-[#4C3BFF]/50">
                     <Lock className="h-4 w-4 shrink-0 text-zinc-500" />
                     <input
                       type="password"
@@ -257,7 +257,7 @@ function LoginForm() {
                 <button
                   type="submit"
                   disabled={isBusy}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-4 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#FF6B5B]/25 transition-transform active:scale-95 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loadingEmail ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

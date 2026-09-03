@@ -3,18 +3,29 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-// Estrutura pronta pra carrossel — hoje só existe 1 conjunto de conteúdo
-// real/autorizado (@desired.history). Adicionar mais contas aqui é só
-// crescer este array; setas e indicadores já se ajustam sozinhos à
-// quantidade de itens.
 const ACCOUNTS = [
   {
     name: "Desired.H",
     handle: "@desired.history",
     avatar: "/assets/avatars/desired-history.webp",
     screenshot: "/assets/screenshots/prova-1.webp",
+    platform: "tiktok",
   },
-];
+  {
+    name: "USA True Story",
+    handle: "@usa.true.story",
+    avatar: "/assets/avatars/usa-true-story.jpg",
+    screenshot: "/assets/screenshots/usa-true-story.jpg",
+    platform: "youtube",
+  },
+  {
+    name: "Haunted Tales",
+    handle: "@world.wide.story",
+    avatar: "/assets/avatars/haunted-tales.jpg",
+    screenshot: "/assets/screenshots/haunted-tales.jpg",
+    platform: "instagram",
+  },
+] as const;
 
 function TikTokIcon({ className }: { className?: string }) {
   return (
@@ -24,9 +35,34 @@ function TikTokIcon({ className }: { className?: string }) {
   );
 }
 
+function YoutubeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M22.5 6.19a2.78 2.78 0 0 0-1.96-1.97C18.88 3.75 12 3.75 12 3.75s-6.88 0-8.54.47A2.78 2.78 0 0 0 1.5 6.19 29 29 0 0 0 1 12a29 29 0 0 0 .5 5.81 2.78 2.78 0 0 0 1.96 1.97c1.66.47 8.54.47 8.54.47s6.88 0 8.54-.47a2.78 2.78 0 0 0 1.96-1.97A29 29 0 0 0 23 12a29 29 0 0 0-.5-5.81ZM9.75 15.5v-7L15.5 12l-5.75 3.5Z" />
+    </svg>
+  );
+}
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+const PLATFORM_ICON = {
+  tiktok: TikTokIcon,
+  youtube: YoutubeIcon,
+  instagram: InstagramIcon,
+} as const;
+
 export default function RealAccounts() {
   const [index, setIndex] = useState(0);
   const account = ACCOUNTS[index];
+  const PlatformIcon = PLATFORM_ICON[account.platform];
 
   function goPrev() {
     setIndex((i) => (i - 1 + ACCOUNTS.length) % ACCOUNTS.length);
@@ -66,6 +102,7 @@ export default function RealAccounts() {
 
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              key={account.screenshot}
               src={account.screenshot}
               alt={`Print de vídeos com alta visualização da conta ${account.handle}`}
               className="w-full"
@@ -76,6 +113,7 @@ export default function RealAccounts() {
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
+                  key={account.avatar}
                   src={account.avatar}
                   alt={account.name}
                   className="h-10 w-10 rounded-full object-cover"
@@ -86,7 +124,7 @@ export default function RealAccounts() {
                   <p className="text-xs text-zinc-500">{account.handle}</p>
                 </div>
               </div>
-              <TikTokIcon className="h-5 w-5 shrink-0 text-white" />
+              <PlatformIcon className="h-5 w-5 shrink-0 text-white" />
             </div>
           </div>
 

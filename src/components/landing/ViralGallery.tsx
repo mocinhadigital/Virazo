@@ -13,8 +13,10 @@ const FILES = [
 ];
 
 export default function ViralGallery() {
+  const looped = [...FILES, ...FILES];
+
   return (
-    <section className="overflow-hidden py-10 sm:py-14">
+    <section className="py-10 sm:py-14">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-left text-lg font-semibold text-white sm:text-xl">
           Nossos estilos de vídeo virais
@@ -22,27 +24,25 @@ export default function ViralGallery() {
         <ChevronDown className="mt-1.5 h-4 w-4 text-zinc-600" />
       </div>
 
-      <div className="relative mt-4 sm:mt-5">
+      <div className="relative mt-4 overflow-hidden sm:mt-5">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#05050a] to-transparent sm:w-24" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#05050a] to-transparent sm:w-24" />
 
-        <div className="mx-auto max-w-6xl pl-4 sm:pl-6 lg:pl-8">
-          <div className="scrollbar-none flex gap-3 overflow-x-auto pb-1">
-            {FILES.map((file) => (
-              <div
-                key={file}
-                className="w-44 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] sm:w-56 lg:w-64"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/assets/viral/${file}`}
-                  alt="Exemplo de vídeo viral gerado"
-                  className="aspect-[9/16] w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            ))}
-            <div className="w-1 shrink-0 sm:w-2" aria-hidden="true" />
-          </div>
+        <div className="animate-marquee flex w-max gap-3 hover:[animation-play-state:paused]">
+          {looped.map((file, i) => (
+            <div
+              key={`${file}-${i}`}
+              className="w-44 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] sm:w-56 lg:w-64"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/assets/viral/${file}`}
+                alt="Exemplo de vídeo viral gerado"
+                className="aspect-[9/16] w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          ))}
         </div>
       </div>
     </section>

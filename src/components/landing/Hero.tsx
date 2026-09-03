@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Star, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 
 const AVATARS = [
   "/assets/avatars/avatar-1.webp",
@@ -28,10 +28,7 @@ export default function Hero() {
                 />
               ))}
             </div>
-            <span className="flex items-center gap-1.5">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              4,9 · +12 mil criadores
-            </span>
+            <span>Mais de 2.000 criadores</span>
           </div>
 
           <h1 className="mt-8 max-w-[780px] text-5xl font-extrabold leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-[80px]">

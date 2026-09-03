@@ -1,5 +1,3 @@
-import SectionHeading from "./SectionHeading";
-
 const RPM_USD = 1.0;
 const USD_TO_BRL = 5.07;
 
@@ -23,15 +21,16 @@ function formatBRL(value: number): string {
 
 export default function EarningsExamples() {
   return (
-    <section className="py-20 sm:py-28">
+    <section className="py-10">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="Potencial de ganho"
-          title="E quanto isso rende?"
-          description="Assumindo um RPM médio de US$ 1,00, esse é o potencial de vídeos como os nossos:"
-        />
+        <h2 className="text-left text-[48px] leading-[1.15] font-semibold text-white/90">
+          E quanto isso rende?
+        </h2>
+        <p className="mt-4 max-w-[46ch] text-left text-[17px] leading-[1.6] text-white/55">
+          Assumindo um RPM médio de US$ 1,00, esse é o potencial de vídeos como os nossos:
+        </p>
 
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {EXAMPLES.map(({ file, views, brl, usd }) => (
             <div key={file} className="card-glass overflow-hidden rounded-2xl">
               <div className="relative aspect-[9/16] w-full">

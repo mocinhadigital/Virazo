@@ -51,7 +51,7 @@ export default function Comparison() {
         </div>
       </div>
 
-      <div className="mt-10 flex justify-center px-5">
+      <div className="mt-20 flex justify-center px-5">
         <Link
           href="/login?mode=signup"
           className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-medium text-white"

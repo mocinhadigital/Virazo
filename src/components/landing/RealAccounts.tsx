@@ -72,7 +72,7 @@ export default function RealAccounts() {
   }
 
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10">
       <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
         <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
           Contas reais e virais

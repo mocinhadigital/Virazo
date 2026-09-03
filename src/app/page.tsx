@@ -3,17 +3,11 @@ import Hero from "@/components/landing/Hero";
 import ViralGallery from "@/components/landing/ViralGallery";
 import GuidedTour from "@/components/landing/GuidedTour";
 import RealAccounts from "@/components/landing/RealAccounts";
-import StylesCarousel from "@/components/landing/StylesCarousel";
-import VideoStyles from "@/components/landing/VideoStyles";
-import Benefits from "@/components/landing/Benefits";
 import EarningsExamples from "@/components/landing/EarningsExamples";
 import RpmExplainer from "@/components/landing/RpmExplainer";
 import Comparison from "@/components/landing/Comparison";
 import Testimonials from "@/components/landing/Testimonials";
-import GrowthExample from "@/components/landing/GrowthExample";
-import HowItWorks from "@/components/landing/HowItWorks";
 import Faq from "@/components/landing/Faq";
-import FinalCta from "@/components/landing/FinalCta";
 import Footer from "@/components/landing/Footer";
 
 export default function Home() {
@@ -25,17 +19,11 @@ export default function Home() {
         <ViralGallery />
         <GuidedTour />
         <RealAccounts />
-        <StylesCarousel />
-        <VideoStyles />
         <EarningsExamples />
         <RpmExplainer />
         <Comparison />
         <Testimonials />
-        <Benefits />
-        <GrowthExample />
-        <HowItWorks />
         <Faq />
-        <FinalCta />
       </main>
       <Footer />
     </div>

@@ -1,4 +1,3 @@
-import { TrendingUp } from "lucide-react";
 import SectionHeading from "./SectionHeading";
 
 const RPM_USD = 1.0;
@@ -43,11 +42,6 @@ export default function EarningsExamples() {
                   className="absolute inset-0 h-full w-full object-cover"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-black/10" />
-                <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                  <TrendingUp className="h-3 w-3" />
-                  {formatViews(views)}
-                </span>
               </div>
               <div className="p-3">
                 <p className="text-[11px] text-zinc-500">

@@ -26,7 +26,7 @@ export default function Comparison() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Comparativo"
-          title="Existem 3 jeitos de fazer isso"
+          title="Compare as opções"
           description="Compare o custo e o esforço de cada caminho."
         />
 

@@ -14,15 +14,15 @@ const ACCOUNTS = [
   {
     name: "USA True Story",
     handle: "@usa.true.story",
-    avatar: "/assets/avatars/usa-true-story.jpg",
-    screenshot: "/assets/screenshots/usa-true-story.jpg",
+    avatar: "/assets/avatars/usa-true-story.png",
+    screenshot: "/assets/screenshots/usa-true-story.png",
     platform: "youtube",
   },
   {
     name: "Haunted Tales",
     handle: "@world.wide.story",
-    avatar: "/assets/avatars/haunted-tales.jpg",
-    screenshot: "/assets/screenshots/haunted-tales.jpg",
+    avatar: "/assets/avatars/haunted-tales.png",
+    screenshot: "/assets/screenshots/haunted-tales.png",
     platform: "instagram",
   },
 ] as const;

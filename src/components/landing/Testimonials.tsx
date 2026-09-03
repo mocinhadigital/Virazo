@@ -1,5 +1,3 @@
-import SectionHeading from "./SectionHeading";
-
 const TESTIMONIALS = [
   {
     name: "Lucas M.",
@@ -35,35 +33,31 @@ const TESTIMONIALS = [
 
 export default function Testimonials() {
   return (
-    <section className="py-20 sm:py-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="Depoimentos"
-          title="Quem usa, recomenda"
-          description="Feedback de criadores que automatizaram a produção de vídeo com o Virazo."
-        />
-
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <section className="py-10">
+      <div className="mx-auto max-w-[1100px] px-6">
+        <div className="grid gap-4 md:grid-cols-3 md:gap-5">
           {TESTIMONIALS.map(({ name, avatar, initial, quote }) => (
-            <div key={name} className="card-glass rounded-2xl p-5">
+            <figure key={name} className="h-full rounded-[20px] bg-[#141416] p-6">
               <div className="flex items-center gap-3">
                 {avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={avatar}
                     alt={name}
-                    className="h-10 w-10 rounded-full object-cover"
+                    className="size-9 rounded-full object-cover"
                     loading="lazy"
                   />
                 ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] text-sm font-semibold text-white">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-white/[0.08] text-[13px] font-semibold text-white/55">
                     {initial}
                   </span>
                 )}
-                <span className="text-sm font-semibold text-white">{name}</span>
+                <figcaption className="text-[14px] font-medium text-white/90">{name}</figcaption>
               </div>
-              <p className="mt-3.5 text-sm leading-relaxed text-zinc-400">&ldquo;{quote}&rdquo;</p>
-            </div>
+              <blockquote className="mt-4 text-[15px] leading-relaxed text-white/55">
+                {quote}
+              </blockquote>
+            </figure>
           ))}
         </div>
       </div>

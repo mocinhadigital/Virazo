@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import SectionHeading from "./SectionHeading";
 
 const FAQ_ITEMS = [
   {
@@ -51,40 +49,34 @@ export default function Faq() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="py-20 sm:py-28">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="Dúvidas frequentes"
-          title="Perguntas frequentes"
-          description="Não achou o que procurava? Fale com a gente antes de assinar."
-        />
+    <section id="faq" className="py-10">
+      <div className="mx-auto max-w-[760px] px-6">
+        <h2 className="text-left text-[48px] leading-[1.15] font-semibold text-white/90">
+          Perguntas frequentes
+        </h2>
 
-        <div className="mt-10 flex flex-col gap-3">
+        <ul className="mt-12">
           {FAQ_ITEMS.map((item, index) => {
             const isOpen = openIndex === index;
             return (
-              <div key={item.question} className="card-glass overflow-hidden rounded-2xl">
+              <li key={item.question} className="border-b border-white/[0.08]">
                 <button
                   type="button"
                   onClick={() => setOpenIndex(isOpen ? null : index)}
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                  className="flex w-full items-center justify-between gap-6 py-5 text-left"
                 >
-                  <span className="text-sm font-semibold text-white sm:text-base">
-                    {item.question}
+                  <span className="text-[16px] font-medium text-white/90">{item.question}</span>
+                  <span className="text-[20px] leading-none text-white/35">
+                    {isOpen ? "−" : "+"}
                   </span>
-                  <ChevronDown
-                    className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
-                  />
                 </button>
                 {isOpen && (
-                  <p className="px-5 pb-4 text-sm leading-relaxed text-zinc-400">{item.answer}</p>
+                  <p className="pb-5 text-[15px] leading-relaxed text-white/55">{item.answer}</p>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
     </section>
   );

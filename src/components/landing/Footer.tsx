@@ -31,7 +31,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-8 sm:flex-row sm:justify-between">
           <a href="#topo" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
               <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
             </span>
             <span className="text-sm font-semibold text-white">Virazo</span>

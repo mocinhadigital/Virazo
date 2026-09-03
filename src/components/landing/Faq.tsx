@@ -51,7 +51,7 @@ export default function Faq() {
   return (
     <section id="faq" className="py-10">
       <div className="mx-auto max-w-[760px] px-6">
-        <h2 className="text-left text-[48px] leading-[1.15] font-semibold text-white/90">
+        <h2 className="mt-4 text-left text-[48px] leading-[1.15] font-semibold text-white/90">
           Perguntas frequentes
         </h2>
 

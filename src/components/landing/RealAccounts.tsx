@@ -9,8 +9,15 @@ export default function RealAccounts() {
           Milhões de visualizações automatizadas.
         </p>
 
-        <div className="card-glass mt-8 overflow-hidden rounded-2xl text-left">
-          <div className="flex items-center gap-3 border-b border-white/[0.06] p-4">
+        <div className="card-glass mt-12 overflow-hidden rounded-2xl text-left sm:mt-14">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/screenshots/prova-1.webp"
+            alt="Print de vídeos com alta visualização da conta @desired.history"
+            className="w-full"
+            loading="lazy"
+          />
+          <div className="flex items-center gap-3 border-t border-white/[0.06] p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/assets/avatars/desired-history.webp"
@@ -23,13 +30,6 @@ export default function RealAccounts() {
               <p className="text-xs text-zinc-500">@desired.history</p>
             </div>
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/assets/screenshots/prova-1.webp"
-            alt="Print de vídeos com alta visualização da conta @desired.history"
-            className="w-full"
-            loading="lazy"
-          />
         </div>
       </div>
     </section>

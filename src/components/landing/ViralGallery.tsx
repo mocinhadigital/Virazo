@@ -1,4 +1,4 @@
-import SectionHeading from "./SectionHeading";
+import { ChevronDown } from "lucide-react";
 
 const FILES = [
   "v-32m.webp",
@@ -16,16 +16,15 @@ export default function ViralGallery() {
   const looped = [...FILES, ...FILES];
 
   return (
-    <section className="py-16 sm:py-24">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="Exemplos reais"
-          title="Nossos estilos de vídeo virais"
-          description="Vídeos gerados no formato certo para viralizar — retrato, legendado, pronto pra postar."
-        />
+    <section className="py-12 sm:py-16">
+      <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
+        <h2 className="text-lg font-semibold text-white sm:text-xl">
+          Nossos estilos de vídeo virais
+        </h2>
+        <ChevronDown className="mx-auto mt-2 h-4 w-4 text-zinc-600" />
       </div>
 
-      <div className="relative mt-8 overflow-hidden sm:mt-10">
+      <div className="relative mt-6 overflow-hidden sm:mt-8">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[#05050a] to-transparent sm:w-32" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[#05050a] to-transparent sm:w-32" />
 

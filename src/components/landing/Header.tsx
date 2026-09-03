@@ -50,7 +50,7 @@ export default function Header() {
           </Link>
           <Link
             href="/login?mode=signup"
-            className="rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#FF6B5B]/20 transition-transform active:scale-95 sm:hover:scale-[1.03]"
+            className="rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-600/20 transition-transform active:scale-95 sm:hover:scale-[1.03]"
           >
             Começar agora
           </Link>

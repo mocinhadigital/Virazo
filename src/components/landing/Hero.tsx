@@ -10,7 +10,7 @@ const AVATARS = [
 
 export default function Hero() {
   return (
-    <section id="topo" className="relative overflow-hidden pt-20 pb-24 sm:pt-28 sm:pb-32">
+    <section id="topo" className="relative overflow-hidden pt-20 pb-24 sm:pt-28">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_50%_at_50%_0%,rgba(99,102,241,0.18)_0%,rgba(5,5,10,0)_70%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[320px] noise-grid" />
 

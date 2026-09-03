@@ -1,5 +1,3 @@
-import { ChevronDown } from "lucide-react";
-
 const FILES = [
   "v-32m.webp",
   "v-11-4m.webp",
@@ -16,15 +14,24 @@ export default function ViralGallery() {
   const looped = [...FILES, ...FILES];
 
   return (
-    <section className="py-10 sm:py-14">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-left text-lg font-semibold text-white sm:text-xl">
+    <section className="pt-0 pb-10 sm:pb-14">
+      <div className="mx-auto flex max-w-6xl flex-col items-start px-4 sm:px-6 lg:px-8">
+        <h2 className="text-left text-[15px] font-semibold text-white/90">
           Nossos estilos de vídeo virais
         </h2>
-        <ChevronDown className="mt-1.5 h-4 w-4 text-zinc-600" />
+        <svg
+          viewBox="0 0 48 60"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          className="mt-2 h-11 w-11 text-white/35"
+        >
+          <path d="M20 8C15 24 33 30 24 48" />
+          <path d="M15 40l9 9 9-9" />
+        </svg>
       </div>
 
-      <div className="relative mt-4 overflow-hidden sm:mt-5">
+      <div className="relative mt-5 overflow-hidden">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#05050a] to-transparent sm:w-24" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#05050a] to-transparent sm:w-24" />
 

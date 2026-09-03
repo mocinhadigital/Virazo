@@ -25,10 +25,10 @@ export default async function DashboardLayout({
     await Promise.all([
       supabase
         .from("profiles")
-        .select("credits")
+        .select("credits, full_name")
         .eq("id", user.id)
         .maybeSingle()
-        .returns<{ credits: number }>(),
+        .returns<{ credits: number; full_name: string | null }>(),
       supabase
         .from("videos")
         .select("*")
@@ -42,11 +42,12 @@ export default async function DashboardLayout({
 
   const initialCredits = profile?.credits ?? 0;
   const initialVideos = (videoRows ?? []).map(mapVideoRow);
+  const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (
     <DashboardProvider initialCredits={initialCredits} initialVideos={initialVideos}>
       <div className="min-h-screen bg-[#05050a]">
-        <Sidebar />
+        <Sidebar userName={displayName} />
         <div className="flex min-h-screen flex-col lg:pl-64">
           <TopBar />
           <main className="flex-1 px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10">

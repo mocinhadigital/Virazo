@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Wand2, Film, Sparkles, CreditCard, Settings } from "lucide-react";
+import { Sparkles, Film, BookOpen, MessageCircle, Settings } from "lucide-react";
 
 export type NavItem = {
   label: string;
@@ -9,10 +9,9 @@ export type NavItem = {
 };
 
 export const navItems: NavItem[] = [
-  { label: "Painel", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Criar vídeo", href: "/dashboard#criar", icon: Wand2 },
   { label: "Séries", href: "/dashboard/series", icon: Sparkles },
-  { label: "Meus vídeos", href: "/dashboard/videos", icon: Film },
-  { label: "Planos", href: "/dashboard/planos", icon: CreditCard },
+  { label: "Vídeos", href: "/dashboard/videos", icon: Film },
+  { label: "Guias", href: "/dashboard/guias", icon: BookOpen },
+  { label: "Fale Conosco", href: "/dashboard/contato", icon: MessageCircle },
   { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
 ];

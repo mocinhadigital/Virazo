@@ -1,16 +1,15 @@
-import SectionHeading from "./SectionHeading";
-
 export default function RealAccounts() {
   return (
-    <section className="py-20 sm:py-28">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="Prova real"
-          title="Contas reais e virais"
-          description="Milhões de visualizações automatizadas."
-        />
+    <section className="py-16 sm:py-20">
+      <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+        <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+          Contas reais e virais
+        </h2>
+        <p className="mt-3 text-base text-zinc-400 sm:text-lg">
+          Milhões de visualizações automatizadas.
+        </p>
 
-        <div className="card-glass mt-10 overflow-hidden rounded-2xl">
+        <div className="card-glass mt-8 overflow-hidden rounded-2xl text-left">
           <div className="flex items-center gap-3 border-b border-white/[0.06] p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

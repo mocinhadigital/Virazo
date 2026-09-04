@@ -50,10 +50,12 @@ export default function TopBar() {
         )}
 
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300">
-            <Zap className="h-3.5 w-3.5 text-[#FF6B5B]" strokeWidth={2.5} />
-            {credits} créditos
-          </span>
+          {!isCreateSeries && (
+            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300">
+              <Zap className="h-3.5 w-3.5 text-[#FF6B5B]" strokeWidth={2.5} />
+              {credits} créditos
+            </span>
+          )}
           <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] ring-2 ring-white/10" />
         </div>
       </div>

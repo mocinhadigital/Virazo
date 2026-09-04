@@ -231,8 +231,8 @@ export default function SeriesWizard() {
                       onClick={() => update("nicho", preset.label)}
                       className={`relative rounded-[20px] border px-5 py-4 text-left transition-colors ${
                         isSelected
-                          ? "border-[#4C3BFF]/60 bg-white/[0.04] shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
-                          : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                          ? "border-[#4C3BFF]/60 bg-[#141416] shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                          : "border-white/[0.08] bg-[#141416] hover:border-white/20"
                       }`}
                     >
                       {preset.trending && (
@@ -241,8 +241,8 @@ export default function SeriesWizard() {
                           Em alta agora
                         </span>
                       )}
-                      <p className="pr-28 text-[15px] font-semibold text-white">{preset.label}</p>
-                      <p className="mt-1 text-[14px] text-zinc-400">{preset.description}</p>
+                      <p className="pr-28 text-[15px] font-semibold leading-[1.6] text-white">{preset.label}</p>
+                      <p className="mt-1 text-[14px] leading-[1.6] text-zinc-400">{preset.description}</p>
                     </button>
                   );
                 })}

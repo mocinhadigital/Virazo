@@ -22,7 +22,8 @@ export default function Sidebar({ userName }: { userName: string }) {
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map(({ label, href, icon: Icon, soon }) => {
-          const isActive = pathname?.startsWith(href) ?? false;
+          const isActive =
+            pathname?.startsWith(href) || (label === "Séries" && pathname === "/dashboard") || false;
           return (
             <Link
               key={label}

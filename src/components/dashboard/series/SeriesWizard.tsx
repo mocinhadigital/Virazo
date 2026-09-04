@@ -117,6 +117,18 @@ export default function SeriesWizard() {
     previewAudioRef.current?.pause();
     setPreviewLoadingVoice(voiceName);
     try {
+      const voice = SERIES_VOICES.find((v) => v.name === voiceName);
+      const localPreview = voice && "previewSrc" in voice ? voice.previewSrc : undefined;
+
+      if (localPreview) {
+        // Prévia gravada (asset estático), sem chamada de TTS — caso do
+        // "Heitor", que ainda não tem voice_id real pra gerar áudio.
+        const audio = new Audio(localPreview);
+        previewAudioRef.current = audio;
+        await audio.play();
+        return;
+      }
+
       const res = await fetch(`/api/voices/preview?voice=${encodeURIComponent(voiceName)}`);
       if (!res.ok) throw new Error("Não foi possível carregar a prévia.");
       const blob = await res.blob();
@@ -145,7 +157,9 @@ export default function SeriesWizard() {
       case "legenda":
         return true;
       case "detalhes":
-        return form.title.trim().length > 0 && form.duration.trim().length > 0;
+        return (
+          form.title.trim().length > 0 && form.duration.trim().length > 0 && form.voice !== "Heitor"
+        );
       default:
         return true;
     }
@@ -540,6 +554,14 @@ export default function SeriesWizard() {
               Sua série vai gerar um novo vídeo automaticamente no ritmo que você escolher acima.
               Você pode pausar ou pedir uma geração extra a qualquer momento em &ldquo;Séries&rdquo;.
             </p>
+
+            {form.voice === "Heitor" && (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-400">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                A voz &ldquo;Heitor&rdquo; ainda não tem geração de áudio real disponível — volte à
+                Etapa 2 e escolha outra voz para criar a série.
+              </div>
+            )}
 
             {error && (
               <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-xs font-medium text-red-400">

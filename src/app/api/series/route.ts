@@ -65,6 +65,15 @@ export async function POST(request: Request) {
   if (!HORARIO_PATTERN.test(body.horario)) {
     return NextResponse.json({ error: "Horário inválido (use HH:MM)." }, { status: 400 });
   }
+  // "Heitor" existe só como opção visual/preview (ver seriesOptions.ts) — sem
+  // voice_id real de TTS ainda. Bloqueado aqui pra nunca cair no fallback
+  // silencioso de synthesizeNarration e gerar áudio com outra voz.
+  if (body.voice === "Heitor") {
+    return NextResponse.json(
+      { error: "A voz \"Heitor\" ainda não está disponível para geração de vídeo." },
+      { status: 400 },
+    );
+  }
 
   const { data, error } = await supabase
     .from("series")

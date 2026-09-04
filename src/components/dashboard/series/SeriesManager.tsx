@@ -479,7 +479,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 type="button"
                 disabled={saving}
                 onClick={handleSubmit}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25 disabled:opacity-60"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] text-[15px] font-medium text-white shadow-lg shadow-[#4C3BFF]/25 disabled:opacity-60"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

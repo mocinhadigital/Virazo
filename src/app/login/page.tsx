@@ -189,7 +189,7 @@ function LoginForm() {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isBusy}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 transition-transform active:scale-95 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white text-[15px] font-medium text-zinc-900 transition-transform active:scale-95 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loadingGoogle ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -257,7 +257,7 @@ function LoginForm() {
                 <button
                   type="submit"
                   disabled={isBusy}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] text-[15px] font-medium text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loadingEmail ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

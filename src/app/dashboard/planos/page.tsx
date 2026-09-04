@@ -192,7 +192,7 @@ export default function PlanosPage() {
         type="button"
         onClick={handleSubscribe}
         disabled={isRedirecting}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] text-[15px] font-medium text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isRedirecting ? (
           <>

@@ -11,6 +11,8 @@ const ROUTE_TITLES: Record<string, string> = {
   "/dashboard/series": "Séries",
   "/dashboard/videos": "Meus vídeos",
   "/dashboard/planos": "Planos",
+  "/dashboard/guias": "Guias",
+  "/dashboard/contato": "Fale Conosco",
 };
 
 export default function TopBar() {

@@ -9,11 +9,31 @@ export const SERIES_DURATIONS = [
   { value: "90s", label: "Storytelling completo" },
 ];
 
+// Nomes/descrições espelham o catálogo do AutoShortz. "Heitor" (masculina,
+// sussurrada/terror) existe na referência mas fica de fora até termos uma
+// voice_id real e distinta pra ele em src/lib/ai/narration.ts — não dá pra
+// listar uma voz cujo áudio real não existe.
 export const SERIES_VOICES = [
-  { name: "Ana", tag: "Feminina · Natural" },
-  { name: "Lucas", tag: "Masculina · Confiante" },
-  { name: "Sofia", tag: "Feminina · Jovem" },
-  { name: "Marcos", tag: "Masculina · Grave" },
+  {
+    name: "Rafael",
+    gender: "Masculina",
+    description: "Grave e contido, feito para narração de suspense.",
+  },
+  {
+    name: "Vicente",
+    gender: "Masculina",
+    description: "Narrador preciso, tom de documentário para true crime.",
+  },
+  {
+    name: "Bianca",
+    gender: "Feminina",
+    description: "Tom de suspense, feita para terror e true crime.",
+  },
+  {
+    name: "Clara",
+    gender: "Feminina",
+    description: "Viva e expressiva, boa para e se e espaço.",
+  },
 ];
 
 export const SERIES_CAPTION_STYLES = ["Clássica", "Destaque", "Minimalista"];
@@ -50,7 +70,7 @@ export const FREQUENCIA_OPTIONS = [
 ];
 
 export const IDIOMA_OPTIONS = [
-  { value: "pt", label: "Português" },
-  { value: "en", label: "English" },
-  { value: "es", label: "Español" },
+  { value: "pt", label: "🇧🇷 Português (Brasil)" },
+  { value: "en", label: "🇺🇸 English (US)" },
+  { value: "es", label: "🇪🇸 Español" },
 ];

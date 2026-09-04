@@ -410,7 +410,11 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   <Select
                     value={form.voice}
                     onChange={(v) => setForm((f) => ({ ...f, voice: v }))}
-                    options={SERIES_VOICES.map((v) => ({ value: v.name, label: v.name, description: v.tag }))}
+                    options={SERIES_VOICES.map((v) => ({
+                      value: v.name,
+                      label: v.name,
+                      description: `${v.gender} · ${v.description}`,
+                    }))}
                     aria-label="Voz da narração"
                   />
                 </Field>

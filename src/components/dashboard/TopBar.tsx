@@ -22,7 +22,11 @@ export default function TopBar() {
   const pageTitle = isCriarVideo ? "Criar vídeo" : (matchedRoute?.[1] ?? "Painel");
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#05050a]/80 backdrop-blur-md">
+    <header
+      className={`${
+        isCreateSeries ? "static" : "sticky top-0 z-30"
+      } border-b border-white/[0.06] bg-[#05050a]/80 backdrop-blur-md`}
+    >
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">

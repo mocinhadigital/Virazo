@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingUp, Loader2, AlertTriangle } from "lucide-react";
+import { TrendingUp, Loader2, AlertTriangle, Play, ArrowLeft } from "lucide-react";
 import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
 import {
@@ -89,7 +89,7 @@ const EMPTY_FORM: FormState = {
   tomDeVoz: styleOptions[0]?.title ?? "Storytelling",
   idioma: "pt",
   visualStyle: VISUAL_STYLES[0]?.name ?? "Realista",
-  voice: SERIES_VOICES[0]?.name ?? "Ana",
+  voice: "",
   duration: "30s",
   captionsEnabled: true,
   captionStyle: "Destaque",
@@ -104,11 +104,32 @@ export default function SeriesWizard() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewLoadingVoice, setPreviewLoadingVoice] = useState<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const stepIndex = STEP_ORDER.indexOf(step);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function playVoicePreview(voiceName: string) {
+    previewAudioRef.current?.pause();
+    setPreviewLoadingVoice(voiceName);
+    try {
+      const res = await fetch(`/api/voices/preview?voice=${encodeURIComponent(voiceName)}`);
+      if (!res.ok) throw new Error("Não foi possível carregar a prévia.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      audio.addEventListener("ended", () => URL.revokeObjectURL(url));
+      await audio.play();
+    } catch {
+      // Falha silenciosa: o botão volta ao ícone de play, sem travar a UI.
+    } finally {
+      setPreviewLoadingVoice(null);
+    }
   }
 
   const canContinue = (() => {
@@ -241,8 +262,8 @@ export default function SeriesWizard() {
                           Em alta agora
                         </span>
                       )}
-                      <p className="pr-28 text-[15px] font-semibold leading-[1.6] text-white">{preset.label}</p>
-                      <p className="mt-1 text-[14px] leading-[1.6] text-zinc-400">{preset.description}</p>
+                      <p className="pr-28 text-[15px] font-semibold leading-[1.6] text-white/92">{preset.label}</p>
+                      <p className="mt-1 text-[14px] leading-[1.6] text-white/55">{preset.description}</p>
                     </button>
                   );
                 })}
@@ -267,11 +288,11 @@ export default function SeriesWizard() {
         {step === "idioma" && (
           <div className="flex flex-col gap-6">
             <div>
-              <label className="text-[14px] font-medium text-white">Idioma</label>
+              <label className="text-[14px] font-medium text-white/92">Idioma</label>
               <select
                 value={form.idioma}
                 onChange={(e) => update("idioma", e.target.value as FormState["idioma"])}
-                className="mt-2 h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white focus:border-[#4C3BFF]/50 focus:outline-none"
+                className="mt-2 h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white/92 focus:border-[#4C3BFF]/50 focus:outline-none"
               >
                 {IDIOMA_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -282,29 +303,61 @@ export default function SeriesWizard() {
             </div>
 
             <div>
-              <p className="text-[14px] font-medium text-white">Voz</p>
-              <div className="mt-2 overflow-hidden rounded-[20px] border border-white/10">
+              <p className="text-[14px] font-medium text-white/92">Voz</p>
+              <div className="mt-2 overflow-hidden rounded-[20px] border border-white/[0.08]">
                 {SERIES_VOICES.map((v, i) => {
                   const isSelected = form.voice === v.name;
+                  const isLoadingPreview = previewLoadingVoice === v.name;
                   return (
-                    <button
+                    <div
                       key={v.name}
-                      type="button"
-                      onClick={() => update("voice", v.name)}
-                      className={`flex w-full items-center gap-4 px-5 py-4 text-left transition-colors ${
+                      className={`flex items-center gap-4 px-5 py-4 ${
                         i !== 0 ? "border-t border-white/[0.08]" : ""
-                      } ${isSelected ? "bg-white/[0.04]" : "hover:bg-white/[0.02]"}`}
+                      }`}
                     >
-                      <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                          isSelected ? "border-[#4C3BFF] bg-[#4C3BFF]" : "border-white/15"
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        aria-label={`Selecionar voz ${v.name}`}
+                        onClick={() => update("voice", v.name)}
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-full border ${
+                          isSelected ? "border-[#4C3BFF]" : "border-white/[0.14]"
                         }`}
-                      />
-                      <span>
-                        <span className="block text-sm font-medium text-white">{v.name}</span>
-                        <span className="block text-xs text-zinc-500">{v.tag}</span>
-                      </span>
-                    </button>
+                      >
+                        {isSelected && (
+                          <span className="size-2.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7]" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => update("voice", v.name)}
+                        className="flex-1 text-left"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-[15px] font-semibold text-white/92">{v.name}</span>
+                          <span className="rounded-full bg-[#1c1c1f] px-2 py-0.5 text-[11px] font-medium text-white/55">
+                            {v.gender}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block text-[14px] text-white/55">{v.description}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        aria-label={`Ouvir prévia de ${v.name}`}
+                        onClick={() => playVoicePreview(v.name)}
+                        disabled={isLoadingPreview}
+                        className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-white/55 transition-colors hover:border-white/[0.14] hover:text-white/92 disabled:cursor-wait"
+                      >
+                        {isLoadingPreview ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -503,8 +556,9 @@ export default function SeriesWizard() {
           <button
             type="button"
             onClick={goBack}
-            className="text-[15px] font-medium text-zinc-400 transition-colors hover:text-white"
+            className="inline-flex h-12 items-center gap-2 rounded-xl border border-white/[0.08] px-5 text-[15px] font-medium text-white/55 transition-colors hover:text-white/92"
           >
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.7} />
             Voltar
           </button>
         ) : (
@@ -515,7 +569,7 @@ export default function SeriesWizard() {
           type="button"
           disabled={!canContinue || saving}
           onClick={goNext}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-medium text-white/92 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {step === "detalhes" ? "Criar série" : "Continuar"}

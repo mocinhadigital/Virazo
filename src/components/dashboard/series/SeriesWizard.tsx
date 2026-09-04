@@ -28,43 +28,43 @@ const STEP_TITLES: Record<StepKey, string> = {
 
 const NICHO_PRESETS = [
   {
-    label: "Histórias bíblicas",
-    description: "As narrativas do texto com peso dramático, sem sermão.",
+    label: "Medieval",
+    description: "História medieval real: reis, cercos e traições, com peso de crônica.",
     trending: true,
   },
   {
-    label: "Terror e mistério",
-    description: "Histórias originais de suspense, inventadas do zero a cada vídeo.",
+    label: "Terror",
+    description: "Histórias de terror originais, inventadas do zero a cada vídeo.",
     trending: true,
   },
   {
-    label: "Mitologia e lendas",
+    label: "True crime",
+    description: "Casos reais e documentados, contados com frieza e respeito.",
+    trending: false,
+  },
+  {
+    label: "Mitologia",
     description: "Deuses, monstros e escolhas com preço alto, além do óbvio.",
     trending: false,
   },
   {
-    label: "Curiosidades históricas",
-    description: "Fatos reais contados com peso de crônica.",
-    trending: false,
-  },
-  {
-    label: "Motivação diária",
-    description: "Reflexões práticas pro dia a dia, sem clichê.",
+    label: "E se...",
+    description: "Cenários hipotéticos levados a sério, com consequências reais.",
     trending: true,
   },
   {
-    label: "Finanças pessoais",
-    description: "Dinheiro explicado de um jeito simples, sem economês.",
+    label: "Histórias bíblicas",
+    description: "As narrativas do texto com peso dramático, sem sermão.",
     trending: false,
   },
   {
-    label: "Tecnologia e IA",
-    description: "O que está mudando agora, direto ao ponto.",
+    label: "Espaço e universo",
+    description: "Escala cósmica traduzida em comparações que desestabilizam.",
     trending: false,
   },
   {
-    label: "Curiosidades gerais",
-    description: "Fatos que ninguém te contou, em poucos segundos.",
+    label: "Estoicismo",
+    description: "Filosofia prática aplicada a um problema moderno por vez.",
     trending: false,
   },
 ];

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Zap } from "lucide-react";
+import { Sparkles, Zap, ChevronRight } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
 import { useIsCriarVideoActive } from "./useCriarVideoHash";
 
@@ -20,6 +20,7 @@ export default function TopBar() {
   const pathname = usePathname();
   const isCriarVideo = useIsCriarVideoActive();
   const matchedRoute = Object.entries(ROUTE_TITLES).find(([prefix]) => pathname?.startsWith(prefix));
+  const isCreateSeries = pathname === "/dashboard";
   const pageTitle = isCriarVideo ? "Criar vídeo" : (matchedRoute?.[1] ?? "Painel");
 
   return (
@@ -34,9 +35,19 @@ export default function TopBar() {
           </span>
         </Link>
 
-        <h1 className="hidden text-base font-semibold text-white lg:block">
-          {pageTitle}
-        </h1>
+        {isCreateSeries ? (
+          <nav className="hidden items-center gap-2 text-[14px] lg:flex">
+            <Link href="/dashboard/series" className="text-zinc-600 hover:text-white">
+              Séries
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-zinc-600" />
+            <span className="text-white">Criar nova série</span>
+          </nav>
+        ) : (
+          <h1 className="hidden text-base font-semibold text-white lg:block">
+            {pageTitle}
+          </h1>
+        )}
 
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300">

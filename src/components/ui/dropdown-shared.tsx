@@ -35,7 +35,7 @@ export function DropdownOption({
       onMouseEnter={onMouseEnter}
       className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
         isSelected
-          ? "bg-[#FF6B5B]/15 text-white"
+          ? "bg-[#4C3BFF]/15 text-white"
           : isActive
             ? "bg-white/[0.06] text-white"
             : "text-zinc-300 hover:bg-white/[0.06]"
@@ -45,7 +45,7 @@ export function DropdownOption({
         <span className="block truncate">{label}</span>
         {description && <span className="block truncate text-xs text-zinc-500">{description}</span>}
       </span>
-      {isSelected && <Check className="h-4 w-4 shrink-0 text-[#FF6B5B]" />}
+      {isSelected && <Check className="h-4 w-4 shrink-0 text-[#4C3BFF]" />}
     </button>
   );
 }

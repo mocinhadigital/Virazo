@@ -206,7 +206,7 @@ export default function MeusVideos() {
         <button
           type="button"
           onClick={() => openWizard()}
-          className="mt-1 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-4 py-2 text-xs font-semibold text-white"
+          className="mt-1 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2 text-xs font-semibold text-white"
         >
           <Wand2 className="h-3.5 w-3.5" />
           Criar meu primeiro vídeo
@@ -305,7 +305,7 @@ function VideoRow({
           <span className="inline-flex items-center gap-1">
             {isOrigemSerie ? (
               <>
-                <Sparkles className="h-3 w-3 text-[#FF6B5B]" /> Série
+                <Sparkles className="h-3 w-3 text-[#4C3BFF]" /> Série
               </>
             ) : (
               "Manual"
@@ -330,7 +330,7 @@ function VideoRow({
           <button
             type="button"
             onClick={onOpen}
-            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-3 py-1.5 text-xs font-semibold text-white"
+            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white"
           >
             <Play className="h-3.5 w-3.5" />
             Assistir
@@ -351,7 +351,7 @@ function VideoRow({
               type="button"
               disabled={isRetrying || isDeleting}
               onClick={onRetry}
-              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isRetrying ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -415,7 +415,7 @@ function VideoModal({ video, onClose }: { video: VideoRecord; onClose: () => voi
             />
             <a
               href={`${video.videoUrl}?download=${encodeURIComponent(video.title || "video")}.mp4`}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-4 py-2.5 text-sm font-semibold text-white"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2.5 text-sm font-semibold text-white"
             >
               <Download className="h-4 w-4" />
               Baixar vídeo

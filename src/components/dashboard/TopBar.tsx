@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Zap, ChevronRight } from "lucide-react";
-import { useDashboard } from "./DashboardContext";
+import { Sparkles, ChevronRight } from "lucide-react";
 import { useIsCriarVideoActive } from "./useCriarVideoHash";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -16,7 +15,6 @@ const ROUTE_TITLES: Record<string, string> = {
 };
 
 export default function TopBar() {
-  const { credits } = useDashboard();
   const pathname = usePathname();
   const isCriarVideo = useIsCriarVideoActive();
   const matchedRoute = Object.entries(ROUTE_TITLES).find(([prefix]) => pathname?.startsWith(prefix));
@@ -27,7 +25,7 @@ export default function TopBar() {
     <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#05050a]/80 backdrop-blur-md">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">
             <Sparkles className="h-4 w-4 text-white" strokeWidth={2.5} />
           </span>
           <span className="text-base font-semibold tracking-tight text-white">
@@ -50,13 +48,7 @@ export default function TopBar() {
         )}
 
         <div className="flex items-center gap-3">
-          {!isCreateSeries && (
-            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300">
-              <Zap className="h-3.5 w-3.5 text-[#FF6B5B]" strokeWidth={2.5} />
-              {credits} créditos
-            </span>
-          )}
-          <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] ring-2 ring-white/10" />
+          <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] ring-2 ring-white/10" />
         </div>
       </div>
     </header>

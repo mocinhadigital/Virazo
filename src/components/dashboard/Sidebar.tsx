@@ -12,7 +12,7 @@ export default function Sidebar({ userName }: { userName: string }) {
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-white/[0.06] lg:bg-[#05050a]">
       <div className="flex h-16 items-center gap-2 border-b border-white/[0.06] px-5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">
           <Sparkles className="h-4 w-4 text-white" strokeWidth={2.5} />
         </span>
         <span className="text-lg font-semibold tracking-tight text-white">

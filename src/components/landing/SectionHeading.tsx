@@ -9,7 +9,7 @@ export default function SectionHeading({
 }) {
   return (
     <div className="mx-auto max-w-xl text-center">
-      <span className="text-xs font-semibold uppercase tracking-wider text-[#FF6B5B]">
+      <span className="text-xs font-semibold uppercase tracking-wider text-[#4C3BFF]">
         {eyebrow}
       </span>
       <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">

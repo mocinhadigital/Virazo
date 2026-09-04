@@ -4,7 +4,7 @@ import { Wand2 } from "lucide-react";
 export default function FinalCta() {
   return (
     <section className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-      <div className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] px-6 py-14 text-center sm:px-12 sm:py-16">
+      <div className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 py-14 text-center sm:px-12 sm:py-16">
         <div className="pointer-events-none absolute inset-0 noise-grid opacity-30" />
 
         <div className="relative">

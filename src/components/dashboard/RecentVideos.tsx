@@ -41,7 +41,7 @@ export default function RecentVideos() {
           <button
             type="button"
             onClick={() => openWizard()}
-            className="mt-1 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-4 py-2 text-xs font-semibold text-white"
+            className="mt-1 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2 text-xs font-semibold text-white"
           >
             <Wand2 className="h-3.5 w-3.5" />
             Criar meu primeiro vídeo
@@ -146,7 +146,7 @@ export default function RecentVideos() {
                 />
                 <a
                   href={`${activeVideo.videoUrl}?download=${encodeURIComponent(activeVideo.title || "video")}.mp4`}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-4 py-2.5 text-sm font-semibold text-white"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2.5 text-sm font-semibold text-white"
                 >
                   <Download className="h-4 w-4" />
                   Baixar vídeo

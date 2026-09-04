@@ -80,7 +80,7 @@ export default function PlanosPage() {
           </button>
         </div>
         {interval === "yearly" && (
-          <span className="rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-3 py-1 text-xs font-semibold text-white">
+          <span className="rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1 text-xs font-semibold text-white">
             Economize 25%
           </span>
         )}
@@ -101,14 +101,14 @@ export default function PlanosPage() {
               onClick={() => setSelectedPlan(p.key)}
               className={`relative rounded-3xl border p-5 text-left transition-colors sm:p-6 ${
                 isSelected
-                  ? "border-[#FF6B5B]/70 bg-white/[0.06]"
+                  ? "border-[#4C3BFF]/70 bg-white/[0.06]"
                   : isTurbo
-                    ? "border-[#FF6B5B]/30 bg-white/[0.03]"
+                    ? "border-[#4C3BFF]/30 bg-white/[0.03]"
                     : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"
               }`}
             >
               {p.badge && (
-                <span className="absolute -top-3 left-5 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-3 py-1 text-xs font-semibold text-white shadow-lg shadow-[#FF6B5B]/25">
+                <span className="absolute -top-3 left-5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1 text-xs font-semibold text-white shadow-lg shadow-[#4C3BFF]/25">
                   {p.badge}
                 </span>
               )}
@@ -118,7 +118,7 @@ export default function PlanosPage() {
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-bold text-white sm:text-lg">{p.name}</h3>
                     {isSelected && (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#FF6B5B]">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4C3BFF]">
                         <Check className="h-3 w-3 text-white" strokeWidth={3} />
                       </span>
                     )}
@@ -192,7 +192,7 @@ export default function PlanosPage() {
         type="button"
         onClick={handleSubscribe}
         disabled={isRedirecting}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#FF6B5B]/25 transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isRedirecting ? (
           <>

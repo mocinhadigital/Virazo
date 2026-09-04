@@ -4,12 +4,28 @@
   --background: #05050a;
   --foreground: #f5f5f7;
 
-  /* Identidade de marca (azul → roxo), alinhada à referência visual atual. */
-  --brand-from: #4f6bff;
-  --brand-to: #9333ea;
+  /* Identidade de marca (azul → roxo), medida ao vivo no .btn-primary do
+     AutoShortz: linear-gradient(135deg, rgb(76,59,255), rgb(168,85,247)). */
+  --brand-from: #4c3bff;
+  --brand-to: #a855f7;
 
-  /* Raio padrão dos cards na referência (~20px). */
+  /* Cor primária de ação (mesma extremidade "from" do gradiente). */
+  --color-primary: var(--brand-from);
+  --color-primary-hover: #6357ff;
+  --color-primary-active: #3d2ecc;
+
+  --color-surface: #141416;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text-primary: rgba(255, 255, 255, 0.92);
+  --color-text-secondary: rgba(255, 255, 255, 0.55);
+  --color-text-tertiary: rgba(255, 255, 255, 0.35);
+
+  /* Raio padrão dos cards e botões na referência (~20px / ~12px). */
   --radius-card: 20px;
+  --radius-button: 12px;
+
+  --sidebar-width: 256px;
+  --content-max-width: 720px;
 }
 
 @theme inline {
@@ -20,6 +36,8 @@
 
   --color-brand-from: var(--brand-from);
   --color-brand-to: var(--brand-to);
+  --color-primary: var(--color-primary);
+  --color-surface: var(--color-surface);
 }
 
 html {
@@ -49,6 +67,28 @@ body {
 
   .rounded-card {
     border-radius: var(--radius-card);
+  }
+
+  .rounded-button {
+    border-radius: var(--radius-button);
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    padding: 0 24px;
+    border-radius: var(--radius-button);
+    background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .btn-primary:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
   }
 
   .card-glass {

@@ -22,7 +22,7 @@ export default function MobileNav() {
         </Link>
 
         <Link href="/dashboard#criar" className="-mt-6 flex flex-col items-center gap-1">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] shadow-lg shadow-[#FF6B5B]/30">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] shadow-lg shadow-[#4C3BFF]/30">
             <Wand2 className="h-5 w-5 text-white" strokeWidth={2.2} />
           </span>
         </Link>
@@ -36,7 +36,7 @@ export default function MobileNav() {
         </Link>
 
         <span className="flex flex-col items-center gap-1 px-2 py-1">
-          <span className="h-5 w-5 rounded-full bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] ring-2 ring-white/10" />
+          <span className="h-5 w-5 rounded-full bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] ring-2 ring-white/10" />
           <span className="text-[10px] font-medium text-zinc-600">Perfil</span>
         </span>
       </div>

@@ -131,7 +131,7 @@ function WizardPanel() {
           voice: voice ?? "",
           captionsEnabled: captionsOn,
           captionStyle: captionsOn ? captionStyle : null,
-          gradient: selectedStyle?.gradient ?? "from-[#FF6B5B] to-[#FFB84D]",
+          gradient: selectedStyle?.gradient ?? "from-[#4C3BFF] to-[#A855F7]",
         });
         if (!cancelled) setIsDone(true);
       } catch (err) {
@@ -249,7 +249,7 @@ function WizardPanel() {
           {isFormStep && (
             <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] transition-all duration-300"
+                className="h-full rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] transition-all duration-300"
                 style={{ width: `${((stepIndex + 1) / STEP_ORDER.length) * 100}%` }}
               />
             </div>
@@ -266,7 +266,7 @@ function WizardPanel() {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="Ex.: 5 dicas para produtividade no trabalho remoto..."
-                className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#FF6B5B]/50 focus:outline-none"
+                className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
               />
               <p className="text-xs text-zinc-500">
                 Descreva o tema em poucas palavras — a IA escreve o roteiro completo.
@@ -285,7 +285,7 @@ function WizardPanel() {
                     onClick={() => setVisualStyle(name)}
                     className={`overflow-hidden rounded-2xl border text-left transition-colors ${
                       isSelected
-                        ? "border-[#FF6B5B]/60 bg-white/[0.08]"
+                        ? "border-[#4C3BFF]/60 bg-white/[0.08]"
                         : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
@@ -318,7 +318,7 @@ function WizardPanel() {
                     onClick={() => setStyle(title)}
                     className={`flex flex-col items-start gap-2.5 rounded-2xl border p-4 text-left transition-colors ${
                       isSelected
-                        ? "border-[#FF6B5B]/60 bg-white/[0.08]"
+                        ? "border-[#4C3BFF]/60 bg-white/[0.08]"
                         : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
@@ -345,7 +345,7 @@ function WizardPanel() {
                     onClick={() => setDuration(value)}
                     className={`flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition-colors ${
                       isSelected
-                        ? "border-[#FF6B5B]/60 bg-white/[0.08]"
+                        ? "border-[#4C3BFF]/60 bg-white/[0.08]"
                         : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
@@ -368,14 +368,14 @@ function WizardPanel() {
                     onClick={() => setVoice(name)}
                     className={`flex cursor-pointer items-center justify-between rounded-2xl border p-3.5 transition-colors ${
                       isSelected
-                        ? "border-[#FF6B5B]/60 bg-white/[0.08]"
+                        ? "border-[#4C3BFF]/60 bg-white/[0.08]"
                         : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <span
                         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
-                          isSelected ? "border-[#FF6B5B] bg-[#FF6B5B]" : "border-white/20"
+                          isSelected ? "border-[#4C3BFF] bg-[#4C3BFF]" : "border-white/20"
                         }`}
                       />
                       <div>
@@ -417,7 +417,7 @@ function WizardPanel() {
                   aria-checked={captionsOn}
                   onClick={() => setCaptionsOn((v) => !v)}
                   className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                    captionsOn ? "bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D]" : "bg-white/10"
+                    captionsOn ? "bg-gradient-to-r from-[#4C3BFF] to-[#A855F7]" : "bg-white/10"
                   }`}
                 >
                   <span
@@ -439,7 +439,7 @@ function WizardPanel() {
                         onClick={() => setCaptionStyle(name)}
                         className={`flex items-center justify-between rounded-2xl border p-3.5 text-left transition-colors ${
                           isSelected
-                            ? "border-[#FF6B5B]/60 bg-white/[0.08]"
+                            ? "border-[#4C3BFF]/60 bg-white/[0.08]"
                             : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                         }`}
                       >
@@ -503,7 +503,7 @@ function WizardPanel() {
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] transition-all duration-150"
+                    className="h-full rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] transition-all duration-150"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -519,7 +519,7 @@ function WizardPanel() {
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
                       )}
                       {state === "active" && (
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#FF6B5B]" />
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#4C3BFF]" />
                       )}
                       {state === "pending" && (
                         <Circle className="h-4 w-4 shrink-0 text-zinc-700" />
@@ -556,7 +556,7 @@ function WizardPanel() {
                     setProgress(0);
                     setStep("revisao");
                   }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#FF6B5B]/25"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
                 >
                   Voltar para revisão
                 </button>
@@ -575,7 +575,7 @@ function WizardPanel() {
             <div className="flex flex-col items-center py-2 text-center">
               <div
                 className={`relative aspect-[9/16] w-32 overflow-hidden rounded-2xl bg-gradient-to-br ${
-                  selectedStyleOption?.gradient ?? "from-[#FF6B5B] to-[#FFB84D]"
+                  selectedStyleOption?.gradient ?? "from-[#4C3BFF] to-[#A855F7]"
                 }`}
               >
                 <div className="absolute inset-0 bg-black/20" />
@@ -598,7 +598,7 @@ function WizardPanel() {
                 <button
                   type="button"
                   onClick={closeWizard}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#FF6B5B]/25"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
                 >
                   Ver no painel
                 </button>
@@ -635,7 +635,7 @@ function WizardPanel() {
               type="button"
               disabled={!canGoNext}
               onClick={goNext}
-              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#FF6B5B]/20 transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/20 transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
             >
               {step === "revisao" ? (
                 <>
@@ -674,7 +674,7 @@ function ReviewRow({
       <button
         type="button"
         onClick={onEdit}
-        className="shrink-0 text-xs font-semibold text-[#FF6B5B] hover:text-[#FFB84D]"
+        className="shrink-0 text-xs font-semibold text-[#4C3BFF] hover:text-[#A855F7]"
       >
         Editar
       </button>

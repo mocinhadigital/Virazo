@@ -40,7 +40,7 @@ function SectionCard({
   return (
     <section className="card-glass rounded-2xl p-4 sm:p-6">
       <div className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">
           <Icon className="h-4 w-4 text-white" strokeWidth={2} />
         </span>
         <div>
@@ -78,7 +78,7 @@ function SaveButton({ state, label }: { state: SaveState; label: string }) {
     <button
       type="submit"
       disabled={state === "saving"}
-      className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#FF6B5B]/20 disabled:cursor-not-allowed disabled:opacity-60"
+      className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/20 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {state === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
       {label}
@@ -129,7 +129,7 @@ function AccountCard({ email, initialFullName }: { email: string; initialFullNam
               setState("idle");
             }}
             placeholder="Seu nome"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#FF6B5B]/50 focus:outline-none"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
           />
         </label>
 
@@ -202,7 +202,7 @@ function PasswordCard() {
             }}
             placeholder="Mínimo 6 caracteres"
             autoComplete="new-password"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#FF6B5B]/50 focus:outline-none"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
           />
         </label>
 
@@ -217,7 +217,7 @@ function PasswordCard() {
             }}
             placeholder="Repita a nova senha"
             autoComplete="new-password"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#FF6B5B]/50 focus:outline-none"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
           />
         </label>
 

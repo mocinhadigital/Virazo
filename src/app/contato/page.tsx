@@ -20,7 +20,7 @@ export default function ContatoPage() {
           </p>
           <a
             href="mailto:contato@virazo.app"
-            className="mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#FF6B5B]/25 transition-transform active:scale-95 sm:hover:scale-[1.03]"
+            className="mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 sm:hover:scale-[1.03]"
           >
             <Mail className="h-4 w-4" />
             contato@virazo.app

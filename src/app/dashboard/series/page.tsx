@@ -20,7 +20,7 @@ export default async function SeriesPage() {
   const initialSeries = (data ?? []).map(mapSeriesRow);
 
   return (
-    <div className="flex flex-col gap-6 sm:gap-8">
+    <div className="mx-auto flex max-w-[980px] flex-col gap-6 sm:gap-8">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Minhas Séries</h1>
         <p className="mt-1 text-sm text-zinc-400">

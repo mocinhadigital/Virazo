@@ -21,7 +21,7 @@ export default function StatsRow() {
           key={label}
           className="card-glass flex flex-col gap-2 rounded-2xl p-4 sm:p-5"
         >
-          <Icon className="h-4 w-4 text-[#FF6B5B]" strokeWidth={2} />
+          <Icon className="h-4 w-4 text-[#4C3BFF]" strokeWidth={2} />
           <div>
             <span className="block text-lg font-bold text-white sm:text-xl">
               {value}

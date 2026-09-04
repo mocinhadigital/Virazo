@@ -33,7 +33,7 @@ export default async function SeriesSummaryCard() {
         className="card-glass flex items-center justify-between gap-4 rounded-2xl p-4 transition-colors hover:bg-white/[0.05] sm:p-5"
       >
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">
             <Sparkles className="h-5 w-5 text-white" strokeWidth={2} />
           </span>
           <div>
@@ -54,7 +54,7 @@ export default async function SeriesSummaryCard() {
       className="card-glass flex items-center justify-between gap-4 rounded-2xl p-4 transition-colors hover:bg-white/[0.05] sm:p-5"
     >
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">
           <Sparkles className="h-5 w-5 text-white" strokeWidth={2} />
         </span>
         <div>

@@ -11,7 +11,7 @@ export default function CreateVideoCard() {
   return (
     <section
       id="criar"
-      className="relative scroll-mt-20 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] p-5 sm:p-8"
+      className="relative scroll-mt-20 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] p-5 sm:p-8"
     >
       <div className="pointer-events-none absolute inset-0 noise-grid opacity-20" />
 

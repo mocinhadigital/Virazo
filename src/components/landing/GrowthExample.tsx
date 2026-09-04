@@ -32,7 +32,7 @@ export default function GrowthExample() {
 
         <div className="card-glass mt-10 rounded-2xl p-6 sm:p-8">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            <TrendingUp className="h-3.5 w-3.5 text-[#FF6B5B]" />
+            <TrendingUp className="h-3.5 w-3.5 text-[#4C3BFF]" />
             Exemplo de série publicada diariamente
           </div>
 
@@ -46,7 +46,7 @@ export default function GrowthExample() {
                   </span>
                   <div className="flex h-32 w-full items-end sm:h-40">
                     <div
-                      className="w-full rounded-t-lg bg-gradient-to-t from-[#FF6B5B] to-[#FFB84D]"
+                      className="w-full rounded-t-lg bg-gradient-to-t from-[#4C3BFF] to-[#A855F7]"
                       style={{ height: `${heightPercent}%` }}
                     />
                   </div>

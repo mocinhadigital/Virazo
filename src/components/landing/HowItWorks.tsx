@@ -45,7 +45,7 @@ export default function HowItWorks() {
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />
-                <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6B5B] to-[#FFB84D] text-xs font-bold text-white shadow-lg shadow-[#FF6B5B]/25">
+                <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] text-xs font-bold text-white shadow-lg shadow-[#4C3BFF]/25">
                   {number}
                 </span>
               </div>

@@ -89,7 +89,7 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={aria["aria-label"]}
-        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-left text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
+        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-left text-sm text-white focus:border-[#4C3BFF]/50 focus:outline-none"
       >
         <span className={selected ? "text-white" : "text-zinc-600"}>
           {selected?.label ?? placeholder ?? "Selecione"}

@@ -208,7 +208,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#FF6B5B]/20"
+          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/20"
         >
           <Plus className="h-4 w-4" />
           Nova série
@@ -226,7 +226,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
 
       {series.length === 0 ? (
         <div className="card-glass flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
-          <Wand2 className="h-8 w-8 text-[#FF6B5B]" strokeWidth={1.5} />
+          <Wand2 className="h-8 w-8 text-[#4C3BFF]" strokeWidth={1.5} />
           <p className="text-sm text-zinc-400">
             Crie sua primeira série pra gerar vídeos automaticamente, no ritmo que você definir.
           </p>
@@ -272,7 +272,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   type="button"
                   disabled={busyId === s.id || s.status === "arquivada"}
                   onClick={() => handleGenerateNow(s.id)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {busyId === s.id ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -354,7 +354,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                     placeholder="Ex.: Curiosidades Históricas Diárias"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#FF6B5B]/50 focus:outline-none"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
                   />
                 </Field>
 
@@ -423,7 +423,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     aria-checked={form.captionsEnabled}
                     onClick={() => setForm((f) => ({ ...f, captionsEnabled: !f.captionsEnabled }))}
                     className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                      form.captionsEnabled ? "bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D]" : "bg-white/10"
+                      form.captionsEnabled ? "bg-gradient-to-r from-[#4C3BFF] to-[#A855F7]" : "bg-white/10"
                     }`}
                   >
                     <span
@@ -460,7 +460,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                       type="time"
                       value={form.horario}
                       onChange={(e) => setForm((f) => ({ ...f, horario: e.target.value }))}
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#FF6B5B]/50 focus:outline-none"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white focus:border-[#4C3BFF]/50 focus:outline-none"
                     />
                   </Field>
                 </div>
@@ -479,7 +479,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 type="button"
                 disabled={saving}
                 onClick={handleSubmit}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF6B5B] to-[#FFB84D] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#FF6B5B]/25 disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25 disabled:opacity-60"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

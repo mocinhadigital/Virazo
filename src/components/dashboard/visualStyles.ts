@@ -1,52 +1,17 @@
-export const STORAGE_BASE =
-  "https://bjxfrufuuosufnhnzajc.supabase.co/storage/v1/object/public/videos/_style-thumbnails";
-
+// Nomes, ordem e imagens espelham exatamente a Etapa 4 do AutoShortz —
+// medidos e reaproveitados (reuso de asset autorizado pelo dono de ambos
+// os produtos). Os nomes antigos (Anime, Comic, Cartoon 3D etc.) saem da
+// lista selecionável, mas séries já criadas com eles continuam funcionando
+// normalmente: `visual_style` é só uma string livre passada pro prompt de
+// geração de imagem (generateSceneImage), não uma chave fixa.
 export const VISUAL_STYLES = [
-  { name: "Anime", gradient: "from-cyan-400 to-blue-600", thumbnail: `${STORAGE_BASE}/anime.jpg` },
-  { name: "Comic", gradient: "from-yellow-400 to-red-500", thumbnail: `${STORAGE_BASE}/comic.jpg` },
-  {
-    name: "Cartoon 3D",
-    gradient: "from-emerald-400 to-teal-600",
-    thumbnail: `${STORAGE_BASE}/cartoon-3d.jpg`,
-  },
-  {
-    name: "Realista",
-    gradient: "from-zinc-500 to-slate-700",
-    thumbnail: `${STORAGE_BASE}/realista.jpg`,
-  },
-  {
-    name: "Dark Fantasy",
-    gradient: "from-slate-800 to-red-900",
-    thumbnail: `${STORAGE_BASE}/dark-fantasy.jpg`,
-  },
-  {
-    name: "Pintura Clássica",
-    gradient: "from-amber-600 to-orange-800",
-    thumbnail: `${STORAGE_BASE}/pintura-classica.jpg`,
-  },
-  {
-    name: "Comic de Terror",
-    gradient: "from-emerald-950 to-zinc-900",
-    thumbnail: `${STORAGE_BASE}/comic-terror.jpg`,
-  },
-  {
-    name: "Cartoon 2D",
-    gradient: "from-pink-400 to-orange-400",
-    thumbnail: `${STORAGE_BASE}/cartoon-2d.jpg`,
-  },
-  {
-    name: "Mitologia",
-    gradient: "from-amber-400 to-yellow-700",
-    thumbnail: `${STORAGE_BASE}/mitologia.jpg`,
-  },
-  {
-    name: "Pixel Art",
-    gradient: "from-rose-500 to-amber-400",
-    thumbnail: `${STORAGE_BASE}/pixel-art.jpg`,
-  },
-  {
-    name: "Fantasia",
-    gradient: "from-cyan-600 to-slate-800",
-    thumbnail: `${STORAGE_BASE}/fantasia.jpg`,
-  },
+  { name: "Scary story", thumbnail: "/images/visual-styles/scary_story.jpg" },
+  { name: "Medieval", thumbnail: "/images/visual-styles/medieval.jpg" },
+  { name: "Pixel art", thumbnail: "/images/visual-styles/pixel_art.jpg" },
+  { name: "Storytime", thumbnail: "/images/visual-styles/storytime.jpg" },
+  { name: "Xilogravura", thumbnail: "/images/visual-styles/xilogravura.jpg" },
+  { name: "Graphic novel", thumbnail: "/images/visual-styles/graphic_novel.jpg" },
+  { name: "Animação 3D", thumbnail: "/images/visual-styles/animacao_3d.jpg" },
+  { name: "Polaroid", thumbnail: "/images/visual-styles/polaroid.jpg" },
+  { name: "Astrofotografia", thumbnail: "/images/visual-styles/astrofotografia.jpg" },
 ];

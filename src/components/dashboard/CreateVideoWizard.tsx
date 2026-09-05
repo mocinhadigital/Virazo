@@ -276,7 +276,7 @@ function WizardPanel() {
 
           {step === "estiloVisual" && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {VISUAL_STYLES.map(({ name, gradient, thumbnail }) => {
+              {VISUAL_STYLES.map(({ name, thumbnail }) => {
                 const isSelected = visualStyle === name;
                 return (
                   <button
@@ -289,7 +289,7 @@ function WizardPanel() {
                         : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
-                    <div className={`aspect-[3/4] w-full bg-gradient-to-br ${gradient}`}>
+                    <div className="aspect-[3/4] w-full bg-[#1c1c1f]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={thumbnail}

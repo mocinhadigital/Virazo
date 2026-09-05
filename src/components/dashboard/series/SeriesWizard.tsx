@@ -98,7 +98,7 @@ const EMPTY_FORM: FormState = {
   nicho: "",
   tomDeVoz: styleOptions[0]?.title ?? "Storytelling",
   idioma: "pt",
-  visualStyle: VISUAL_STYLES[0]?.name ?? "Realista",
+  visualStyle: "",
   voice: "",
   duration: "30s",
   captionsEnabled: true,
@@ -561,21 +561,16 @@ export default function SeriesWizard() {
         )}
 
         {step === "visual" && (
-          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-            {VISUAL_STYLES.map(({ name, gradient, thumbnail }) => {
+          <div className="-mx-1 mt-8 flex gap-4 overflow-x-auto px-1 pb-2">
+            {VISUAL_STYLES.map(({ name, thumbnail }) => {
               const isSelected = form.visualStyle === name;
               return (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => update("visualStyle", name)}
-                  className="w-[140px] shrink-0 text-left"
-                >
+                <button key={name} type="button" onClick={() => update("visualStyle", name)} className="w-[180px] shrink-0 text-left">
                   <div
-                    className={`relative aspect-[9/16] overflow-hidden rounded-[20px] border bg-gradient-to-br ${gradient} ${
+                    className={`relative aspect-[9/16] overflow-hidden rounded-[20px] border bg-[#1c1c1f] transition-colors ${
                       isSelected
-                        ? "border-[#4C3BFF] shadow-[0_0_0_1px_rgba(76,59,255,0.5)]"
-                        : "border-white/10"
+                        ? "border-[#4C3BFF]/60 shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                        : "border-white/[0.08] hover:border-white/20"
                     }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -586,7 +581,9 @@ export default function SeriesWizard() {
                       loading="lazy"
                     />
                   </div>
-                  <p className="mt-3 text-[14px] font-medium text-zinc-300">{name}</p>
+                  <p className={`mt-3 text-[14px] font-medium ${isSelected ? "text-white/92" : "text-white/55"}`}>
+                    {name}
+                  </p>
                 </button>
               );
             })}

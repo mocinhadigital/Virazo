@@ -54,11 +54,13 @@ export const SERIES_VOICES = [
 // Estrutura e valores (cor, contorno, caixa) medidos ao vivo no preview de
 // cada card da Etapa 5 do AutoShortz. "Sem legenda" não entra nesta lista —
 // é tratado à parte no wizard (desliga captionsEnabled em vez de apontar
-// pra um destes 4 estilos).
+// pra um destes 4 estilos). O texto do preview não é fixo por estilo — os 4
+// mostram a mesma frase revelada palavra por palavra ("VOCÊ SABIA DISSO?",
+// sincronizada entre os cards; ver CAPTION_PREVIEW_WORDS em SeriesWizard.tsx),
+// só o `textTransform` de cada estilo muda como essa palavra aparece.
 export const SERIES_CAPTION_STYLES = [
   {
     name: "Traço forte",
-    previewText: "VOCÊ",
     textTransform: "uppercase" as const,
     color: "#ffffff",
     strokeColor: "#000000",
@@ -66,7 +68,6 @@ export const SERIES_CAPTION_STYLES = [
   },
   {
     name: "Destaque vermelho",
-    previewText: "VOCÊ",
     textTransform: "uppercase" as const,
     color: "#ff3b30",
     strokeColor: "#000000",
@@ -74,7 +75,6 @@ export const SERIES_CAPTION_STYLES = [
   },
   {
     name: "Suave",
-    previewText: "VOCÊ",
     textTransform: "uppercase" as const,
     color: "#ffffff",
     strokeColor: null,
@@ -82,7 +82,6 @@ export const SERIES_CAPTION_STYLES = [
   },
   {
     name: "Impacto",
-    previewText: "você",
     textTransform: "lowercase" as const,
     color: "#ffffff",
     strokeColor: "#000000",

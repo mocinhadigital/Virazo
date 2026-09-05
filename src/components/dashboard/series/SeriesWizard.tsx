@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   TrendingUp,
@@ -34,6 +34,18 @@ const STEP_TITLES: Record<StepKey, string> = {
   legenda: "Estilo de legenda",
   detalhes: "Detalhes da série",
 };
+
+// Prévia animada da Etapa 5 (Estilo de legenda): no AutoShortz os 4 cards de
+// estilo (exceto "Sem legenda") mostram a mesma frase revelada palavra por
+// palavra, sincronizada entre os cards — confirmado ao vivo observando o
+// texto mudar de "VOCÊ" para "SABIA" e "DISSO?" nessa ordem, formando "VOCÊ
+// SABIA DISSO?". Não consegui cronometrar o intervalo exato em milissegundos
+// pela ferramenta de automação (a aba fica em segundo plano — o Chrome
+// limita/pausa timers de abas não visíveis, `document.visibilityState`
+// ficou "hidden" o tempo todo), então o intervalo abaixo é uma estimativa
+// deliberada a ajustar depois olhando os dois lado a lado ao vivo.
+const CAPTION_PREVIEW_WORDS = ["VOCÊ", "SABIA", "DISSO?"];
+const CAPTION_PREVIEW_INTERVAL_MS = 700;
 
 const NICHO_PRESETS = [
   {
@@ -125,8 +137,17 @@ export default function SeriesWizard() {
   const [musicLoading, setMusicLoading] = useState(false);
   const [musicUploading, setMusicUploading] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
+  const [captionWordIndex, setCaptionWordIndex] = useState(0);
 
   const stepIndex = STEP_ORDER.indexOf(step);
+
+  useEffect(() => {
+    if (step !== "legenda") return;
+    const id = setInterval(() => {
+      setCaptionWordIndex((i) => (i + 1) % CAPTION_PREVIEW_WORDS.length);
+    }, CAPTION_PREVIEW_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [step]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -618,7 +639,8 @@ export default function SeriesWizard() {
                 >
                   <div className="flex h-24 w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#4a4a4f] to-[#2a2a2e]">
                     <span
-                      className="text-[30px] font-black"
+                      key={captionWordIndex}
+                      className="animate-caption-word-pop text-[30px] font-black"
                       style={{
                         color: c.color,
                         textTransform: c.textTransform,
@@ -628,7 +650,7 @@ export default function SeriesWizard() {
                             : undefined,
                       }}
                     >
-                      {c.previewText}
+                      {CAPTION_PREVIEW_WORDS[captionWordIndex]}
                     </span>
                   </div>
                   <p className="mt-3 text-[14px] font-medium text-white/92">{c.name}</p>

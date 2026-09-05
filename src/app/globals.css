@@ -85,6 +85,24 @@ body {
     display: none;
   }
 
+  /* Efeito de entrada da palavra no preview animado da Etapa 5 (Estilo de
+     legenda) — a referência troca de palavra com um "pop" (fade + leve
+     escala), aplicado de novo a cada troca via remount (key). */
+  @keyframes caption-word-pop {
+    0% {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-caption-word-pop {
+    animation: caption-word-pop 180ms ease-out;
+  }
+
   .btn-primary {
     display: inline-flex;
     align-items: center;

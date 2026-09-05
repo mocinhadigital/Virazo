@@ -642,12 +642,23 @@ export default function SeriesWizard() {
                       key={captionWordIndex}
                       className="animate-caption-word-pop text-[30px] font-black"
                       style={{
+                        fontFamily: '"Arial Black", "Arial Bold", Arial, sans-serif',
+                        lineHeight: 1.1,
+                        letterSpacing: "-0.01em",
                         color: c.color,
                         textTransform: c.textTransform,
+                        // paintOrder "stroke" pinta o contorno ANTES do
+                        // preenchimento — o preenchimento sólido cobre a
+                        // metade interna do traço, deixando o interior da
+                        // letra limpo e só a borda externa contornada
+                        // (padrão inverso ao CSS default, que "come" o
+                        // interior da letra com o contorno por cima).
+                        paintOrder: "stroke",
                         WebkitTextStroke:
                           c.strokeColor && c.strokeWidth !== "0px"
                             ? `${c.strokeWidth} ${c.strokeColor}`
                             : undefined,
+                        textShadow: "rgba(0, 0, 0, 0.55) 0px 1.88px 0px",
                       }}
                     >
                       {CAPTION_PREVIEW_WORDS[captionWordIndex]}

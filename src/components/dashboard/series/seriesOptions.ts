@@ -64,14 +64,14 @@ export const SERIES_CAPTION_STYLES = [
     textTransform: "uppercase" as const,
     color: "#ffffff",
     strokeColor: "#000000",
-    strokeWidth: "3px",
+    strokeWidth: "2.81px",
   },
   {
     name: "Destaque vermelho",
     textTransform: "uppercase" as const,
     color: "#ff3b30",
     strokeColor: "#000000",
-    strokeWidth: "3px",
+    strokeWidth: "3.13px",
   },
   {
     name: "Suave",
@@ -85,7 +85,7 @@ export const SERIES_CAPTION_STYLES = [
     textTransform: "lowercase" as const,
     color: "#ffffff",
     strokeColor: "#000000",
-    strokeWidth: "4px",
+    strokeWidth: "3.75px",
   },
 ];
 

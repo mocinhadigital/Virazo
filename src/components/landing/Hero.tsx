@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Wand2 } from "lucide-react";
 
 const AVATARS = [
   "/assets/avatars/avatar-1.webp",
@@ -31,19 +30,18 @@ export default function Hero() {
             <span>Mais de 2.000 criadores</span>
           </div>
 
-          <h1 className="mt-8 max-w-[797px] text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-white/92 sm:text-6xl lg:text-[76px]">
+          <h1 className="mt-8 max-w-[16ch] text-[clamp(44px,6vw,76px)] font-bold leading-[1.05] tracking-[-0.03em] text-white/92">
             Vídeos virais no piloto automático, sem precisar aparecer
           </h1>
 
-          <p className="mt-6 max-w-[461px] text-base leading-relaxed text-white/55 sm:text-[19px]">
+          <p className="mt-6 max-w-[42ch] text-[17px] leading-relaxed text-white/55 md:text-[19px]">
             A IA cria seus vídeos todos os dias. Você só posta.
           </p>
 
           <Link
             href="/login?mode=signup"
-            className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-[15px] font-medium text-white shadow-xl shadow-purple-600/25 transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
+            className="mt-10 inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-[15px] font-medium text-white/92 shadow-xl shadow-purple-600/25 transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
           >
-            <Wand2 className="h-5 w-5" />
             Criar meu primeiro vídeo
           </Link>
 

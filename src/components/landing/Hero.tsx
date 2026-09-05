@@ -16,7 +16,7 @@ export default function Hero() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2 pr-4 text-sm font-medium text-zinc-300">
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2 pr-4 text-[13px] font-medium text-white/55">
             <div className="flex -space-x-2">
               {AVATARS.map((src) => (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -24,34 +24,30 @@ export default function Hero() {
                   key={src}
                   src={src}
                   alt=""
-                  className="h-7 w-7 rounded-full object-cover ring-2 ring-[#05050a]"
+                  className="h-6 w-6 rounded-full object-cover ring-2 ring-[#05050a]"
                 />
               ))}
             </div>
             <span>Mais de 2.000 criadores</span>
           </div>
 
-          <h1 className="mt-8 max-w-[960px] text-5xl font-extrabold leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-[72px]">
-            Vídeos virais no piloto
-            <br />
-            automático, sem
-            <br />
-            precisar aparecer
+          <h1 className="mt-8 max-w-[797px] text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-white/92 sm:text-6xl lg:text-[76px]">
+            Vídeos virais no piloto automático, sem precisar aparecer
           </h1>
 
-          <p className="mt-6 max-w-xl text-base leading-snug text-zinc-400 sm:text-lg">
+          <p className="mt-6 max-w-[461px] text-base leading-relaxed text-white/55 sm:text-[19px]">
             A IA cria seus vídeos todos os dias. Você só posta.
           </p>
 
           <Link
             href="/login?mode=signup"
-            className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-base font-semibold text-white shadow-xl shadow-purple-600/25 transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
+            className="mt-10 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-[15px] font-medium text-white shadow-xl shadow-purple-600/25 transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
           >
             <Wand2 className="h-5 w-5" />
             Criar meu primeiro vídeo
           </Link>
 
-          <p className="mt-4 text-xs text-zinc-500">
+          <p className="mt-4 text-[14px] text-white/35">
             Seu primeiro vídeo pronto em menos de 5 minutos.
           </p>
         </div>

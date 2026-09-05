@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   Music,
   UploadCloud,
+  Info,
 } from "lucide-react";
 import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
@@ -324,7 +325,7 @@ export default function SeriesWizard() {
           {step === "musica" && "Escolha quantas quiser — uma delas é sorteada para cada vídeo"}
           {step === "visual" && "Escolha o estilo das imagens dos seus vídeos"}
           {step === "legenda" && "Escolha como as legendas aparecem nos seus vídeos"}
-          {step === "detalhes" && "Dê um nome à série e configure o ritmo dos vídeos"}
+          {step === "detalhes" && "Dê um nome à série e escolha a duração dos vídeos"}
         </p>
       </div>
 
@@ -696,62 +697,28 @@ export default function SeriesWizard() {
               <input
                 value={form.title}
                 onChange={(e) => update("title", e.target.value)}
-                placeholder="Ex.: Curiosidades Históricas Diárias"
+                placeholder="Dê um nome para a sua série"
                 className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
               />
             </label>
 
-            <div>
-              <p className="text-[14px] font-medium text-white">Tom de voz do conteúdo</p>
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                {styleOptions.map(({ icon: Icon, title, gradient }) => {
-                  const isSelected = form.tomDeVoz === title;
-                  return (
-                    <button
-                      key={title}
-                      type="button"
-                      onClick={() => update("tomDeVoz", title)}
-                      className={`flex flex-col items-start gap-2.5 rounded-[20px] border p-4 text-left transition-colors ${
-                        isSelected
-                          ? "border-[#4C3BFF]/60 bg-white/[0.04] shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
-                          : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${gradient}`}
-                      >
-                        <Icon className="h-4 w-4 text-white" strokeWidth={2} />
-                      </span>
-                      <span className="text-sm font-medium text-white">{title}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[14px] font-medium text-white">Duração dos vídeos</p>
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                {SERIES_DURATIONS.map((d) => {
-                  const isSelected = form.duration === d.value;
-                  return (
-                    <button
-                      key={d.value}
-                      type="button"
-                      onClick={() => update("duration", d.value)}
-                      className={`flex flex-col items-start gap-1 rounded-[20px] border p-4 text-left transition-colors ${
-                        isSelected
-                          ? "border-[#4C3BFF]/60 bg-white/[0.04]"
-                          : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
-                      }`}
-                    >
-                      <span className="text-lg font-bold text-white">{d.value}</span>
-                      <span className="text-xs text-zinc-400">{d.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <label className="block">
+              <span className="mb-1.5 flex items-center gap-1.5 text-[14px] font-medium text-white">
+                Duração dos vídeos
+                <Info className="h-4 w-4 text-zinc-500" strokeWidth={1.7} />
+              </span>
+              <select
+                value={form.duration}
+                onChange={(e) => update("duration", e.target.value)}
+                className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white focus:border-[#4C3BFF]/50 focus:outline-none"
+              >
+                {SERIES_DURATIONS.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <div className="grid grid-cols-2 gap-3">
               <label className="block">

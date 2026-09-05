@@ -1,12 +1,13 @@
-// Opções de formulário específicas de Séries. Duração e voz espelham as
-// mesmas listas usadas em CreateVideoWizard.tsx (não exportadas de lá pra
-// não tocar naquele arquivo) — mantenha as duas em sincronia se adicionar
-// uma nova duração/voz no wizard manual.
+// As 2 faixas de duração da Etapa 6 do AutoShortz (medidas ao vivo: um
+// <select> nativo com exatamente essas 2 opções, sem mais nem menos).
+// `value` continua "30s"/"60s" de propósito — são as mesmas chaves reais
+// que SCENES_PER_DURATION (src/lib/ai/script.ts) já usa pra decidir quantas
+// cenas gerar; só o texto exibido mudou pra bater com a referência. "15s" e
+// "90s" saem da lista de seleção, mas continuam suportados no backend pra
+// não quebrar séries antigas que já usam esses valores.
 export const SERIES_DURATIONS = [
-  { value: "15s", label: "Rápido e direto" },
-  { value: "30s", label: "Ideal para Reels/TikTok" },
-  { value: "60s", label: "Mais contexto" },
-  { value: "90s", label: "Storytelling completo" },
+  { value: "30s", label: "30 a 40 segundos" },
+  { value: "60s", label: "60 a 70 segundos" },
 ];
 
 // Nomes/descrições espelham o catálogo do AutoShortz.

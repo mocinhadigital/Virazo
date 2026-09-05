@@ -51,7 +51,44 @@ export const SERIES_VOICES = [
   },
 ];
 
-export const SERIES_CAPTION_STYLES = ["Clássica", "Destaque", "Minimalista"];
+// Estrutura e valores (cor, contorno, caixa) medidos ao vivo no preview de
+// cada card da Etapa 5 do AutoShortz. "Sem legenda" não entra nesta lista —
+// é tratado à parte no wizard (desliga captionsEnabled em vez de apontar
+// pra um destes 4 estilos).
+export const SERIES_CAPTION_STYLES = [
+  {
+    name: "Traço forte",
+    previewText: "VOCÊ",
+    textTransform: "uppercase" as const,
+    color: "#ffffff",
+    strokeColor: "#000000",
+    strokeWidth: "3px",
+  },
+  {
+    name: "Destaque vermelho",
+    previewText: "VOCÊ",
+    textTransform: "uppercase" as const,
+    color: "#ff3b30",
+    strokeColor: "#000000",
+    strokeWidth: "3px",
+  },
+  {
+    name: "Suave",
+    previewText: "VOCÊ",
+    textTransform: "uppercase" as const,
+    color: "#ffffff",
+    strokeColor: null,
+    strokeWidth: "0px",
+  },
+  {
+    name: "Impacto",
+    previewText: "você",
+    textTransform: "lowercase" as const,
+    color: "#ffffff",
+    strokeColor: "#000000",
+    strokeWidth: "4px",
+  },
+];
 
 // Só sugestões — o campo Nicho no formulário de Série é um combobox livre,
 // o usuário nunca fica preso a esta lista.

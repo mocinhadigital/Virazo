@@ -102,7 +102,10 @@ const EMPTY_FORM: FormState = {
   voice: "",
   duration: "30s",
   captionsEnabled: true,
-  captionStyle: "Destaque",
+  // "" = nenhuma opção escolhida ainda (nem os 4 estilos, nem "Sem
+  // legenda") — igual ao AutoShortz, que não vem com nada pré-selecionado
+  // nesta etapa. Vira um nome real ou null assim que o usuário clica.
+  captionStyle: "",
   backgroundMusicIds: [],
   frequenciaDias: 1,
   horario: "09:00",
@@ -220,7 +223,7 @@ export default function SeriesWizard() {
       case "visual":
         return form.visualStyle.trim().length > 0;
       case "legenda":
-        return true;
+        return form.captionStyle !== "";
       case "detalhes":
         return (
           form.title.trim().length > 0 &&
@@ -596,50 +599,60 @@ export default function SeriesWizard() {
         )}
 
         {step === "legenda" && (
-          <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between rounded-[20px] border border-white/10 bg-white/[0.02] p-4">
-              <div>
-                <p className="text-sm font-medium text-white">Ativar legendas</p>
-                <p className="text-xs text-zinc-500">Sincronizadas automaticamente com a narração</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.captionsEnabled}
-                onClick={() => update("captionsEnabled", !form.captionsEnabled)}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                  form.captionsEnabled ? "bg-gradient-to-r from-[#4C3BFF] to-[#A855F7]" : "bg-white/10"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-                    form.captionsEnabled ? "translate-x-5" : "translate-x-0.5"
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3">
+            {SERIES_CAPTION_STYLES.map((c) => {
+              const isSelected = form.captionStyle === c.name;
+              return (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => {
+                    update("captionsEnabled", true);
+                    update("captionStyle", c.name);
+                  }}
+                  className={`rounded-[20px] border p-3 text-left transition-colors ${
+                    isSelected
+                      ? "border-[#4C3BFF]/60 bg-[#141416] shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                      : "border-white/[0.08] bg-[#141416] hover:border-white/20"
                   }`}
-                />
-              </button>
-            </div>
-
-            {form.captionsEnabled && (
-              <div className="flex flex-col gap-2.5">
-                {SERIES_CAPTION_STYLES.map((c) => {
-                  const isSelected = form.captionStyle === c;
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => update("captionStyle", c)}
-                      className={`flex items-center justify-between rounded-[20px] border px-5 py-4 text-left transition-colors ${
-                        isSelected
-                          ? "border-[#4C3BFF]/60 bg-white/[0.04]"
-                          : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
-                      }`}
+                >
+                  <div className="flex h-24 w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#4a4a4f] to-[#2a2a2e]">
+                    <span
+                      className="text-[30px] font-black"
+                      style={{
+                        color: c.color,
+                        textTransform: c.textTransform,
+                        WebkitTextStroke:
+                          c.strokeColor && c.strokeWidth !== "0px"
+                            ? `${c.strokeWidth} ${c.strokeColor}`
+                            : undefined,
+                      }}
                     >
-                      <span className="text-sm font-medium text-white">{c}</span>
-                    </button>
-                  );
-                })}
+                      {c.previewText}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-[14px] font-medium text-white/92">{c.name}</p>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => {
+                update("captionsEnabled", false);
+                update("captionStyle", null);
+              }}
+              className={`rounded-[20px] border p-3 text-left transition-colors ${
+                form.captionStyle === null
+                  ? "border-[#4C3BFF]/60 bg-[#141416] shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                  : "border-white/[0.08] bg-[#141416] hover:border-white/20"
+              }`}
+            >
+              <div className="flex h-24 w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#4a4a4f] to-[#2a2a2e]">
+                <span className="text-[13px] font-medium text-white/40">vídeo limpo</span>
               </div>
-            )}
+              <p className="mt-3 text-[14px] font-medium text-white/92">Sem legenda</p>
+            </button>
           </div>
         )}
 

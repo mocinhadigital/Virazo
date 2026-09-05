@@ -50,7 +50,7 @@ const EMPTY_FORM: FormState = {
   voice: SERIES_VOICES[0]?.name ?? "Ana",
   duration: "30s",
   captionsEnabled: true,
-  captionStyle: "Destaque",
+  captionStyle: SERIES_CAPTION_STYLES[0]?.name ?? "Traço forte",
   frequenciaDias: 1,
   horario: "09:00",
 };
@@ -441,9 +441,9 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 {form.captionsEnabled && (
                   <Field label="Estilo da legenda">
                     <Select
-                      value={form.captionStyle ?? SERIES_CAPTION_STYLES[0]}
+                      value={form.captionStyle ?? SERIES_CAPTION_STYLES[0]?.name}
                       onChange={(v) => setForm((f) => ({ ...f, captionStyle: v }))}
-                      options={SERIES_CAPTION_STYLES.map((c) => ({ value: c, label: c }))}
+                      options={SERIES_CAPTION_STYLES.map((c) => ({ value: c.name, label: c.name }))}
                       aria-label="Estilo da legenda"
                     />
                   </Field>

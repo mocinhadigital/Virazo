@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle2, AlertTriangle, User, Lock, Globe } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Globe } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import Select from "@/components/ui/Select";
 import { IDIOMA_OPTIONS } from "@/components/dashboard/series/seriesOptions";
@@ -12,16 +12,31 @@ export default function SettingsManager({
   email,
   initialFullName,
   initialPreferredLanguage,
+  activePlanName,
+  currentPeriodEnd,
 }: {
   email: string;
   initialFullName: string;
   initialPreferredLanguage: "pt" | "en" | "es";
+  activePlanName: string | null;
+  currentPeriodEnd: string | null;
 }) {
   return (
-    <div className="flex flex-col gap-6">
-      <AccountCard email={email} initialFullName={initialFullName} />
-      <PasswordCard />
-      <LanguageCard initialPreferredLanguage={initialPreferredLanguage} />
+    <div className="flex flex-col">
+      <section className="mt-8 rounded-card border border-white/[0.08] bg-surface p-5 md:p-6">
+        <AccountFields email={email} fullName={initialFullName} />
+        <div className="mt-6 border-t border-white/[0.08] pt-5">
+          <PasswordFields email={email} />
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-card border border-white/[0.08] bg-surface p-5 md:p-6">
+        <SubscriptionStatus activePlanName={activePlanName} currentPeriodEnd={currentPeriodEnd} />
+      </section>
+
+      <div className="mt-6">
+        <LanguageCard initialPreferredLanguage={initialPreferredLanguage} />
+      </div>
     </div>
   );
 }
@@ -86,75 +101,24 @@ function SaveButton({ state, label }: { state: SaveState; label: string }) {
   );
 }
 
-function AccountCard({ email, initialFullName }: { email: string; initialFullName: string }) {
-  const [fullName, setFullName] = useState(initialFullName);
-  const [state, setState] = useState<SaveState>("idle");
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setState("saving");
-    setError(null);
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setState("error");
-      setError("Sessão expirada — recarregue a página.");
-      return;
-    }
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ full_name: fullName.trim() })
-      .eq("id", user.id);
-
-    if (updateError) {
-      setState("error");
-      setError(updateError.message);
-    } else {
-      setState("success");
-    }
-  }
-
+function AccountFields({ email, fullName }: { email: string; fullName: string }) {
   return (
-    <SectionCard icon={User} title="Minha conta" description="Suas informações básicas de perfil.">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-zinc-400">Nome</span>
-          <input
-            value={fullName}
-            onChange={(e) => {
-              setFullName(e.target.value);
-              setState("idle");
-            }}
-            placeholder="Seu nome"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-zinc-400">E-mail</span>
-          <input
-            value={email}
-            disabled
-            className="w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-2.5 text-sm text-zinc-500"
-          />
-          <span className="text-[11px] text-zinc-600">
-            O e-mail de login não pode ser alterado por aqui.
-          </span>
-        </label>
-
-        <div className="flex flex-col gap-2">
-          <SaveButton state={state} label="Salvar alterações" />
-          <StatusMessage state={state} successText="Alterações salvas." errorText={error} />
-        </div>
-      </form>
-    </SectionCard>
+    <div>
+      <h2 className="text-[17px] font-semibold text-white/92">Minha conta</h2>
+      <div className="mt-4 flex flex-col gap-2 text-[14px]">
+        <p className="text-white/55">
+          Nome: <span className="text-white/92">{fullName || "—"}</span>
+        </p>
+        <p className="text-white/55">
+          Email: <span className="text-white/92">{email}</span>
+        </p>
+      </div>
+    </div>
   );
 }
 
-function PasswordCard() {
+function PasswordFields({ email }: { email: string }) {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [state, setState] = useState<SaveState>("idle");
@@ -176,57 +140,118 @@ function PasswordCard() {
     setState("saving");
     setError(null);
     const supabase = createClient();
-    const { error: updateError } = await supabase.auth.updateUser({ password });
 
+    // Confirma a senha atual reautenticando antes de trocar — a API do
+    // Supabase não aceita "senha atual" direto em updateUser, então a
+    // verificação real é feita via um novo signInWithPassword.
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    });
+    if (reauthError) {
+      setState("error");
+      setError("Senha atual incorreta.");
+      return;
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
       setState("error");
       setError(updateError.message);
     } else {
       setState("success");
+      setCurrentPassword("");
       setPassword("");
       setConfirmPassword("");
     }
   }
 
   return (
-    <SectionCard icon={Lock} title="Trocar senha" description="Defina uma nova senha para sua conta.">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-zinc-400">Nova senha</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setState("idle");
-            }}
-            placeholder="Mínimo 6 caracteres"
-            autoComplete="new-password"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-zinc-400">Confirmar nova senha</span>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              setState("idle");
-            }}
-            placeholder="Repita a nova senha"
-            autoComplete="new-password"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
-          />
-        </label>
-
-        <div className="flex flex-col gap-2">
-          <SaveButton state={state} label="Salvar nova senha" />
-          <StatusMessage state={state} successText="Senha atualizada." errorText={error} />
-        </div>
+    <div>
+      <h3 className="text-[15px] font-semibold text-white/92">Trocar senha</h3>
+      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+        <input
+          type="password"
+          value={currentPassword}
+          onChange={(e) => {
+            setCurrentPassword(e.target.value);
+            setState("idle");
+          }}
+          placeholder="Senha atual"
+          autoComplete="current-password"
+          required
+          className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white/92 placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setState("idle");
+          }}
+          placeholder="Nova senha"
+          autoComplete="new-password"
+          required
+          minLength={6}
+          className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white/92 placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
+        />
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => {
+            setConfirmPassword(e.target.value);
+            setState("idle");
+          }}
+          placeholder="Confirme a nova senha"
+          autoComplete="new-password"
+          required
+          minLength={6}
+          className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white/92 placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={state === "saving"}
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] text-[15px] font-medium text-white/92 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {state === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
+          Trocar senha
+        </button>
+        <StatusMessage state={state} successText="Senha atualizada." errorText={error} />
       </form>
-    </SectionCard>
+    </div>
+  );
+}
+
+function SubscriptionStatus({
+  activePlanName,
+  currentPeriodEnd,
+}: {
+  activePlanName: string | null;
+  currentPeriodEnd: string | null;
+}) {
+  return (
+    <div>
+      <h2 className="text-[17px] font-semibold text-white/92">Assinatura</h2>
+      <p className="mt-4 text-[14px] text-white/55">
+        {activePlanName ? (
+          <>
+            Plano <span className="text-white/92">{activePlanName}</span> ativo
+            {currentPeriodEnd && (
+              <>
+                {" "}
+                — renova em{" "}
+                <span className="text-white/92">
+                  {new Date(currentPeriodEnd).toLocaleDateString("pt-BR")}
+                </span>
+              </>
+            )}
+            .
+          </>
+        ) : (
+          "Você ainda não tem uma assinatura ativa."
+        )}
+      </p>
+    </div>
   );
 }
 

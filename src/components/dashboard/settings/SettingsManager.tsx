@@ -1,23 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle2, AlertTriangle, Globe } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import Select from "@/components/ui/Select";
-import { IDIOMA_OPTIONS } from "@/components/dashboard/series/seriesOptions";
 
 type SaveState = "idle" | "saving" | "success" | "error";
 
 export default function SettingsManager({
   email,
   initialFullName,
-  initialPreferredLanguage,
   activePlanName,
   currentPeriodEnd,
 }: {
   email: string;
   initialFullName: string;
-  initialPreferredLanguage: "pt" | "en" | "es";
   activePlanName: string | null;
   currentPeriodEnd: string | null;
 }) {
@@ -33,38 +29,7 @@ export default function SettingsManager({
       <section className="mt-6 rounded-card border border-white/[0.08] bg-surface p-5 md:p-6">
         <SubscriptionStatus activePlanName={activePlanName} currentPeriodEnd={currentPeriodEnd} />
       </section>
-
-      <div className="mt-6">
-        <LanguageCard initialPreferredLanguage={initialPreferredLanguage} />
-      </div>
     </div>
-  );
-}
-
-function SectionCard({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="card-glass rounded-2xl p-4 sm:p-6">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#4C3BFF] to-[#A855F7]">
-          <Icon className="h-4 w-4 text-white" strokeWidth={2} />
-        </span>
-        <div>
-          <h2 className="text-sm font-semibold text-white sm:text-base">{title}</h2>
-          <p className="text-xs text-zinc-500">{description}</p>
-        </div>
-      </div>
-      <div className="mt-4 flex flex-col gap-4">{children}</div>
-    </section>
   );
 }
 
@@ -86,19 +51,6 @@ function StatusMessage({ state, successText, errorText }: { state: SaveState; su
     );
   }
   return null;
-}
-
-function SaveButton({ state, label }: { state: SaveState; label: string }) {
-  return (
-    <button
-      type="submit"
-      disabled={state === "saving"}
-      className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/20 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {state === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
-      {label}
-    </button>
-  );
 }
 
 function AccountFields({ email, fullName }: { email: string; fullName: string }) {
@@ -255,61 +207,3 @@ function SubscriptionStatus({
   );
 }
 
-function LanguageCard({ initialPreferredLanguage }: { initialPreferredLanguage: "pt" | "en" | "es" }) {
-  const [language, setLanguage] = useState(initialPreferredLanguage);
-  const [state, setState] = useState<SaveState>("idle");
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setState("saving");
-    setError(null);
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setState("error");
-      setError("Sessão expirada — recarregue a página.");
-      return;
-    }
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ preferred_language: language })
-      .eq("id", user.id);
-
-    if (updateError) {
-      setState("error");
-      setError(updateError.message);
-    } else {
-      setState("success");
-    }
-  }
-
-  return (
-    <SectionCard
-      icon={Globe}
-      title="Idioma padrão"
-      description="Idioma sugerido por padrão ao criar novos vídeos e séries."
-    >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="max-w-xs">
-          <Select
-            value={language}
-            onChange={(v) => {
-              setLanguage(v as "pt" | "en" | "es");
-              setState("idle");
-            }}
-            options={IDIOMA_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            aria-label="Idioma padrão"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <SaveButton state={state} label="Salvar idioma" />
-          <StatusMessage state={state} successText="Preferência salva." errorText={error} />
-        </div>
-      </form>
-    </SectionCard>
-  );
-}

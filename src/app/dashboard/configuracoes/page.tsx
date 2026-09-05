@@ -5,7 +5,6 @@ import { PLANS, type PlanKey } from "@/lib/billing/plans";
 
 type ProfileSettingsRow = {
   full_name: string | null;
-  preferred_language: "pt" | "en" | "es";
 };
 
 type SubscriptionRow = {
@@ -22,11 +21,7 @@ export default async function ConfiguracoesPage() {
   if (!user) redirect("/login");
 
   const [{ data: profile }, { data: subscription }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("full_name, preferred_language")
-      .eq("id", user.id)
-      .maybeSingle(),
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     supabase
       .from("subscriptions")
       .select("plan, current_period_end")
@@ -41,11 +36,12 @@ export default async function ConfiguracoesPage() {
   const activePlan = subscription ? (PLANS[subscription.plan] ?? null) : null;
 
   return (
-    <div className="mx-auto flex max-w-[640px] flex-col">
+    <div className="mx-auto flex max-w-[560px] flex-col">
+      <h1 className="text-[26px] font-semibold text-white/92">Configurações</h1>
+
       <SettingsManager
         email={user.email ?? ""}
         initialFullName={settings?.full_name ?? ""}
-        initialPreferredLanguage={settings?.preferred_language ?? "pt"}
         activePlanName={activePlan?.name ?? null}
         currentPeriodEnd={subscription?.current_period_end ?? null}
       />

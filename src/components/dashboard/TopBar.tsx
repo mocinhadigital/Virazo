@@ -19,6 +19,10 @@ export default function TopBar() {
   const isCriarVideo = useIsCriarVideoActive();
   const matchedRoute = Object.entries(ROUTE_TITLES).find(([prefix]) => pathname?.startsWith(prefix));
   const isCreateSeries = pathname === "/dashboard";
+  // A página de Configurações mostra seu próprio título centralizado sobre
+  // o conteúdo (igual à referência), então omite o título aqui em cima
+  // só nesta rota — nenhuma outra página muda.
+  const hideTitle = pathname === "/dashboard/configuracoes";
   const pageTitle = isCriarVideo ? "Criar vídeo" : (matchedRoute?.[1] ?? "Painel");
 
   return (
@@ -45,6 +49,8 @@ export default function TopBar() {
             <ChevronRight className="h-3.5 w-3.5 text-zinc-600" />
             <span className="text-white">Criar nova série</span>
           </nav>
+        ) : hideTitle ? (
+          <span />
         ) : (
           <h1 className="hidden text-base font-semibold text-white lg:block">
             {pageTitle}

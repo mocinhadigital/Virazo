@@ -19,7 +19,6 @@ import {
   SERIES_DURATIONS,
   SERIES_VOICES,
   SERIES_CAPTION_STYLES,
-  FREQUENCIA_OPTIONS,
   IDIOMA_OPTIONS,
 } from "./seriesOptions";
 
@@ -691,26 +690,26 @@ export default function SeriesWizard() {
         )}
 
         {step === "detalhes" && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8">
             <label className="block">
-              <span className="mb-1.5 block text-[14px] font-medium text-white">Nome da série</span>
+              <span className="mb-2 block text-[14px] font-medium text-white/92">Nome da série</span>
               <input
                 value={form.title}
                 onChange={(e) => update("title", e.target.value)}
                 placeholder="Dê um nome para a sua série"
-                className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
+                className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white/92 placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
               />
             </label>
 
             <label className="block">
-              <span className="mb-1.5 flex items-center gap-1.5 text-[14px] font-medium text-white">
+              <span className="mb-2 flex items-center gap-1.5 text-[14px] font-medium text-white/92">
                 Duração dos vídeos
-                <Info className="h-4 w-4 text-zinc-500" strokeWidth={1.7} />
+                <Info className="h-4 w-4 text-white/35" strokeWidth={1.7} />
               </span>
               <select
                 value={form.duration}
                 onChange={(e) => update("duration", e.target.value)}
-                className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white focus:border-[#4C3BFF]/50 focus:outline-none"
+                className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white/92 focus:border-[#4C3BFF]/50 focus:outline-none"
               >
                 {SERIES_DURATIONS.map((d) => (
                   <option key={d.value} value={d.value}>
@@ -720,37 +719,11 @@ export default function SeriesWizard() {
               </select>
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="mb-1.5 block text-[14px] font-medium text-white">Frequência</span>
-                <select
-                  value={form.frequenciaDias}
-                  onChange={(e) => update("frequenciaDias", Number(e.target.value))}
-                  className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white focus:border-[#4C3BFF]/50 focus:outline-none"
-                >
-                  {FREQUENCIA_OPTIONS.map((f) => (
-                    <option key={f.value} value={f.value}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-[14px] font-medium text-white">Horário</span>
-                <input
-                  type="time"
-                  value={form.horario}
-                  onChange={(e) => update("horario", e.target.value)}
-                  className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white focus:border-[#4C3BFF]/50 focus:outline-none"
-                />
-              </label>
+            <div className="rounded-xl bg-surface px-4 py-3 text-[13px] leading-relaxed text-white/55">
+              Sua série vai gerar novos vídeos automaticamente, no ritmo que você configurar. Você
+              recebe cada vídeo pronto e pode <strong className="font-bold text-white/92">baixar</strong>,
+              pausar ou pedir uma geração extra a qualquer momento em &ldquo;Séries&rdquo;.
             </div>
-
-            <p className="text-xs text-zinc-500">
-              Sua série vai gerar um novo vídeo automaticamente no ritmo que você escolher acima.
-              Você pode pausar ou pedir uma geração extra a qualquer momento em &ldquo;Séries&rdquo;.
-            </p>
 
             {form.voice === "Heitor" && (
               <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-400">

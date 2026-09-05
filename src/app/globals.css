@@ -73,6 +73,18 @@ body {
     border-radius: var(--radius-button);
   }
 
+  /* Mesmo nome de classe usado no carrossel de estilo visual da referência
+     (AutoShortz): esconde a scrollbar nativa do container com overflow-x,
+     sem remover a rolagem em si (continua arrastável/scrollável). */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .btn-primary {
     display: inline-flex;
     align-items: center;

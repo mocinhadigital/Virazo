@@ -13,6 +13,7 @@ type UpdateSeriesBody = Partial<{
   duration: string;
   captionsEnabled: boolean;
   captionStyle: string | null;
+  backgroundMusicIds: string[];
   frequenciaDias: number;
   horario: string;
   status: "ativa" | "pausada" | "arquivada";
@@ -60,6 +61,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       { status: 400 },
     );
   }
+  if (body.backgroundMusicIds !== undefined && body.backgroundMusicIds.length > 0) {
+    const { count, error: musicCheckError } = await supabase
+      .from("music_tracks")
+      .select("id", { count: "exact", head: true })
+      .in("id", body.backgroundMusicIds);
+    if (musicCheckError || count !== body.backgroundMusicIds.length) {
+      return NextResponse.json({ error: "Uma ou mais músicas selecionadas são inválidas." }, { status: 400 });
+    }
+  }
 
   const update: Record<string, unknown> = {};
   if (body.title !== undefined) update.title = body.title.trim();
@@ -71,6 +81,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.duration !== undefined) update.duration = body.duration;
   if (body.captionsEnabled !== undefined) update.captions_enabled = body.captionsEnabled;
   if (body.captionStyle !== undefined) update.caption_style = body.captionStyle;
+  if (body.backgroundMusicIds !== undefined) update.background_music_ids = body.backgroundMusicIds;
   if (body.frequenciaDias !== undefined) update.frequencia_dias = body.frequenciaDias;
   if (body.horario !== undefined) update.horario = body.horario;
   if (body.status !== undefined) update.status = body.status;

@@ -32,6 +32,7 @@ export type SeriesRecord = {
   duration: string;
   captionsEnabled: boolean;
   captionStyle: string | null;
+  backgroundMusicIds: string[];
   frequenciaDias: number;
   horario: string;
   status: SeriesStatus;

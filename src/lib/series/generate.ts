@@ -89,6 +89,12 @@ export async function runSeriesGeneration(
       ? `Escolha um subtema específico e ainda não coberto dentro do nicho "${series.nicho}", com tom de voz ${series.tom_de_voz}. Não repita nem se aproxime demais destes títulos já usados nesta série: ${recentTitles.join("; ")}.`
       : `Escolha um subtema específico e interessante dentro do nicho "${series.nicho}", com tom de voz ${series.tom_de_voz}.`;
 
+  // Sorteia uma das músicas de fundo selecionadas na série (se houver) —
+  // uma faixa diferente por vídeo, igual ao comportamento do AutoShortz.
+  const musicIds = series.background_music_ids ?? [];
+  const chosenMusicId =
+    musicIds.length > 0 ? musicIds[Math.floor(Math.random() * musicIds.length)] : null;
+
   const { data: created, error: createError } = await supabase
     .rpc("create_video_and_consume_credit", {
       p_title: `${series.title} — ${new Date().toLocaleDateString("pt-BR")}`,
@@ -100,6 +106,7 @@ export async function runSeriesGeneration(
       p_caption_style: series.caption_style,
       p_gradient: "from-orange-500 via-amber-500 to-rose-500",
       p_visual_style: series.visual_style,
+      p_background_music_id: chosenMusicId,
     })
     .single()
     .returns<VideoRow>();
@@ -111,6 +118,19 @@ export async function runSeriesGeneration(
   await supabase.from("videos").update({ series_id: series.id }).eq("id", created.id).eq("user_id", userId);
 
   try {
+    let backgroundMusic: Buffer | undefined;
+    if (chosenMusicId) {
+      const { data: track } = await supabase
+        .from("music_tracks")
+        .select("storage_path")
+        .eq("id", chosenMusicId)
+        .maybeSingle<{ storage_path: string }>();
+      if (track) {
+        const { data: musicBlob } = await supabase.storage.from("music").download(track.storage_path);
+        if (musicBlob) backgroundMusic = Buffer.from(await musicBlob.arrayBuffer());
+      }
+    }
+
     const script = await generateScript({
       topic,
       contentStyle: series.tom_de_voz,
@@ -135,7 +155,7 @@ export async function runSeriesGeneration(
       }),
     );
 
-    const finalVideo = await renderFinalVideo(renderScenes, series.captions_enabled);
+    const finalVideo = await renderFinalVideo(renderScenes, series.captions_enabled, backgroundMusic);
     const thumbnail = renderScenes[0]?.image;
 
     const videoPath = `${userId}/${created.id}.mp4`;

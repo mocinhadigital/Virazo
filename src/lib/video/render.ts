@@ -20,7 +20,16 @@ const WIDTH = 1080;
 const HEIGHT = 1920;
 const FPS = 25;
 
-export async function renderFinalVideo(scenes: RenderScene[], burnCaptions: boolean): Promise<Buffer> {
+// Volume da música de fundo em relação à narração — baixo o bastante pra
+// não brigar com a voz, mas audível. Mesma ideia do "sorteio de uma faixa
+// por vídeo" do AutoShortz: aqui a faixa já vem escolhida (generate.ts).
+const BACKGROUND_MUSIC_VOLUME = 0.18;
+
+export async function renderFinalVideo(
+  scenes: RenderScene[],
+  burnCaptions: boolean,
+  backgroundMusic?: Buffer,
+): Promise<Buffer> {
   const workDir = await mkdtemp(path.join(tmpdir(), "virazo-"));
   try {
     const sceneClipPaths: string[] = [];
@@ -97,8 +106,40 @@ export async function renderFinalVideo(scenes: RenderScene[], burnCaptions: bool
       concatPath,
     ]);
 
+    let audioBasePath = concatPath;
+
+    if (backgroundMusic) {
+      const musicPath = path.join(workDir, "music.mp3");
+      await writeFile(musicPath, backgroundMusic);
+
+      const mixedPath = path.join(workDir, "mixed.mp4");
+      await execFileAsync(ffmpeg.path, [
+        "-y",
+        "-i",
+        concatPath,
+        "-stream_loop",
+        "-1",
+        "-i",
+        musicPath,
+        "-filter_complex",
+        `[1:a]volume=${BACKGROUND_MUSIC_VOLUME}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[aout]`,
+        "-map",
+        "0:v",
+        "-map",
+        "[aout]",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-t",
+        cumulativeSeconds.toFixed(2),
+        mixedPath,
+      ]);
+      audioBasePath = mixedPath;
+    }
+
     if (!burnCaptions || captionCues.length === 0) {
-      return await readFile(concatPath);
+      return await readFile(audioBasePath);
     }
 
     const assPath = path.join(workDir, "captions.ass");
@@ -112,7 +153,7 @@ export async function renderFinalVideo(scenes: RenderScene[], burnCaptions: bool
     await execFileAsync(ffmpeg.path, [
       "-y",
       "-i",
-      concatPath,
+      audioBasePath,
       "-vf",
       `ass='${escapedAssPath}'`,
       "-c:a",

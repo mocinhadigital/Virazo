@@ -13,6 +13,7 @@ type CreateSeriesBody = {
   duration: string;
   captionsEnabled: boolean;
   captionStyle: string | null;
+  backgroundMusicIds: string[];
   frequenciaDias: number;
   horario: string;
 };
@@ -75,6 +76,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const musicIds = body.backgroundMusicIds ?? [];
+  if (musicIds.length > 0) {
+    // RLS de music_tracks já restringe a builtin + próprias do usuário — esta
+    // contagem só confirma que os IDs recebidos existem e são acessíveis,
+    // pra nunca gravar um id inventado/de outra pessoa em background_music_ids.
+    const { count, error: musicCheckError } = await supabase
+      .from("music_tracks")
+      .select("id", { count: "exact", head: true })
+      .in("id", musicIds);
+    if (musicCheckError || count !== musicIds.length) {
+      return NextResponse.json({ error: "Uma ou mais músicas selecionadas são inválidas." }, { status: 400 });
+    }
+  }
+
   const { data, error } = await supabase
     .from("series")
     .insert({
@@ -88,6 +103,7 @@ export async function POST(request: Request) {
       duration: body.duration,
       captions_enabled: body.captionsEnabled,
       caption_style: body.captionStyle,
+      background_music_ids: body.backgroundMusicIds ?? [],
       frequencia_dias: body.frequenciaDias,
       horario: body.horario,
       next_generation_at: computeNextGenerationAt(body.horario),

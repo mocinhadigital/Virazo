@@ -12,6 +12,7 @@ export type SeriesRow = {
   duration: string;
   captions_enabled: boolean;
   caption_style: string | null;
+  background_music_ids: string[];
   frequencia_dias: number;
   horario: string;
   status: SeriesStatus;
@@ -34,6 +35,7 @@ export function mapSeriesRow(row: SeriesRow): SeriesRecord {
     duration: row.duration,
     captionsEnabled: row.captions_enabled,
     captionStyle: row.caption_style,
+    backgroundMusicIds: row.background_music_ids ?? [],
     frequenciaDias: row.frequencia_dias,
     horario: row.horario,
     status: row.status,

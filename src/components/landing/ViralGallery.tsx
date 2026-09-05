@@ -15,7 +15,7 @@ export default function ViralGallery() {
 
   return (
     <section className="pt-0 pb-10 sm:pb-14">
-      <div className="mx-auto flex max-w-6xl flex-col items-start px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-[1100px] flex-col items-start px-5 md:px-6">
         <h2 className="text-left text-[15px] font-semibold text-white/90">
           Nossos estilos de vídeo virais
         </h2>

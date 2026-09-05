@@ -17,9 +17,12 @@ import { elevenlabs } from "./elevenlabs";
 //   Vicente = Lucas  (Liam — narrador neutro/preciso)
 //   Bianca  = Ana    (Alice — feminina)
 //   Clara   = Sofia  (Jessica — feminina, jovem/expressiva)
-// "Heitor" (a 5ª voz masculina do AutoShortz, sussurrada/terror) NÃO tem
-// correspondente real testado nesta conta ElevenLabs ainda — por isso não
-// aparece no wizard. Ver relato para o usuário antes de adicionar.
+// "Heitor" (a 5ª voz masculina do AutoShortz, sussurrada/terror) não tem
+// voz própria no AutoShortz (lá é só preview estático, sem voice_id real —
+// confirmado inspecionando o Network deles). O nome exibido continua
+// "Heitor", mas por trás usa "Callum" (voice_id real confirmado via
+// GET /v1/voices nesta conta ElevenLabs) — a voz "premade" mais próxima do
+// tom grave/sombrio pedido, entre as disponíveis na conta.
 const VOICE_IDS: Record<string, string> = {
   Ana: "Xb7hH8MSUJpSbSDYk0k2", // Alice — feminina
   Lucas: "TX3LPaxmHKxFdv7VOQHJ", // Liam — masculina
@@ -29,6 +32,7 @@ const VOICE_IDS: Record<string, string> = {
   Vicente: "TX3LPaxmHKxFdv7VOQHJ", // Liam (mesma voz de "Lucas")
   Bianca: "Xb7hH8MSUJpSbSDYk0k2", // Alice (mesma voz de "Ana")
   Clara: "cgSgspJ2msm6clMCkdW9", // Jessica (mesma voz de "Sofia")
+  Heitor: "N2lVS1w4EtoT3dr4eOWO", // Callum — grave, rouca, tom sombrio
 };
 
 export async function synthesizeNarration(text: string, voiceName: string): Promise<Buffer> {

@@ -53,14 +53,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.horario !== undefined && !HORARIO_PATTERN.test(body.horario)) {
     return NextResponse.json({ error: "Horário inválido (use HH:MM)." }, { status: 400 });
   }
-  // Mesmo bloqueio de src/app/api/series/route.ts: "Heitor" é só preview,
-  // sem voice_id real — nunca deixar cair no fallback silencioso de vozes.
-  if (body.voice === "Heitor") {
-    return NextResponse.json(
-      { error: "A voz \"Heitor\" ainda não está disponível para geração de vídeo." },
-      { status: 400 },
-    );
-  }
   if (body.backgroundMusicIds !== undefined && body.backgroundMusicIds.length > 0) {
     const { count, error: musicCheckError } = await supabase
       .from("music_tracks")

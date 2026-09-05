@@ -8,7 +8,7 @@ const PREVIEW_TEXT = "Esta é uma prévia da narração.";
 
 // Só as vozes realmente selecionáveis no wizard (SERIES_VOICES) — evita
 // custo de API da ElevenLabs pra nomes arbitrários.
-const PREVIEWABLE_VOICES = new Set(["Rafael", "Vicente", "Bianca", "Clara"]);
+const PREVIEWABLE_VOICES = new Set(["Rafael", "Vicente", "Bianca", "Clara", "Heitor"]);
 
 export async function GET(request: Request) {
   const supabase = await createClient();

@@ -12,16 +12,10 @@ export const SERIES_DURATIONS = [
 
 // Nomes/descrições espelham o catálogo do AutoShortz.
 //
-// "Heitor" ainda não tem voice_id real de TTS testado nesta conta
-// ElevenLabs (busca por "Heitor" não retorna nada exato, só "Hector" em
-// outros idiomas) — por isso `ttsPending: true`. O preview dele usa um
-// áudio de amostra reaproveitado do próprio AutoShortz (asset público,
-// reuso autorizado pelo dono de ambos os produtos), servido localmente em
-// public/audio/voice-previews/heitor.mp3 — é só uma prévia gravada, não
-// tem qualquer ligação com o pipeline real de geração de narração.
-// `synthesizeNarration` (src/lib/ai/narration.ts) não tem entrada pra
-// "Heitor", e a criação de série em src/app/api/series/route.ts rejeita
-// explicitamente essa voz — não existe fallback silencioso pra outra voz.
+// "Heitor" não existe como voz própria no AutoShortz (confirmado: lá é só
+// preview estático, sem voice_id real de TTS). Por trás, "Heitor" usa a
+// voz real "Callum" da ElevenLabs (ver src/lib/ai/narration.ts) — preview
+// e narração real usam o mesmo voice_id, igual às demais vozes.
 export const SERIES_VOICES = [
   {
     name: "Rafael",
@@ -32,8 +26,6 @@ export const SERIES_VOICES = [
     name: "Heitor",
     gender: "Masculina",
     description: "Sussurrado e próximo, arrepia em terror e folclore.",
-    previewSrc: "/audio/voice-previews/heitor.mp3",
-    ttsPending: true,
   },
   {
     name: "Vicente",

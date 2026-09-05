@@ -17,7 +17,7 @@ export async function GET() {
     .from("music_tracks")
     .select("*")
     .order("is_builtin", { ascending: false })
-    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
     .returns<MusicTrackRow[]>();
 
   if (error) {
@@ -25,8 +25,12 @@ export async function GET() {
   }
 
   const tracks = (data ?? []).map((row) => {
-    const { data: urlData } = supabase.storage.from("music").getPublicUrl(row.storage_path);
-    return mapMusicTrackRow(row, urlData.publicUrl);
+    // Faixas prontas são asset estático do próprio Next.js
+    // (public/audio/music-library) — só as personalizadas vêm do bucket.
+    const url = row.is_builtin
+      ? row.storage_path
+      : supabase.storage.from("music").getPublicUrl(row.storage_path).data.publicUrl;
+    return mapMusicTrackRow(row, url);
   });
 
   return NextResponse.json(tracks);

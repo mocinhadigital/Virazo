@@ -28,6 +28,23 @@ create policy "music_tracks_insert_own"
   on public.music_tracks for insert
   with check (owner_user_id = auth.uid() and is_builtin = false);
 
+-- As 6 faixas prontas da biblioteca. `storage_path` aqui é um caminho
+-- público direto em public/audio/music-library (asset estático do Next.js,
+-- não do bucket do Supabase) — a API resolve isso vendo `is_builtin`.
+insert into public.music_tracks (id, title, description, storage_path, is_builtin)
+values
+  ('00000000-0000-4000-8000-000000000001', 'Melodia sinistra', 'Assombrada e inquietante', '/audio/music-library/melodia-sinistra.mp3', true),
+  ('00000000-0000-4000-8000-000000000002', 'Piano de terror', 'Teclas escuras e arrepiantes', '/audio/music-library/piano-de-terror.mp3', true),
+  ('00000000-0000-4000-8000-000000000003', 'Mistério sem solução', 'Atmosfera de suspense e intriga', '/audio/music-library/misterio-sem-solucao.mp3', true),
+  ('00000000-0000-4000-8000-000000000004', '8-bit lento', 'Chiptune sombrio com clima retrô', '/audio/music-library/8bit-lento.mp3', true),
+  ('00000000-0000-4000-8000-000000000005', 'Calmaria antes da tempestade', 'Tensão crescente para revelações dramáticas', '/audio/music-library/calmaria-antes-da-tempestade.mp3', true),
+  ('00000000-0000-4000-8000-000000000006', 'Sinfonia épica', 'Orquestral e majestosa para grandes histórias', '/audio/music-library/sinfonia-epica.mp3', true)
+on conflict (id) do update set
+  title = excluded.title,
+  description = excluded.description,
+  storage_path = excluded.storage_path,
+  is_builtin = excluded.is_builtin;
+
 drop policy if exists "music_tracks_delete_own" on public.music_tracks;
 create policy "music_tracks_delete_own"
   on public.music_tracks for delete

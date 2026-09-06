@@ -61,7 +61,7 @@ function getEffectiveStatus(video: VideoRecord): VideoStatus {
 }
 
 export default function MeusVideos() {
-  const { videos, openWizard, addVideo, removeVideo, refetchVideos } = useDashboard();
+  const { videos, openWizard, removeVideo, refetchVideos } = useDashboard();
   const [activeVideo, setActiveVideo] = useState<VideoRecord | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
@@ -77,24 +77,31 @@ export default function MeusVideos() {
   }, []);
 
   async function handleRetry(video: VideoRecord) {
+    // Proteção extra contra clique duplo: mesmo que o botão já fique
+    // desabilitado via `disabled={isRetrying}`, um segundo clique disparado
+    // antes do re-render (ex.: duplo-clique muito rápido) não deve iniciar
+    // uma segunda chamada.
+    if (retryingId) return;
     setRetryingId(video.id);
     setRetryError(null);
     try {
-      await addVideo({
-        title: video.title,
-        topic: video.topic,
-        style: video.style,
-        visualStyle: video.visualStyle,
-        duration: video.duration,
-        voice: video.voice ?? "",
-        captionsEnabled: video.captionsEnabled,
-        captionStyle: video.captionStyle,
-        gradient: video.gradient,
-      });
+      // Reprocessa o MESMO registro (mesmo video_id) — nunca cria um vídeo
+      // novo. A trava contra retry duplicado/paralelo de verdade é atômica,
+      // no banco (retry_video_and_consume_credit só afeta a linha se ela
+      // ainda estiver com status = 'Erro').
+      const res = await fetch(`/api/videos/${video.id}/retry`, { method: "POST" });
+      const data: unknown = await res.json();
+      if (!res.ok) {
+        const message = (data as { error?: string } | null)?.error ?? "Não foi possível gerar o vídeo.";
+        throw new Error(message);
+      }
     } catch (err) {
       setRetryError(err instanceof Error ? err.message : "Não foi possível gerar o vídeo.");
     } finally {
       setRetryingId(null);
+      // Rebusca do Supabase pra refletir o status final real (Pronto/Erro)
+      // no mesmo card, sem depender de otimismo local.
+      await refetchVideos();
     }
   }
 
@@ -358,7 +365,7 @@ function VideoRow({
               ) : (
                 <RotateCcw className="h-3.5 w-3.5" />
               )}
-              Tentar novamente
+              {isRetrying ? "Gerando..." : "Tentar novamente"}
             </button>
             <button
               type="button"

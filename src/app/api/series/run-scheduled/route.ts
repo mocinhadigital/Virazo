@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: dueError.message }, { status: 500 });
   }
 
-  const results: { seriesId: string; ok: boolean; error?: string }[] = [];
+  const results: { seriesId: string; ok: boolean; error?: string; alreadyInProgress?: boolean }[] = [];
 
   for (const series of dueSeries) {
     const concurrency = await checkConcurrencyLimit(supabase, series.user_id);
@@ -56,7 +56,12 @@ export async function POST(request: Request) {
     results.push(
       result.ok
         ? { seriesId: series.id, ok: true }
-        : { seriesId: series.id, ok: false, error: result.error },
+        : {
+            seriesId: series.id,
+            ok: false,
+            error: result.error,
+            alreadyInProgress: result.alreadyInProgress,
+          },
     );
   }
 

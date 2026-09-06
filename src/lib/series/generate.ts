@@ -17,7 +17,7 @@ import { PLANS, DEFAULT_MAX_CONCURRENT_GENERATIONS } from "@/lib/billing/plans";
 // intocado) — mesmas libs de IA, mesma ordem de chamadas.
 export type SeriesGenerationResult =
   | { ok: true; video: VideoRow }
-  | { ok: false; error: string; video: VideoRow | null };
+  | { ok: false; error: string; video: VideoRow | null; alreadyInProgress?: boolean };
 
 function extractErrorMessage(err: unknown): string {
   if (err && typeof err === "object" && "body" in err) {
@@ -75,6 +75,24 @@ export async function runSeriesGeneration(
   userId: string,
   series: SeriesRow,
 ): Promise<SeriesGenerationResult> {
+  // 0. Reivindica a série atomicamente ANTES de criar qualquer vídeo — a
+  // trava de verdade contra dupla geração (cron, "Gerar agora", clique
+  // duplicado). Se outra execução já detém o lock, paramos aqui sem criar
+  // vídeo nem gastar crédito.
+  const { data: claimed, error: claimError } = await supabase
+    .rpc("claim_series_for_generation", { p_series_id: series.id, p_user_id: userId })
+    .single()
+    .returns<SeriesRow>();
+
+  if (claimError || !claimed) {
+    return {
+      ok: false,
+      error: claimError?.message ?? "Esta série já está gerando um vídeo.",
+      video: null,
+      alreadyInProgress: true,
+    };
+  }
+
   const { data: recentVideos } = await supabase
     .from("videos")
     .select("title")
@@ -96,7 +114,9 @@ export async function runSeriesGeneration(
     musicIds.length > 0 ? musicIds[Math.floor(Math.random() * musicIds.length)] : null;
 
   const { data: created, error: createError } = await supabase
-    .rpc("create_video_and_consume_credit", {
+    .rpc("create_series_video_and_consume_credit", {
+      p_user_id: userId,
+      p_series_id: series.id,
       p_title: `${series.title} — ${new Date().toLocaleDateString("pt-BR")}`,
       p_topic: topic,
       p_style: series.tom_de_voz,
@@ -112,10 +132,16 @@ export async function runSeriesGeneration(
     .returns<VideoRow>();
 
   if (createError || !created) {
+    // Libera o lock e reagenda — não há vídeo pra registrar no log.
+    await supabase.rpc("record_series_generation", {
+      p_series_id: series.id,
+      p_video_id: null,
+      p_status: "erro",
+      p_message: createError?.message ?? "Não foi possível reservar o crédito.",
+      p_user_id: userId,
+    });
     return { ok: false, error: createError?.message ?? "Não foi possível reservar o crédito.", video: null };
   }
-
-  await supabase.from("videos").update({ series_id: series.id }).eq("id", created.id).eq("user_id", userId);
 
   try {
     let backgroundMusic: Buffer | undefined;
@@ -182,6 +208,7 @@ export async function runSeriesGeneration(
         p_video_id: created.id,
         p_video_url: videoUrl,
         p_thumbnail_url: thumbnailUrl,
+        p_user_id: userId,
       })
       .single()
       .returns<VideoRow>();
@@ -195,6 +222,7 @@ export async function runSeriesGeneration(
       p_video_id: created.id,
       p_status: "sucesso",
       p_message: null,
+      p_user_id: userId,
     });
 
     return { ok: true, video: ready };
@@ -206,6 +234,7 @@ export async function runSeriesGeneration(
       .rpc("refund_credit_and_mark_error", {
         p_video_id: created.id,
         p_message: message,
+        p_user_id: userId,
       })
       .single()
       .returns<VideoRow>();
@@ -219,6 +248,7 @@ export async function runSeriesGeneration(
       p_video_id: created.id,
       p_status: "erro",
       p_message: message,
+      p_user_id: userId,
     });
 
     return { ok: false, error: message, video: errored ?? null };

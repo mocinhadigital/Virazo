@@ -1,5 +1,4 @@
-export type PlanKey = "starter" | "turbo" | "maximo";
-export type BillingInterval = "monthly" | "yearly";
+export type PlanKey = "starter" | "pro";
 
 export type Plan = {
   key: PlanKey;
@@ -9,63 +8,52 @@ export type Plan = {
   creditsPerMonth: number;
   maxConcurrentGenerations: number;
   monthlyPriceCents: number;
-  originalMonthlyPriceCents: number; // preço riscado (âncora de desconto)
-  yearlyPriceCents: number; // cobrado uma vez por ano (não é o valor mensal x12)
-  stripePriceId: Record<BillingInterval, string>;
+  stripePriceId: string;
 };
 
-// IDs gerados por scripts/setup-stripe-plans.mjs (conta de teste da Stripe).
-// Ao migrar pra produção, rode o script de novo com a chave live e troque
-// os IDs abaixo pelos novos.
+// price_id LIVE oficiais da conta Stripe real — não são de teste, não
+// inventados: confirmados pelo dono do produto. Sem mensal/anual (só existe
+// mensal) e sem multiplicador de quantidade (cada assinatura é sempre 1
+// unidade — não dá pra comprar "2x Starter" numa assinatura só).
 export const PLANS: Record<PlanKey, Plan> = {
   starter: {
     key: "starter",
     name: "Starter",
-    description: "3 vídeos por semana",
+    description: "30 créditos por mês",
     badge: null,
-    creditsPerMonth: 13,
-    maxConcurrentGenerations: 1,
-    monthlyPriceCents: 1990,
-    originalMonthlyPriceCents: 2790,
-    yearlyPriceCents: 17916,
-    stripePriceId: {
-      monthly: "price_1U9FAF2WbOsfJItMZkGvOrYn",
-      yearly: "price_1U9FAG2WbOsfJItMPNjxclJG",
-    },
-  },
-  turbo: {
-    key: "turbo",
-    name: "Turbo",
-    description: "1 vídeo por dia",
-    badge: "Mais popular",
     creditsPerMonth: 30,
-    maxConcurrentGenerations: 2,
-    monthlyPriceCents: 2990,
-    originalMonthlyPriceCents: 4490,
-    yearlyPriceCents: 26916,
-    stripePriceId: {
-      monthly: "price_1U9FAG2WbOsfJItMBxtR0JnA",
-      yearly: "price_1U9FAH2WbOsfJItMFkWhQgCx",
-    },
+    maxConcurrentGenerations: 1,
+    monthlyPriceCents: 2900,
+    stripePriceId: "price_1UD87s2WTT6ZoTWq2Lmx8Imp",
   },
-  maximo: {
-    key: "maximo",
-    name: "Máximo",
-    description: "2 vídeos por dia",
-    badge: "Melhor para crescer",
-    creditsPerMonth: 60,
-    maxConcurrentGenerations: 3,
-    monthlyPriceCents: 4990,
-    originalMonthlyPriceCents: 6990,
-    yearlyPriceCents: 44916,
-    stripePriceId: {
-      monthly: "price_1U9FAH2WbOsfJItMDnHMraHn",
-      yearly: "price_1U9FAI2WbOsfJItMwVuiksHm",
-    },
+  pro: {
+    key: "pro",
+    name: "Pro",
+    description: "100 créditos por mês",
+    badge: "Mais popular",
+    creditsPerMonth: 100,
+    maxConcurrentGenerations: 2,
+    monthlyPriceCents: 7900,
+    stripePriceId: "price_1UD8Ce2WTT6ZoTWqfs5jjBC8",
   },
 };
 
-// Limite de gerações simultâneas para quem não tem assinatura ativa.
+// Pacote Avulso: pagamento único (Stripe Checkout mode "payment"), sem
+// assinatura — soma crédito uma vez, não renova nada.
+export const ONE_TIME_PACKAGE = {
+  key: "avulso" as const,
+  name: "Pacote Avulso",
+  description: "+10 créditos, pagamento único",
+  priceCents: 3900,
+  creditsGranted: 10,
+  stripePriceId: "price_1UD8GD2WTT6ZoTWqrRoamF8L",
+};
+
+export type CheckoutItemKey = PlanKey | typeof ONE_TIME_PACKAGE.key;
+
+// Limite de gerações simultâneas para quem não tem assinatura ativa (inclui
+// quem só comprou o Pacote Avulso — ele não cria assinatura, então não
+// muda esse limite).
 export const DEFAULT_MAX_CONCURRENT_GENERATIONS = 1;
 
 export function pricePerVideoCents(plan: Plan): number {
@@ -73,11 +61,5 @@ export function pricePerVideoCents(plan: Plan): number {
 }
 
 export function findPlanByStripePriceId(priceId: string): Plan | undefined {
-  return Object.values(PLANS).find(
-    (plan) => plan.stripePriceId.monthly === priceId || plan.stripePriceId.yearly === priceId,
-  );
-}
-
-export function billingIntervalFromPriceId(plan: Plan, priceId: string): BillingInterval {
-  return plan.stripePriceId.yearly === priceId ? "yearly" : "monthly";
+  return Object.values(PLANS).find((plan) => plan.stripePriceId === priceId);
 }

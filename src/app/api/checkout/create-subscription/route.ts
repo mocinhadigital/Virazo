@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { stripe } from "@/lib/billing/stripe";
-import { PLANS, type PlanKey, type BillingInterval } from "@/lib/billing/plans";
+import { PLANS, ONE_TIME_PACKAGE, type CheckoutItemKey } from "@/lib/billing/plans";
 
 type Body = {
-  plan: PlanKey;
-  interval: BillingInterval;
-  quantity?: number;
+  item: CheckoutItemKey;
 };
 
 export async function POST(request: Request) {
   const body = (await request.json()) as Body;
-  const plan = PLANS[body.plan];
-  if (!plan) {
-    return NextResponse.json({ error: "Plano inválido." }, { status: 400 });
+
+  const plan = body.item === "starter" || body.item === "pro" ? PLANS[body.item] : undefined;
+  const isOneTime = body.item === ONE_TIME_PACKAGE.key;
+
+  if (!plan && !isOneTime) {
+    return NextResponse.json({ error: "Item inválido." }, { status: 400 });
   }
 
   const supabase = await createClient();
@@ -45,13 +46,14 @@ export async function POST(request: Request) {
   }
 
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
-  const quantity = Math.max(1, Math.floor(body.quantity ?? 1));
 
+  // Cada assinatura é sempre 1 unidade — sem multiplicador de quantidade
+  // (Starter/Pro não permitem multiplicar créditos comprando "2x").
   const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
+    mode: isOneTime ? "payment" : "subscription",
     customer: customerId,
     client_reference_id: user.id,
-    line_items: [{ price: plan.stripePriceId[body.interval], quantity }],
+    line_items: [{ price: isOneTime ? ONE_TIME_PACKAGE.stripePriceId : plan!.stripePriceId, quantity: 1 }],
     success_url: `${origin}/dashboard?checkout=success`,
     cancel_url: `${origin}/dashboard?checkout=canceled`,
   });

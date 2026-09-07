@@ -7,21 +7,12 @@ const nextConfig: NextConfig = {
   // Next.js carregá-lo via require normal em runtime, sem tentar empacotar.
   serverExternalPackages: ["@ffmpeg-installer/ffmpeg"],
 
-  // Domínio canônico é virazo.app (sem www) — o redirect apex->www hoje é
-  // feito no nível de domínio da Vercel (fora deste código) e precisa ser
-  // invertido lá (Project Settings -> Domains). Este redirect aqui é a
-  // camada de defesa dentro do próprio app: garante www -> apex mesmo que a
-  // configuração de domínio da Vercel mude ou fique inconsistente no futuro.
-  async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.virazo.app" }],
-        destination: "https://virazo.app/:path*",
-        permanent: true,
-      },
-    ];
-  },
+  // NÃO adicionar aqui um redirect www->apex enquanto a Vercel (Project
+  // Settings -> Domains) ainda redirecionar apex->www: as duas regras juntas
+  // criam um loop infinito de redirecionamento entre os dois domínios (fora
+  // do ar dos dois lados). A inversão do domínio canônico precisa ser feita
+  // SÓ no dashboard da Vercel primeiro; só depois disso faz sentido reforçar
+  // www->apex aqui como camada extra de defesa.
 };
 
 export default nextConfig;

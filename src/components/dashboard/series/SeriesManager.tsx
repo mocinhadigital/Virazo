@@ -83,6 +83,38 @@ const STATUS_BADGE: Record<SeriesStatus, string> = {
   arquivada: "border-white/10 bg-white/[0.04] text-zinc-500",
 };
 
+const NETWORK_ERROR_MESSAGE = "Não foi possível carregar os dados. Verifique sua conexão e tente novamente.";
+
+// fetch() só rejeita (lança) quando a rede falha antes de qualquer resposta
+// chegar — nesse caso o erro é sempre um TypeError, e a mensagem crua do
+// navegador ("Load failed" no Safari, "Failed to fetch" no Chrome) não diz
+// nada útil pro usuário. Quando o servidor responde (mesmo com 4xx/5xx),
+// isso já vira uma resposta normal e cai no `throw new Error(data.error)`
+// de cada handler — nunca passa por aqui.
+function describeError(err: unknown): string {
+  if (err instanceof TypeError) return NETWORK_ERROR_MESSAGE;
+  return err instanceof Error ? err.message : NETWORK_ERROR_MESSAGE;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Retry só pra GET idempotente (recarregar a lista) e só quando a falha é de
+// rede (fetch() lançou) — nunca quando o servidor já respondeu. POST/PATCH/
+// DELETE/gerar nunca passam por aqui: reenviar um desses arriscaria duplicar
+// criação, geração ou crédito.
+async function fetchWithNetworkRetry(url: string, retries = 2): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(url);
+    } catch (err) {
+      if (attempt >= retries || !(err instanceof TypeError)) throw err;
+      await sleep(400 * (attempt + 1));
+    }
+  }
+}
+
 function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("pt-BR", {
@@ -138,7 +170,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
       );
       setModalOpen(false);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Não foi possível salvar a série.");
+      setFormError(describeError(err));
     } finally {
       setSaving(false);
     }
@@ -156,7 +188,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
       if (!res.ok) throw new Error(data.error ?? "Não foi possível atualizar a série.");
       setSeries((prev) => prev.map((s) => (s.id === id ? data : s)));
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Não foi possível atualizar a série.");
+      setNotice(describeError(err));
     } finally {
       setBusyId(null);
     }
@@ -173,7 +205,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
       }
       setSeries((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Não foi possível excluir a série.");
+      setNotice(describeError(err));
     } finally {
       setBusyId(null);
     }
@@ -188,10 +220,16 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
       if (!res.ok) throw new Error(data.error ?? "Não foi possível gerar o vídeo.");
       setNotice(`Vídeo gerado com sucesso a partir desta série — confira em "Meus vídeos" no painel.`);
       // Reflete o novo total/agendamento sem precisar recarregar a página.
-      const refreshed = await fetch("/api/series").then((r) => r.json());
-      if (Array.isArray(refreshed)) setSeries(refreshed);
+      // GET idempotente — pode tentar de novo em falha de rede sem risco.
+      try {
+        const refreshed = await fetchWithNetworkRetry("/api/series").then((r) => r.json());
+        if (Array.isArray(refreshed)) setSeries(refreshed);
+      } catch {
+        // A geração já teve sucesso (mensagem acima já foi mostrada); só a
+        // atualização da lista falhou — não sobrescreve o aviso de sucesso.
+      }
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Não foi possível gerar o vídeo.");
+      setNotice(describeError(err));
     } finally {
       setBusyId(null);
     }

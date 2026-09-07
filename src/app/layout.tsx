@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://virazo.app"),
   title: "Virazo — Vídeos criados por IA, sem você aparecer",
   description:
     "A Virazo usa inteligência artificial para criar, narrar e legendar vídeos prontos para viralizar em minutos. Sem câmera, sem edição, sem complicação.",

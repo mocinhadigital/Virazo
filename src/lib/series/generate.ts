@@ -1,10 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateScript } from "@/lib/ai/script";
-import { synthesizeNarration } from "@/lib/ai/narration";
-import { transcribeForCaptions } from "@/lib/ai/captions";
-import { generateSceneImage } from "@/lib/ai/image";
-import { renderFinalVideo, type RenderScene } from "@/lib/video/render";
+import { renderFinalVideo } from "@/lib/video/render";
+import { buildRenderScenes } from "@/lib/video/scenePipeline";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
 import { PLANS, DEFAULT_MAX_CONCURRENT_GENERATIONS } from "@/lib/billing/plans";
@@ -165,21 +163,7 @@ export async function runSeriesGeneration(
       language: series.idioma,
     });
 
-    const renderScenes: RenderScene[] = await Promise.all(
-      script.scenes.map(async (scene) => {
-        const [audio, image] = await Promise.all([
-          synthesizeNarration(scene.narration, series.voice ?? ""),
-          generateSceneImage(scene.imagePrompt, series.visual_style),
-        ]);
-        const transcript = await transcribeForCaptions(audio, "narration.mp3", series.idioma);
-        return {
-          image,
-          audio,
-          durationSeconds: transcript.durationSeconds,
-          words: transcript.words,
-        };
-      }),
-    );
+    const renderScenes = await buildRenderScenes(script, series.voice ?? "", series.visual_style, series.idioma);
 
     const finalVideo = await renderFinalVideo(renderScenes, series.captions_enabled, backgroundMusic);
     const thumbnail = renderScenes[0]?.image;

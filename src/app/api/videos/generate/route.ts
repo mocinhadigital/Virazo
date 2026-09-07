@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { generateScript } from "@/lib/ai/script";
-import { synthesizeNarration } from "@/lib/ai/narration";
-import { transcribeForCaptions } from "@/lib/ai/captions";
-import { generateSceneImage } from "@/lib/ai/image";
-import { renderFinalVideo, type RenderScene } from "@/lib/video/render";
+import { renderFinalVideo } from "@/lib/video/render";
+import { buildRenderScenes } from "@/lib/video/scenePipeline";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import { PLANS, DEFAULT_MAX_CONCURRENT_GENERATIONS } from "@/lib/billing/plans";
 
@@ -125,22 +123,9 @@ export async function POST(request: Request) {
       duration: body.duration,
     });
 
-    // 3. Narração + legenda (por cena) + imagem, em paralelo.
-    const renderScenes: RenderScene[] = await Promise.all(
-      script.scenes.map(async (scene) => {
-        const [audio, image] = await Promise.all([
-          synthesizeNarration(scene.narration, body.voice),
-          generateSceneImage(scene.imagePrompt, visualStyle),
-        ]);
-        const transcript = await transcribeForCaptions(audio);
-        return {
-          image,
-          audio,
-          durationSeconds: transcript.durationSeconds,
-          words: transcript.words,
-        };
-      }),
-    );
+    // 3. Narração (1 chamada TTS por vez — ver scenePipeline.ts) + legenda
+    // (por cena) + imagem (fal.ai, em paralelo).
+    const renderScenes = await buildRenderScenes(script, body.voice, visualStyle);
 
     // 4. Monta o vídeo final.
     const finalVideo = await renderFinalVideo(renderScenes, body.captionsEnabled);

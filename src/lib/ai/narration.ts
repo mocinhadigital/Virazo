@@ -1,5 +1,6 @@
 import "server-only";
 import { elevenlabs } from "./elevenlabs";
+import { withElevenLabsSlot } from "./elevenlabsGate";
 
 // As vozes "clássicas" da ElevenLabs (Rachel, Josh, Bella, Daniel...) são da
 // Voice Library e exigem plano pago pra uso via API ("Free users cannot use
@@ -38,17 +39,22 @@ const VOICE_IDS: Record<string, string> = {
 export async function synthesizeNarration(text: string, voiceName: string): Promise<Buffer> {
   const voiceId = VOICE_IDS[voiceName] ?? VOICE_IDS.Ana;
 
-  const stream = await elevenlabs.textToSpeech.convert(voiceId, {
-    text,
-    modelId: "eleven_multilingual_v2",
-  });
+  // Segura uma vaga do semáforo global (Postgres) durante toda a chamada —
+  // nunca mais de 3 chamadas TTS simultâneas em toda a aplicação, entre
+  // geração por série, manual, retry e preview de voz (ver elevenlabsGate.ts).
+  return withElevenLabsSlot(`narration:${voiceName}`, async () => {
+    const stream = await elevenlabs.textToSpeech.convert(voiceId, {
+      text,
+      modelId: "eleven_multilingual_v2",
+    });
 
-  const chunks: Uint8Array[] = [];
-  const reader = stream.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) chunks.push(value);
-  }
-  return Buffer.concat(chunks);
+    const chunks: Uint8Array[] = [];
+    const reader = stream.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+    return Buffer.concat(chunks);
+  });
 }

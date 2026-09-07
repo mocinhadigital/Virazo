@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { anthropic } from "@/lib/ai/anthropic";
 import { fal } from "@/lib/ai/fal";
 import { elevenlabs } from "@/lib/ai/elevenlabs";
+import { withElevenLabsSlot } from "@/lib/ai/elevenlabsGate";
 import { groq } from "@/lib/ai/groq";
 
 type ServiceStatus = {
@@ -53,10 +54,15 @@ async function checkElevenLabs(): Promise<ServiceStatus> {
   try {
     // Usa a permissão "Text to Speech" (a que a narração real precisa),
     // em vez de "voices_read" — nem toda chave tem esse segundo escopo liberado.
-    await elevenlabs.textToSpeech.convert("Xb7hH8MSUJpSbSDYk0k2", {
-      text: "teste",
-      modelId: "eleven_flash_v2_5",
-    });
+    // Passa pelo mesmo semáforo global da narração/preview — este check
+    // também é uma chamada real à ElevenLabs e conta pro limite de 3
+    // concorrentes da conta.
+    await withElevenLabsSlot("health-check", () =>
+      elevenlabs.textToSpeech.convert("Xb7hH8MSUJpSbSDYk0k2", {
+        text: "teste",
+        modelId: "eleven_flash_v2_5",
+      }),
+    );
     return { service: "ElevenLabs", configured, ok: true, detail: "conectado (text-to-speech)" };
   } catch (err) {
     return {

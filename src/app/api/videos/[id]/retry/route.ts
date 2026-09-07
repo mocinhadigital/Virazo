@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { generateScript } from "@/lib/ai/script";
-import { synthesizeNarration } from "@/lib/ai/narration";
-import { transcribeForCaptions } from "@/lib/ai/captions";
-import { generateSceneImage } from "@/lib/ai/image";
-import { renderFinalVideo, type RenderScene } from "@/lib/video/render";
+import { renderFinalVideo } from "@/lib/video/render";
+import { buildRenderScenes } from "@/lib/video/scenePipeline";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 
 // Reprocessa um vídeo que falhou, no MESMO registro (mesmo id) — nunca cria
@@ -123,21 +121,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       language: idioma,
     });
 
-    // 3. Narração + legenda (por cena) + imagem, em paralelo — mesma voz.
-    const renderScenes: RenderScene[] = await Promise.all(
-      script.scenes.map(async (scene) => {
-        const [audio, image] = await Promise.all([
-          synthesizeNarration(scene.narration, retried.voice ?? ""),
-          generateSceneImage(scene.imagePrompt, retried.visual_style ?? "Realista"),
-        ]);
-        const transcript = await transcribeForCaptions(audio, "narration.mp3", idioma);
-        return {
-          image,
-          audio,
-          durationSeconds: transcript.durationSeconds,
-          words: transcript.words,
-        };
-      }),
+    // 3. Narração (1 chamada TTS por vez — ver scenePipeline.ts) + legenda
+    // (por cena) + imagem (fal.ai, em paralelo) — mesma voz.
+    const renderScenes = await buildRenderScenes(
+      script,
+      retried.voice ?? "",
+      retried.visual_style ?? "Realista",
+      idioma,
     );
 
     // 4. Monta o vídeo final — mesma legenda ligada/desligada, mesma música.

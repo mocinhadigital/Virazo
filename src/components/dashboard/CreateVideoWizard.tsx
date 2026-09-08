@@ -83,7 +83,7 @@ export default function CreateVideoWizard() {
 }
 
 function WizardPanel() {
-  const { wizardInitial, closeWizard, addVideo, credits } = useDashboard();
+  const { wizardInitial, closeWizard, addVideo, videosRemainingToday, dailyVideoLimit } = useDashboard();
 
   const [step, setStep] = useState<StepKey>("tema");
   const [topic, setTopic] = useState(wizardInitial.topic ?? "");
@@ -101,13 +101,6 @@ function WizardPanel() {
 
   const stepIndex = STEP_ORDER.indexOf(step);
   const isFormStep = step !== "geracao";
-
-  useEffect(() => {
-    if (step === "revisao") {
-      // LOG TEMPORÁRIO — remover depois de descobrir o problema dos créditos.
-      console.log("[Virazo debug] tela de revisão — valor de credits neste momento:", credits);
-    }
-  }, [step, credits]);
 
   useEffect(() => {
     if (step !== "geracao" || progress >= 100) return;
@@ -166,7 +159,7 @@ function WizardPanel() {
       case "voz":
         return voice !== null;
       case "revisao":
-        return credits > 0;
+        return videosRemainingToday > 0;
       default:
         return true;
     }
@@ -481,14 +474,16 @@ function WizardPanel() {
                 value={captionsOn ? (captionStyle ?? "Ativadas") : "Desativadas"}
                 onEdit={() => setStep("legendas")}
               />
-              {credits > 0 ? (
+              {videosRemainingToday > 0 ? (
                 <p className="mt-2 text-xs text-zinc-500">
-                  A geração deste vídeo vai usar 1 crédito. Você tem {credits}{" "}
-                  {credits === 1 ? "crédito" : "créditos"}.
+                  Este vídeo vai contar como 1 dos seus vídeos de hoje. Você tem{" "}
+                  {videosRemainingToday} de {dailyVideoLimit}{" "}
+                  {dailyVideoLimit === 1 ? "vídeo" : "vídeos"} restante(s) hoje.
                 </p>
               ) : (
                 <p className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-400">
-                  Você não tem créditos suficientes para gerar este vídeo.
+                  Você já usou todos os seus vídeos de hoje ({dailyVideoLimit}/dia no seu plano).
+                  Volte amanhã ou faça upgrade de plano.
                 </p>
               )}
             </div>

@@ -9,10 +9,10 @@ import { PLANS, DEFAULT_MAX_CONCURRENT_GENERATIONS } from "@/lib/billing/plans";
 
 // Núcleo da geração de um vídeo a partir de uma série. Recebe o cliente
 // Supabase já pronto (o de cookies do usuário no disparo manual, ou o
-// service-role num futuro agendador rodando sem sessão) e o `userId`
-// explícito, pra funcionar nos dois casos sem duplicar a lógica de novo.
-// Espelha a sequência de /api/videos/generate/route.ts (que continua
-// intocado) — mesmas libs de IA, mesma ordem de chamadas.
+// service-role no agendador rodando sem sessão) e o `userId` explícito, pra
+// funcionar nos dois casos sem duplicar a lógica de novo. Espelha a
+// sequência de /api/videos/generate/route.ts (que continua intocado) —
+// mesmas libs de IA, mesma ordem de chamadas.
 export type SeriesGenerationResult =
   | { ok: true; video: VideoRow }
   | { ok: false; error: string; video: VideoRow | null; alreadyInProgress?: boolean };
@@ -33,6 +33,11 @@ function extractErrorMessage(err: unknown): string {
   return "Não foi possível gerar o vídeo.";
 }
 
+// Proteção técnica de concorrência — INDEPENDENTE do limite diário
+// comercial (reserve_daily_video_slot). Impede que este usuário tenha mais
+// de `maxConcurrentGenerations` vídeos rodando ao mesmo tempo, protegendo a
+// carga simultânea sobre ElevenLabs e os demais providers de IA — mesmo
+// que o limite diário do plano ainda não tenha sido atingido.
 export async function checkConcurrencyLimit(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
@@ -40,7 +45,7 @@ export async function checkConcurrencyLimit(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data: activeSubscription } = await supabase
     .from("subscriptions")
-    .select("plan, quantity")
+    .select("plan")
     .eq("user_id", userId)
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -49,7 +54,7 @@ export async function checkConcurrencyLimit(
 
   const maxConcurrent = activeSubscription
     ? (PLANS[activeSubscription.plan as keyof typeof PLANS]?.maxConcurrentGenerations ??
-      DEFAULT_MAX_CONCURRENT_GENERATIONS) * (activeSubscription.quantity ?? 1)
+      DEFAULT_MAX_CONCURRENT_GENERATIONS)
     : DEFAULT_MAX_CONCURRENT_GENERATIONS;
 
   const { count: inProgressCount } = await supabase
@@ -76,7 +81,7 @@ export async function runSeriesGeneration(
   // 0. Reivindica a série atomicamente ANTES de criar qualquer vídeo — a
   // trava de verdade contra dupla geração (cron, "Gerar agora", clique
   // duplicado). Se outra execução já detém o lock, paramos aqui sem criar
-  // vídeo nem gastar crédito.
+  // vídeo nem reservar vaga do limite diário.
   const { data: claimed, error: claimError } = await supabase
     .rpc("claim_series_for_generation", { p_series_id: series.id, p_user_id: userId })
     .single()
@@ -111,10 +116,11 @@ export async function runSeriesGeneration(
   const chosenMusicId =
     musicIds.length > 0 ? musicIds[Math.floor(Math.random() * musicIds.length)] : null;
 
+  // 1. Reserva atomicamente 1 vaga do limite diário do plano — rejeita sem
+  // assinatura ativa ou se o limite de hoje já foi atingido, sem criar
+  // vídeo nenhum nesses casos.
   const { data: created, error: createError } = await supabase
-    .rpc("create_series_video_and_consume_credit", {
-      p_user_id: userId,
-      p_series_id: series.id,
+    .rpc("reserve_daily_video_slot", {
       p_title: `${series.title} — ${new Date().toLocaleDateString("pt-BR")}`,
       p_topic: topic,
       p_style: series.tom_de_voz,
@@ -125,6 +131,8 @@ export async function runSeriesGeneration(
       p_gradient: "from-orange-500 via-amber-500 to-rose-500",
       p_visual_style: series.visual_style,
       p_background_music_id: chosenMusicId,
+      p_series_id: series.id,
+      p_user_id: userId,
     })
     .single()
     .returns<VideoRow>();
@@ -135,10 +143,14 @@ export async function runSeriesGeneration(
       p_series_id: series.id,
       p_video_id: null,
       p_status: "erro",
-      p_message: createError?.message ?? "Não foi possível reservar o crédito.",
+      p_message: createError?.message ?? "Não foi possível reservar a vaga de geração.",
       p_user_id: userId,
     });
-    return { ok: false, error: createError?.message ?? "Não foi possível reservar o crédito.", video: null };
+    return {
+      ok: false,
+      error: createError?.message ?? "Não foi possível reservar a vaga de geração.",
+      video: null,
+    };
   }
 
   try {
@@ -214,8 +226,8 @@ export async function runSeriesGeneration(
     console.error("[series/generate] falhou:", err);
     const message = extractErrorMessage(err);
 
-    const { data: errored, error: refundError } = await supabase
-      .rpc("refund_credit_and_mark_error", {
+    const { data: errored, error: failError } = await supabase
+      .rpc("mark_video_failed", {
         p_video_id: created.id,
         p_message: message,
         p_user_id: userId,
@@ -223,8 +235,8 @@ export async function runSeriesGeneration(
       .single()
       .returns<VideoRow>();
 
-    if (refundError) {
-      console.error("[series/generate] refund_credit_and_mark_error também falhou:", refundError);
+    if (failError) {
+      console.error("[series/generate] mark_video_failed também falhou:", failError);
     }
 
     await supabase.rpc("record_series_generation", {

@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import { Sparkles, Zap } from "lucide-react";
 import { navItems } from "./navItems";
 import SignOutButton from "./SignOutButton";
+import { useDashboard } from "./DashboardContext";
 
 export default function Sidebar({ userName }: { userName: string }) {
   const pathname = usePathname();
+  const { openPlanModal } = useDashboard();
 
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-white/[0.06] lg:bg-[#05050a]">
@@ -52,13 +54,14 @@ export default function Sidebar({ userName }: { userName: string }) {
       </nav>
 
       <div className="flex flex-col gap-4 border-t border-white/[0.06] p-4">
-        <Link
-          href="/dashboard/planos"
+        <button
+          type="button"
+          onClick={openPlanModal}
           className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 text-sm font-medium text-white transition-colors hover:border-white/20"
         >
           <Zap className="h-4 w-4" strokeWidth={2} />
           Fazer upgrade
-        </Link>
+        </button>
 
         <div className="flex items-center gap-3 px-1">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-xs font-semibold text-zinc-300">

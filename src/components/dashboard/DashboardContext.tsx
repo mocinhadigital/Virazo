@@ -1,9 +1,11 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { mapVideoRow, type VideoRow } from "./videoMapping";
 import type { VideoRecord } from "./types";
+import { PLANS, type PlanKey } from "@/lib/billing/plans";
+import { countVideosUsedToday, parseGenerationError } from "@/lib/billing/dailyLimit";
 
 export type WizardInitial = {
   topic?: string;
@@ -27,11 +29,17 @@ type DashboardContextValue = {
   addVideo: (input: NewVideoInput) => Promise<void>;
   removeVideo: (id: string) => void;
   refetchVideos: () => Promise<void>;
-  credits: number;
+  plan: PlanKey | null;
+  dailyVideoLimit: number;
+  videosUsedToday: number;
+  videosRemainingToday: number;
   isWizardOpen: boolean;
   wizardInitial: WizardInitial;
   openWizard: (initial?: WizardInitial) => void;
   closeWizard: () => void;
+  isPlanModalOpen: boolean;
+  openPlanModal: () => void;
+  closePlanModal: () => void;
 };
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -39,19 +47,24 @@ const DashboardContext = createContext<DashboardContextValue | null>(null);
 export function DashboardProvider({
   children,
   initialVideos,
-  initialCredits,
+  initialPlan,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
-  initialCredits: number;
+  initialPlan: PlanKey | null;
 }) {
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
-  const [credits, setCredits] = useState(initialCredits);
+  const [plan, setPlan] = useState<PlanKey | null>(initialPlan);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardInitial, setWizardInitial] = useState<WizardInitial>({});
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
-  // LOG TEMPORÁRIO — remover depois de descobrir o problema dos créditos.
-  console.log("[Virazo debug] initialCredits recebido do servidor (layout.tsx):", initialCredits);
+  const dailyVideoLimit = plan ? PLANS[plan].dailyVideoLimit : 0;
+  const videosUsedToday = useMemo(() => countVideosUsedToday(videos), [videos]);
+  const videosRemainingToday = Math.max(0, dailyVideoLimit - videosUsedToday);
+
+  const openPlanModal = useCallback(() => setIsPlanModalOpen(true), []);
+  const closePlanModal = useCallback(() => setIsPlanModalOpen(false), []);
 
   const addVideo = useCallback(async (input: NewVideoInput) => {
     const tempId = `temp-${Date.now()}`;
@@ -67,6 +80,7 @@ export function DashboardProvider({
       captionsEnabled: input.captionsEnabled,
       captionStyle: input.captionStyle,
       createdAt: "agora",
+      createdAtIso: new Date().toISOString(),
       gradient: input.gradient,
       videoUrl: null,
       thumbnailUrl: null,
@@ -74,10 +88,10 @@ export function DashboardProvider({
       seriesId: null,
     };
     setVideos((prev) => [placeholder, ...prev]);
-    setCredits((prev) => Math.max(0, prev - 1));
 
     let result: VideoRow | null = null;
     let errorMessage: string | null = null;
+    let reason: "no_subscription" | "daily_limit_reached" | "other" = "other";
 
     try {
       const response = await fetch("/api/videos/generate", {
@@ -88,11 +102,11 @@ export function DashboardProvider({
       const data: unknown = await response.json();
       if (data && typeof data === "object" && "id" in data) {
         result = data as VideoRow;
-        if (result.status === "Erro") {
-          errorMessage = result.error_message ?? "Não foi possível gerar o vídeo.";
-        }
       } else {
-        errorMessage = (data as { error?: string } | null)?.error ?? "Não foi possível gerar o vídeo.";
+        const rawMessage = (data as { error?: string } | null)?.error ?? "Não foi possível gerar o vídeo.";
+        const parsed = parseGenerationError(rawMessage);
+        errorMessage = parsed.message;
+        reason = parsed.reason;
       }
     } catch {
       errorMessage = "Não foi possível conectar ao servidor.";
@@ -104,10 +118,13 @@ export function DashboardProvider({
     });
 
     if (errorMessage) {
-      setCredits((prev) => prev + 1);
+      if (reason === "no_subscription") {
+        setIsWizardOpen(false);
+        openPlanModal();
+      }
       throw new Error(errorMessage);
     }
-  }, []);
+  }, [openPlanModal]);
 
   const removeVideo = useCallback((id: string) => {
     setVideos((prev) => prev.filter((v) => v.id !== id));
@@ -141,34 +158,37 @@ export function DashboardProvider({
 
   const openWizard = useCallback((initial: WizardInitial = {}) => {
     setWizardInitial(initial);
+
+    if (!plan) {
+      openPlanModal();
+      return;
+    }
+
     setIsWizardOpen(true);
 
-    // O saldo em `credits` foi carregado uma única vez no primeiro carregamento
-    // da página e nunca mais é buscado — se o crédito mudou no banco desde
-    // então (recarga manual, reembolso, etc.), o app não saberia. Busca de
-    // novo aqui, sempre que o wizard abre, pra nunca depender de dado velho.
+    // O plano ativo foi carregado uma única vez no primeiro carregamento da
+    // página — se mudou desde então (upgrade/downgrade/cancelamento), o app
+    // não saberia. Busca de novo aqui, sempre que o wizard abre, pra nunca
+    // depender de dado velho.
     void (async () => {
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      // LOG TEMPORÁRIO — remover depois de descobrir o problema dos créditos.
-      console.log("[Virazo debug] usuário autenticado ao abrir o wizard:", user?.id, user?.email);
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("credits")
-        .eq("id", user.id)
-        .maybeSingle()
-        .returns<{ credits: number }>();
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("plan")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ plan: PlanKey }>();
 
-      // LOG TEMPORÁRIO — remover depois de descobrir o problema dos créditos.
-      console.log("[Virazo debug] resultado da busca de créditos ao abrir o wizard:", { data, error });
-
-      if (data) setCredits(data.credits);
+      setPlan(data?.plan ?? null);
     })();
-  }, []);
+  }, [plan, openPlanModal]);
 
   const closeWizard = useCallback(() => setIsWizardOpen(false), []);
 
@@ -179,11 +199,17 @@ export function DashboardProvider({
         addVideo,
         removeVideo,
         refetchVideos,
-        credits,
+        plan,
+        dailyVideoLimit,
+        videosUsedToday,
+        videosRemainingToday,
         isWizardOpen,
         wizardInitial,
         openWizard,
         closeWizard,
+        isPlanModalOpen,
+        openPlanModal,
+        closePlanModal,
       }}
     >
       {children}

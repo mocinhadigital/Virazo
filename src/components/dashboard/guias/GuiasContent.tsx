@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Play, Lock, X, Loader2 } from "lucide-react";
-import { PLANS, ONE_TIME_PACKAGE, type CheckoutItemKey } from "@/lib/billing/plans";
+import { Play, Lock } from "lucide-react";
+import { useDashboard } from "../DashboardContext";
 
 type Guide = {
   slug: string;
@@ -46,7 +46,7 @@ const featured = GUIDES[0];
 
 export default function GuiasContent() {
   const [playingFeatured, setPlayingFeatured] = useState(false);
-  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const { openPlanModal } = useDashboard();
 
   return (
     <>
@@ -113,12 +113,11 @@ export default function GuiasContent() {
             onOpen={() =>
               document.getElementById("guia-destaque")?.scrollIntoView({ behavior: "smooth" })
             }
-            onLocked={() => setPlanModalOpen(true)}
+            onLocked={openPlanModal}
           />
         ))}
       </div>
 
-      {planModalOpen && <ChoosePlanModal onClose={() => setPlanModalOpen(false)} />}
     </>
   );
 }
@@ -185,104 +184,5 @@ function GuideCard({
         {guide.description}
       </p>
     </button>
-  );
-}
-
-function ChoosePlanModal({ onClose }: { onClose: () => void }) {
-  const [loadingItem, setLoadingItem] = useState<CheckoutItemKey | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubscribe(item: CheckoutItemKey) {
-    setError(null);
-    setLoadingItem(item);
-    try {
-      const response = await fetch("/api/checkout/create-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Não foi possível iniciar o checkout.");
-      }
-      window.location.assign(data.url);
-    } catch (err) {
-      setLoadingItem(null);
-      setError(err instanceof Error ? err.message : "Não foi possível iniciar o checkout.");
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0a0a12] p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Escolha seu plano</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-white/5 hover:text-white"
-            aria-label="Fechar"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3">
-          {Object.values(PLANS).map((plan) => (
-            <div
-              key={plan.key}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3.5"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">{plan.name}</p>
-                <p className="truncate text-xs text-zinc-500">
-                  {plan.description} · R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={loadingItem !== null}
-                onClick={() => handleSubscribe(plan.key)}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loadingItem === plan.key && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Assinar
-              </button>
-            </div>
-          ))}
-
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3.5">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">{ONE_TIME_PACKAGE.name}</p>
-              <p className="truncate text-xs text-zinc-500">
-                {ONE_TIME_PACKAGE.description} · R${" "}
-                {(ONE_TIME_PACKAGE.priceCents / 100).toFixed(2).replace(".", ",")}
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={loadingItem !== null}
-              onClick={() => handleSubscribe(ONE_TIME_PACKAGE.key)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loadingItem === ONE_TIME_PACKAGE.key && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Comprar
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-center text-xs font-medium text-red-400">
-            {error}
-          </p>
-        )}
-      </div>
-    </div>
   );
 }

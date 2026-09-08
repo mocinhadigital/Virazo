@@ -16,6 +16,8 @@ import {
 import type { SeriesRecord, SeriesStatus } from "../types";
 import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
+import { useDashboard } from "../DashboardContext";
+import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import {
@@ -126,6 +128,7 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function SeriesManager({ initialSeries }: { initialSeries: SeriesRecord[] }) {
+  const { openPlanModal } = useDashboard();
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -217,7 +220,13 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
     try {
       const res = await fetch(`/api/series/${id}/generate`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Não foi possível gerar o vídeo.");
+      if (!res.ok) {
+        const parsed = parseGenerationError(data.error ?? "Não foi possível gerar o vídeo.");
+        if (parsed.reason === "no_subscription") {
+          openPlanModal();
+        }
+        throw new Error(parsed.message);
+      }
       setNotice(`Vídeo gerado com sucesso a partir desta série — confira em "Meus vídeos" no painel.`);
       // Reflete o novo total/agendamento sem precisar recarregar a página.
       // GET idempotente — pode tentar de novo em falha de rede sem risco.

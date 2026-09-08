@@ -33,6 +33,7 @@ export function mapVideoRow(row: VideoRow): VideoRecord {
     captionsEnabled: row.captions_enabled,
     captionStyle: row.caption_style,
     createdAt: formatCreatedAt(row.created_at),
+    createdAtIso: row.created_at,
     gradient: row.gradient,
     videoUrl: row.video_url,
     thumbnailUrl: row.thumbnail_url,

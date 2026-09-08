@@ -10,10 +10,11 @@ import type { VideoRow } from "@/components/dashboard/videoMapping";
 // /api/videos/generate/route.ts (que continua intocado), só trocando a
 // etapa 1 (criar linha nova) por um UPDATE atômico no registro existente
 // (retry_video), que também serve de trava contra retry duplicado/paralelo:
-// só afeta a linha se ela ainda estiver com status = 'Erro'. Retry é
-// gratuito — o crédito da tentativa original já foi devolvido quando o
-// vídeo virou 'Erro' (refund_credit_and_mark_error), então não desconta
-// crédito nenhum de novo.
+// só afeta a linha se ela ainda estiver com status = 'Erro'. Retry não
+// consome nenhuma vaga nova do limite diário — a vaga já tinha sido
+// reservada na criação original (reserve_daily_video_slot); a falha nunca
+// chegou a "gastar" a cota do dia (só sucesso gasta), então reprocessar o
+// mesmo registro não deveria contar de novo.
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
@@ -182,10 +183,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     console.error("[/api/videos/[id]/retry] falhou:", err);
     const message = extractErrorMessage(err);
 
-    // Só marca 'Erro' com a mensagem — NÃO usa refund_credit_and_mark_error
-    // aqui, porque essa função também soma +1 crédito, e o retry nunca
-    // descontou crédito nenhum (é gratuito). Chamá-la daria ao usuário um
-    // crédito de graça que ele nunca pagou nesta tentativa.
+    // Só marca 'Erro' com a mensagem — sem RPC nenhuma, já que não há
+    // crédito ou vaga pra devolver (retry nunca consumiu uma vaga nova, ver
+    // comentário no topo do arquivo).
     const { data: errored, error: markErrorError } = await supabase
       .from("videos")
       .update({ status: "Erro", error_message: message })

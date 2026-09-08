@@ -12,6 +12,7 @@ export type VideoRecord = {
   captionsEnabled: boolean;
   captionStyle: string | null;
   createdAt: string;
+  createdAtIso: string;
   gradient: string;
   videoUrl: string | null;
   thumbnailUrl: string | null;

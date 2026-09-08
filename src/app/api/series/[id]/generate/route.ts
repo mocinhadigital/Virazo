@@ -48,7 +48,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   if (!result.ok) {
     const status = result.alreadyInProgress ? 409 : 500;
-    return NextResponse.json(result.video ?? { error: result.error }, { status });
+    return NextResponse.json({ ...(result.video ?? {}), error: result.error }, { status });
   }
 
   return NextResponse.json(result.video);

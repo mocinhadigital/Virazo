@@ -4,13 +4,13 @@ import { Film, Zap, Clock } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
 
 export default function StatsRow() {
-  const { videos, credits } = useDashboard();
+  const { videos, videosUsedToday, dailyVideoLimit } = useDashboard();
 
   const hoursSaved = Math.round(videos.length * 0.25 * 10) / 10;
 
   const stats = [
     { icon: Film, value: `${videos.length}`, label: "vídeos criados" },
-    { icon: Zap, value: `${credits}`, label: "créditos restantes" },
+    { icon: Zap, value: `${videosUsedToday}/${dailyVideoLimit}`, label: "vídeos hoje" },
     { icon: Clock, value: `${hoursSaved}h`, label: "economizadas" },
   ];
 

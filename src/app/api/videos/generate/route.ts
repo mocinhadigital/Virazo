@@ -4,7 +4,7 @@ import { generateScript } from "@/lib/ai/script";
 import { renderFinalVideo } from "@/lib/video/render";
 import { buildRenderScenes } from "@/lib/video/scenePipeline";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
-import { PLANS, DEFAULT_MAX_CONCURRENT_GENERATIONS } from "@/lib/billing/plans";
+import { checkConcurrencyLimit } from "@/lib/series/generate";
 
 // Usa Node.js (não Edge) porque o pipeline chama child_process/fs (ffmpeg).
 // maxDuration é só relevante em hosts serverless com limite de execução
@@ -59,41 +59,20 @@ export async function POST(request: Request) {
 
   const visualStyle = body.visualStyle ?? "Realista";
 
-  // 0. Checa o limite de "séries simultâneas" do plano do usuário — não deixa
-  // reservar crédito nem começar a gerar se ele já tem gerações em andamento
-  // no limite do plano (ou 1, se não tiver assinatura ativa).
-  const { data: activeSubscription } = await supabase
-    .from("subscriptions")
-    .select("plan, quantity")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const maxConcurrent = activeSubscription
-    ? (PLANS[activeSubscription.plan as keyof typeof PLANS]?.maxConcurrentGenerations ??
-      DEFAULT_MAX_CONCURRENT_GENERATIONS) * (activeSubscription.quantity ?? 1)
-    : DEFAULT_MAX_CONCURRENT_GENERATIONS;
-
-  const { count: inProgressCount } = await supabase
-    .from("videos")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "Processando");
-
-  if ((inProgressCount ?? 0) >= maxConcurrent) {
-    return NextResponse.json(
-      {
-        error: `Você já tem ${inProgressCount} vídeo(s) sendo gerado(s) ao mesmo tempo — seu plano permite até ${maxConcurrent}. Aguarde um terminar antes de criar outro.`,
-      },
-      { status: 429 },
-    );
+  // 0. Proteção técnica de concorrência (independente do limite diário
+  // comercial) — não deixa este usuário ter mais vídeos 'Processando' ao
+  // mesmo tempo do que seu plano permite.
+  const concurrency = await checkConcurrencyLimit(supabase, user.id);
+  if (!concurrency.ok) {
+    return NextResponse.json({ error: concurrency.error }, { status: 429 });
   }
 
-  // 1. Reserva o crédito e cria a linha com status='Processando'.
+  // 1. Reserva atomicamente 1 vaga do limite diário do plano ativo — rejeita
+  // sem assinatura ativa ou se o limite de hoje já foi atingido, sem criar
+  // vídeo nenhum nesses casos. A trava por usuário (advisory lock, dentro da
+  // função) também protege contra clique duplo/requisições concorrentes.
   const { data: created, error: createError } = await supabase
-    .rpc("create_video_and_consume_credit", {
+    .rpc("reserve_daily_video_slot", {
       p_title: body.title,
       p_topic: body.topic,
       p_style: body.style,
@@ -109,7 +88,7 @@ export async function POST(request: Request) {
 
   if (createError || !created) {
     return NextResponse.json(
-      { error: createError?.message ?? "Não foi possível reservar o crédito." },
+      { error: createError?.message ?? "Não foi possível reservar a vaga de geração." },
       { status: 400 },
     );
   }
@@ -170,16 +149,16 @@ export async function POST(request: Request) {
     console.error("[/api/videos/generate] falhou:", err);
     const message = extractErrorMessage(err);
 
-    const { data: errored, error: refundError } = await supabase
-      .rpc("refund_credit_and_mark_error", {
+    const { data: errored, error: failError } = await supabase
+      .rpc("mark_video_failed", {
         p_video_id: created.id,
         p_message: message,
       })
       .single()
       .returns<VideoRow>();
 
-    if (refundError) {
-      console.error("[/api/videos/generate] refund_credit_and_mark_error também falhou:", refundError);
+    if (failError) {
+      console.error("[/api/videos/generate] mark_video_failed também falhou:", failError);
     }
 
     return NextResponse.json(errored ?? { error: message }, { status: 500 });

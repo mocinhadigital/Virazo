@@ -3,9 +3,11 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import TopBar from "@/components/dashboard/TopBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import CreateVideoWizard from "@/components/dashboard/CreateVideoWizard";
+import PlanPickerModalGate from "@/components/dashboard/PlanPickerModalGate";
 import { DashboardProvider } from "@/components/dashboard/DashboardContext";
 import { mapVideoRow, type VideoRow } from "@/components/dashboard/videoMapping";
 import { createClient } from "@/utils/supabase/server";
+import type { PlanKey } from "@/lib/billing/plans";
 
 export default async function DashboardLayout({
   children,
@@ -21,31 +23,43 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const [{ data: profile, error: profileError }, { data: videoRows, error: videosError }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("credits, full_name")
-        .eq("id", user.id)
-        .maybeSingle()
-        .returns<{ credits: number; full_name: string | null }>(),
-      supabase
-        .from("videos")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .returns<VideoRow[]>(),
-    ]);
+  const [
+    { data: profile, error: profileError },
+    { data: videoRows, error: videosError },
+    { data: activeSubscription, error: subscriptionError },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle()
+      .returns<{ full_name: string | null }>(),
+    supabase
+      .from("videos")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .returns<VideoRow[]>(),
+    supabase
+      .from("subscriptions")
+      .select("plan")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ plan: PlanKey }>(),
+  ]);
 
   if (profileError) console.error("Falha ao carregar perfil:", profileError.message);
   if (videosError) console.error("Falha ao carregar vídeos:", videosError.message);
+  if (subscriptionError) console.error("Falha ao carregar assinatura:", subscriptionError.message);
 
-  const initialCredits = profile?.credits ?? 0;
   const initialVideos = (videoRows ?? []).map(mapVideoRow);
+  const initialPlan = activeSubscription?.plan ?? null;
   const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (
-    <DashboardProvider initialCredits={initialCredits} initialVideos={initialVideos}>
+    <DashboardProvider initialVideos={initialVideos} initialPlan={initialPlan}>
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} />
         <div className="flex min-h-screen flex-col lg:pl-64">
@@ -57,6 +71,7 @@ export default async function DashboardLayout({
         <MobileNav />
       </div>
       <CreateVideoWizard />
+      <PlanPickerModalGate />
     </DashboardProvider>
   );
 }

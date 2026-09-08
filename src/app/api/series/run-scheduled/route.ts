@@ -8,7 +8,8 @@ import { checkConcurrencyLimit, runSeriesGeneration } from "@/lib/series/generat
 // Não há sessão de usuário aqui (é uma chamada máquina-a-máquina), por isso
 // — e só por isso — usamos o cliente service-role, do mesmo jeito que o
 // webhook da Stripe já faz. Protegido por um segredo compartilhado; sem ele,
-// qualquer um poderia gastar créditos de qualquer usuário.
+// qualquer um poderia disparar geração de vídeo (e gastar a vaga do limite
+// diário) de qualquer usuário.
 //
 // IMPORTANTE: isso só funciona de verdade com o app publicado numa URL
 // pública que o agendador consiga chamar — em `localhost` (dev local) não

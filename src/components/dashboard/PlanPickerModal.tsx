@@ -30,9 +30,23 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item }),
       });
-      const data = await response.json();
+      // Lê como texto primeiro — nunca chama response.json() direto numa
+      // resposta que pode vir vazia (erro do servidor sem corpo, timeout,
+      // etc.), senão o próprio JSON.parse("") é quem quebra com
+      // "Unexpected end of JSON input" antes de a mensagem de erro real
+      // sequer aparecer.
+      const rawBody = await response.text();
+      let data: { url?: string; error?: string } = {};
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody);
+        } catch {
+          // Corpo não era JSON válido — não esconde a falha, só evita o
+          // crash; cai no fallback abaixo com o status HTTP real.
+        }
+      }
       if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Não foi possível iniciar o checkout.");
+        throw new Error(data.error ?? `Não foi possível iniciar o checkout (erro do servidor, status ${response.status}).`);
       }
       window.location.assign(data.url);
     } catch (err) {

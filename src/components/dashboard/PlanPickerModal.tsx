@@ -36,7 +36,7 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
       // "Unexpected end of JSON input" antes de a mensagem de erro real
       // sequer aparecer.
       const rawBody = await response.text();
-      let data: { url?: string; error?: string } = {};
+      let data: { url?: string; error?: string; switched?: boolean; alreadyActive?: boolean; message?: string } = {};
       if (rawBody) {
         try {
           data = JSON.parse(rawBody);
@@ -45,8 +45,25 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
           // crash; cai no fallback abaixo com o status HTTP real.
         }
       }
-      if (!response.ok || !data.url) {
+      if (!response.ok) {
         throw new Error(data.error ?? `Não foi possível iniciar o checkout (erro do servidor, status ${response.status}).`);
+      }
+      if (data.alreadyActive) {
+        // Já está nesse plano — nenhuma cobrança, nenhuma navegação; só
+        // avisa na mesma caixa de mensagem que já existia pra erros.
+        setLoadingPlan(null);
+        setError(data.message ?? "Você já está nesse plano.");
+        return;
+      }
+      if (data.switched) {
+        // Troca de price numa assinatura já existente (sem Checkout Session
+        // nova) — mesma URL de sucesso que a Stripe já usa hoje, pra
+        // reaproveitar o refresh do plano no dashboard sem duplicar lógica.
+        window.location.assign("/dashboard?checkout=success");
+        return;
+      }
+      if (!data.url) {
+        throw new Error(data.error ?? "Não foi possível iniciar o checkout (resposta inesperada do servidor).");
       }
       window.location.assign(data.url);
     } catch (err) {

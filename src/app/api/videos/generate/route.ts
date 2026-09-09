@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     const renderScenes = await buildRenderScenes(script, body.voice, visualStyle);
 
     // 4. Monta o vídeo final.
-    const finalVideo = await renderFinalVideo(renderScenes, body.captionsEnabled);
+    const finalVideo = await renderFinalVideo(renderScenes, body.captionsEnabled, body.captionStyle);
     const thumbnail = renderScenes[0]?.image;
 
     // 5. Sobe pro Storage.

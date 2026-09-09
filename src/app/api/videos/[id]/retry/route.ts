@@ -132,7 +132,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
 
     // 4. Monta o vídeo final — mesma legenda ligada/desligada, mesma música.
-    const finalVideo = await renderFinalVideo(renderScenes, retried.captions_enabled, backgroundMusic);
+    const finalVideo = await renderFinalVideo(
+      renderScenes,
+      retried.captions_enabled,
+      retried.caption_style,
+      backgroundMusic,
+    );
     const thumbnail = renderScenes[0]?.image;
 
     // 5. Sobe pro Storage, sobrescrevendo o arquivo antigo (mesmo video_id).

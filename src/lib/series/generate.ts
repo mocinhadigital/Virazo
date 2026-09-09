@@ -177,7 +177,12 @@ export async function runSeriesGeneration(
 
     const renderScenes = await buildRenderScenes(script, series.voice ?? "", series.visual_style, series.idioma);
 
-    const finalVideo = await renderFinalVideo(renderScenes, series.captions_enabled, backgroundMusic);
+    const finalVideo = await renderFinalVideo(
+      renderScenes,
+      series.captions_enabled,
+      series.caption_style,
+      backgroundMusic,
+    );
     const thumbnail = renderScenes[0]?.image;
 
     const videoPath = `${userId}/${created.id}.mp4`;

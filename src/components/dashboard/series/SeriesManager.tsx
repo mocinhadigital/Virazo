@@ -128,7 +128,7 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function SeriesManager({ initialSeries }: { initialSeries: SeriesRecord[] }) {
-  const { openPlanModal } = useDashboard();
+  const { plan, openPlanModal } = useDashboard();
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -139,6 +139,12 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   const [notice, setNotice] = useState<string | null>(null);
 
   function openCreateModal() {
+    // Sem assinatura ativa, nem abre o formulário — vai direto pro paywall,
+    // em vez de deixar preencher tudo pra travar só no clique de salvar.
+    if (!plan) {
+      openPlanModal();
+      return;
+    }
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormError(null);
@@ -166,7 +172,14 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Não foi possível salvar a série.");
+      if (!res.ok) {
+        const parsed = parseGenerationError(data.error ?? "Não foi possível salvar a série.");
+        if (parsed.reason === "no_subscription") {
+          setModalOpen(false);
+          openPlanModal();
+        }
+        throw new Error(parsed.message);
+      }
 
       setSeries((prev) =>
         editingId ? prev.map((s) => (s.id === editingId ? data : s)) : [data, ...prev],

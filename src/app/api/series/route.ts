@@ -54,6 +54,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
 
+  // Mesma regra de acesso usada por reserve_daily_video_slot (migration
+  // 0019): só assinatura com status 'active' conta. Sem isso, dava pra criar
+  // uma série sem nunca ter assinado nada — a única coisa que hoje barra
+  // esse usuário é "Gerar agora" (que já rejeita corretamente), mas isso só
+  // acontece depois de preencher a série inteira. Checagem aqui é a mesma
+  // que já protege a geração — não depende do frontend enviar nada.
+  const { data: activeSubscription } = await supabase
+    .from("subscriptions")
+    .select("plan")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!activeSubscription) {
+    return NextResponse.json(
+      { error: "no_subscription: assinatura ativa necessária para criar uma série." },
+      { status: 400 },
+    );
+  }
+
   if (!body.title?.trim() || !body.nicho?.trim() || !body.tomDeVoz?.trim()) {
     return NextResponse.json({ error: "Título, nicho e tom de voz são obrigatórios." }, { status: 400 });
   }

@@ -15,6 +15,8 @@ import {
 import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
 import type { MusicTrackRecord } from "../musicMapping";
+import { useDashboard } from "../DashboardContext";
+import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import {
   SERIES_DURATIONS,
   SERIES_VOICES,
@@ -125,6 +127,7 @@ const EMPTY_FORM: FormState = {
 
 export default function SeriesWizard() {
   const router = useRouter();
+  const { plan, openPlanModal } = useDashboard();
   const [step, setStep] = useState<StepKey>("nicho");
   const [nichoTab, setNichoTab] = useState<"presets" | "personalizado">("presets");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -140,6 +143,13 @@ export default function SeriesWizard() {
   const [captionWordIndex, setCaptionWordIndex] = useState(0);
 
   const stepIndex = STEP_ORDER.indexOf(step);
+
+  // Sem assinatura ativa, nem deixa começar a preencher a série — abre
+  // direto o paywall (mesmo gate usado por openWizard() do vídeo avulso),
+  // em vez de deixar o usuário passar pelas 6 etapas só pra travar no fim.
+  useEffect(() => {
+    if (!plan) openPlanModal();
+  }, [plan, openPlanModal]);
 
   useEffect(() => {
     if (step !== "legenda") return;
@@ -269,7 +279,13 @@ export default function SeriesWizard() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Não foi possível criar a série.");
+      if (!res.ok) {
+        const parsed = parseGenerationError(data.error ?? "Não foi possível criar a série.");
+        if (parsed.reason === "no_subscription") {
+          openPlanModal();
+        }
+        throw new Error(parsed.message);
+      }
       router.push("/dashboard/series");
       router.refresh();
     } catch (err) {
@@ -277,6 +293,10 @@ export default function SeriesWizard() {
       setSaving(false);
     }
   }
+
+  // Sem assinatura ativa: o paywall (aberto pelo useEffect acima) já cobre a
+  // tela — não renderiza a wizard atrás dele.
+  if (!plan) return null;
 
   return (
     <div className="mx-auto max-w-[720px]">

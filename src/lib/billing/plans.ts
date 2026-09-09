@@ -39,7 +39,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     dailyVideoLimit: 2,
     maxConcurrentGenerations: 2,
     monthlyPriceCents: 4700,
-    stripePriceId: "price_1UDEbT2WTT6ZoTWqI45a4dj6",
+    stripePriceId: "price_1UDZVL2WTT6ZoTWqs2qfVvAf",
   },
   ultra: {
     key: "ultra",

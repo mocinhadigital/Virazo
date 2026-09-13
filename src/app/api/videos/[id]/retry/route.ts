@@ -90,15 +90,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // busca se o vídeo pertence a uma série, sem alterar nada nela.
   let idioma: "pt" | "en" | "es" | undefined;
   let backgroundMusic: Buffer | undefined;
+  // Pra vídeo de série, retried.topic é a instrução completa (com o título
+  // da série já embutido) — busca o título "nu" separado só pra validar
+  // aderência ao tema (ver coreTheme em generateScript). Vídeo avulso não
+  // tem série; ali retried.topic já É o assunto puro digitado pelo usuário.
+  let seriesTitle: string | undefined;
 
   try {
     if (retried.series_id) {
       const { data: series } = await supabase
         .from("series")
-        .select("idioma")
+        .select("idioma, title")
         .eq("id", retried.series_id)
-        .maybeSingle<{ idioma: "pt" | "en" | "es" }>();
+        .maybeSingle<{ idioma: "pt" | "en" | "es"; title: string }>();
       idioma = series?.idioma;
+      seriesTitle = series?.title;
     }
 
     if (retried.background_music_id) {
@@ -116,6 +122,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // 2. Roteiro — mesmo título/tópico/estilo/duração já salvos no registro.
     const script = await generateScript({
       topic: retried.topic,
+      coreTheme: seriesTitle ?? retried.topic,
       contentStyle: retried.style,
       visualStyle: retried.visual_style ?? "Realista",
       duration: retried.duration,

@@ -97,6 +97,7 @@ export async function POST(request: Request) {
     // 2. Roteiro.
     const script = await generateScript({
       topic: body.topic,
+      coreTheme: body.topic,
       contentStyle: body.style,
       visualStyle,
       duration: body.duration,

@@ -104,11 +104,19 @@ export async function runSeriesGeneration(
     .limit(5)
     .returns<{ title: string }[]>();
 
+  // BUG REAL em produção (confirmado direto no banco): uma série chamada
+  // "A volta de jesus" com nicho "Medieval" gerou vídeos sobre peste
+  // medieval — porque esta instrução usava SÓ o nicho, nunca o título da
+  // série. O usuário digita o assunto de verdade no título ("Nome da
+  // série"); o nicho é só a categoria/estética (igual a "estilo de
+  // conteúdo"), nunca deveria substituir o assunto. Agora o título é o
+  // ASSUNTO CENTRAL obrigatório, e o nicho vira só o "tom"/categoria
+  // narrativa — mesma distinção tema vs. estilo do vídeo avulso.
   const recentTitles = (recentVideos ?? []).map((v: { title: string }) => v.title);
   const topic =
     recentTitles.length > 0
-      ? `Escolha um subtema específico e ainda não coberto dentro do nicho "${series.nicho}", com tom de voz ${series.tom_de_voz}. Não repita nem se aproxime demais destes títulos já usados nesta série: ${recentTitles.join("; ")}.`
-      : `Escolha um subtema específico e interessante dentro do nicho "${series.nicho}", com tom de voz ${series.tom_de_voz}.`;
+      ? `O ASSUNTO CENTRAL E OBRIGATÓRIO de todos os vídeos desta série é: "${series.title}". Desenvolva um roteiro que aborde diretamente esse assunto — nunca troque por um assunto diferente. Explore um ângulo, momento ou aspecto específico e ainda não coberto dentro desse mesmo assunto (a categoria "${series.nicho}" define apenas o tom/estética da narrativa, não o assunto), com tom de voz ${series.tom_de_voz}. Não repita nem se aproxime demais destes ângulos já usados nesta série: ${recentTitles.join("; ")}.`
+      : `O ASSUNTO CENTRAL E OBRIGATÓRIO deste vídeo é: "${series.title}". Desenvolva um roteiro que aborde diretamente esse assunto — nunca troque por um assunto diferente. Escolha um ângulo específico e interessante dentro desse mesmo assunto (a categoria "${series.nicho}" define apenas o tom/estética da narrativa, não o assunto), com tom de voz ${series.tom_de_voz}.`;
 
   // Sorteia uma das músicas de fundo selecionadas na série (se houver) —
   // uma faixa diferente por vídeo, igual ao comportamento do AutoShortz.
@@ -169,6 +177,7 @@ export async function runSeriesGeneration(
 
     const script = await generateScript({
       topic,
+      coreTheme: series.title,
       contentStyle: series.tom_de_voz,
       visualStyle: series.visual_style,
       duration: series.duration,

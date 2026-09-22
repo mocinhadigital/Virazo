@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/billing/stripe";
 import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import { findPlanByStripePriceId } from "@/lib/billing/plans";
+import { sendPurchaseEvent } from "@/lib/meta/capi";
 
 export const runtime = "nodejs";
 
@@ -58,6 +59,23 @@ export async function POST(request: Request) {
           p_current_period_end: currentPeriodEndIso(subscription),
         });
         if (error) console.error("[webhooks/stripe] apply_subscription_plan falhou:", error);
+
+        // Purchase da Meta (Conversions API). Fica AQUI e em nenhum outro
+        // case porque checkout.session.completed é o único que representa a
+        // compra INICIAL: renovação chega como invoice.paid
+        // (billing_reason=subscription_cycle) e troca de plano como
+        // customer.subscription.updated — nenhum dos dois passa por este
+        // bloco, então renovação nunca gera Purchase duplicado.
+        //
+        // Dedup em duas camadas: try_claim_stripe_event (no topo da rota) já
+        // barra reentrega do MESMO event.id pela Stripe, e session.id como
+        // event_id deixa a Meta descartar duplicata do lado dela — é também
+        // o que casa este evento com o Purchase do Pixel no navegador, se
+        // houver, em vez de contar a venda duas vezes.
+        //
+        // Vem DEPOIS do apply_subscription_plan de propósito: a ativação já
+        // está gravada antes de qualquer chamada à Meta.
+        await sendMetaPurchase(event, session, userId);
         break;
       }
 
@@ -141,6 +159,52 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+// Envia o Purchase da compra inicial pra Meta a partir da Checkout Session
+// já confirmada pela Stripe.
+//
+// Analytics NUNCA pode derrubar o webhook: sendPurchaseEvent já promete não
+// lançar, mas este try/catch garante que nem um erro inesperado (ex.: leitura
+// de campo em objeto malformado) escape pro catch externo — lá o retorno
+// seria 500, a Stripe reenviaria o evento e, como o event.id já foi
+// reivindicado, o reenvio seria descartado: uma falha de rastreamento viraria
+// ruído de entrega. A ativação da assinatura, acima, já está feita e não é
+// revertida em nenhum caminho daqui.
+async function sendMetaPurchase(
+  event: Stripe.Event,
+  session: Stripe.Checkout.Session,
+  userId: string,
+): Promise<void> {
+  try {
+    // Só o que foi efetivamente pago vira Purchase. Sessão com pagamento
+    // assíncrono ainda pendente ('unpaid') ou isenta por cupom de 100%
+    // ('no_payment_required') não é receita confirmada.
+    if (session.payment_status !== "paid") return;
+    if (session.amount_total == null || !session.currency) return;
+
+    // Capturados no navegador em /api/checkout/create-subscription e
+    // carregados na metadata da sessão — o IP/user agent desta requisição
+    // são os da infra da Stripe, não os do comprador.
+    const metadata = session.metadata ?? {};
+
+    await sendPurchaseEvent({
+      eventId: session.id,
+      eventTime: event.created,
+      // amount_total vem em centavos; a Meta espera a unidade monetária.
+      value: session.amount_total / 100,
+      currency: session.currency,
+      eventSourceUrl: metadata.meta_event_source_url,
+      email: session.customer_details?.email,
+      externalId: userId,
+      fbp: metadata.meta_fbp,
+      fbc: metadata.meta_fbc,
+      clientIpAddress: metadata.meta_client_ip,
+      clientUserAgent: metadata.meta_user_agent,
+    });
+  } catch (err) {
+    console.error("[webhooks/stripe] Purchase da Meta falhou (ignorado):", err);
+  }
 }
 
 function currentPeriodEndIso(subscription: Stripe.Subscription): string {

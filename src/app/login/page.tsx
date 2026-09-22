@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { trackPixel } from "@/lib/meta/pixel";
 
 type Mode = "signin" | "signup";
 
@@ -92,6 +93,25 @@ function LoginForm() {
         setError(translateAuthError(error.message));
         setLoadingEmail(false);
         return;
+      }
+
+      // CompleteRegistration: só aqui, depois de o Supabase ter confirmado
+      // a criação da conta — nunca no clique do botão nem antes da
+      // resposta, e nunca quando o cadastro falha (o `return` acima já
+      // saiu). Este ponto cobre os DOIS desfechos possíveis do signUp,
+      // porque em ambos a conta já existe: confirmação de e-mail pendente
+      // (sem sessão, logo abaixo) e sessão criada na hora.
+      //
+      // O signUp do Supabase também responde "sucesso" quando o e-mail JÁ
+      // existe (proteção contra enumeração de contas) — nesse caso ele
+      // devolve o usuário com `identities` vazio. Não é cadastro novo, não
+      // conta conversão.
+      const isNewAccount = (data.user?.identities?.length ?? 0) > 0;
+      if (isNewAccount) {
+        trackPixel("CompleteRegistration", {
+          content_name: "signup_email",
+          status: true,
+        });
       }
 
       if (!data.session) {

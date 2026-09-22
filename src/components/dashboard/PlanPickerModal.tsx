@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
+import { trackPixel } from "@/lib/meta/pixel";
 
 // Modal compacto de upgrade — reproduz o fluxo do AutoShortz: overlay
 // escuro, título "Escolha seu plano", X pra fechar, 3 linhas simples
@@ -22,6 +23,7 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   async function handleSubscribe(item: PlanKey) {
+    const plan = PLANS[item];
     setError(null);
     setLoadingPlan(item);
     try {
@@ -65,6 +67,22 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
       if (!data.url) {
         throw new Error(data.error ?? "Não foi possível iniciar o checkout (resposta inesperada do servidor).");
       }
+
+      // InitiateCheckout: só DEPOIS de a API ter criado a Checkout Session
+      // na Stripe e devolvido uma URL válida, imediatamente antes de sair
+      // da página. Disparar antes do fetch contaria como intenção de compra
+      // casos que nunca viram checkout nenhum — plano já ativo
+      // (`alreadyActive`), troca de price sem Checkout Session
+      // (`switched`), erro 500, ou a trava de concorrência devolvendo 409.
+      //
+      // O valor vem de PLANS (única fonte de preço do projeto) — nada de
+      // número repetido aqui.
+      trackPixel("InitiateCheckout", {
+        value: plan.monthlyPriceCents / 100,
+        currency: "BRL",
+        content_name: plan.name,
+      });
+
       window.location.assign(data.url);
     } catch (err) {
       setLoadingPlan(null);

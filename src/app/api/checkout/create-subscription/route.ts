@@ -21,6 +21,61 @@ type Body = {
 // criaria uma segunda cobrança em vez de resolver a pendência).
 const ACTIVE_STRIPE_STATUSES = new Set<Stripe.Subscription.Status>(["active", "trialing", "past_due"]);
 
+// ---------------------------------------------------------------------
+// Contexto do navegador pro Purchase da Meta (Conversions API).
+//
+// Precisa ser capturado AQUI, não no webhook: o webhook é uma requisição
+// servidor-a-servidor vinda da Stripe, então o IP e o user agent de lá são
+// os da INFRA DA STRIPE, não os do comprador — mandar aqueles pra Meta
+// degrada o match em vez de melhorar. Os cookies _fbp/_fbc, por definição,
+// só existem no navegador.
+//
+// Os valores viajam em `metadata` da Checkout Session e voltam intactos no
+// evento checkout.session.completed. Nada aqui altera preço, plano ou o
+// comportamento do checkout — é carga puramente informativa.
+// ---------------------------------------------------------------------
+
+// Limite de `metadata` da Stripe: 500 caracteres por valor. Só o user agent
+// chega perto disso.
+const STRIPE_METADATA_VALUE_MAX = 500;
+
+function readCookie(cookieHeader: string, name: string): string | undefined {
+  for (const part of cookieHeader.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator === -1) continue;
+    if (part.slice(0, separator).trim() !== name) continue;
+    const value = part.slice(separator + 1).trim();
+    return value || undefined;
+  }
+  return undefined;
+}
+
+function metaTrackingMetadata(request: Request, origin: string): Record<string, string> {
+  const metadata: Record<string, string> = {};
+
+  const put = (key: string, value: string | null | undefined) => {
+    if (!value) return;
+    metadata[key] = value.slice(0, STRIPE_METADATA_VALUE_MAX);
+  };
+
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  put("meta_fbp", readCookie(cookieHeader, "_fbp"));
+  put("meta_fbc", readCookie(cookieHeader, "_fbc"));
+  put("meta_user_agent", request.headers.get("user-agent"));
+  // Na Vercel o IP real do visitante é o PRIMEIRO da cadeia de
+  // x-forwarded-for; o resto são proxies.
+  put(
+    "meta_client_ip",
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip"),
+  );
+  // A página de onde o clique partiu (normalmente /dashboard) — é isso que
+  // a Meta espera em event_source_url, não a URL da API.
+  put("meta_event_source_url", request.headers.get("referer") ?? origin);
+
+  return metadata;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
@@ -106,6 +161,9 @@ export async function POST(request: Request) {
             line_items: [{ price: plan.stripePriceId, quantity: 1 }],
             success_url: `${origin}/dashboard?checkout=success`,
             cancel_url: `${origin}/dashboard?checkout=canceled`,
+            // Só analytics — lido de volta pelo webhook pra montar o
+            // Purchase da Meta Conversions API. Não afeta cobrança.
+            metadata: metaTrackingMetadata(request, origin),
           },
           { idempotencyKey: `checkout-new-${user.id}-${plan.key}-${dedupeWindow}` },
         );

@@ -58,7 +58,17 @@ export async function POST(request: Request) {
           p_status: "active",
           p_current_period_end: currentPeriodEndIso(subscription),
         });
-        if (error) console.error("[webhooks/stripe] apply_subscription_plan falhou:", error);
+        // LANÇA de propósito: a assinatura foi paga mas não ficou ativa.
+        // Só logar e seguir para o 200 (como era antes) fazia a Stripe dar
+        // o evento por entregue e encerrar o assunto — o cliente pagava e
+        // continuava sem acesso, sem nenhuma nova tentativa em lugar nenhum.
+        // O throw cai no catch da rota, que libera o event.id e responde
+        // 500; aí a reentrega da Stripe reprocessa o evento de verdade.
+        if (error) {
+          throw new Error(
+            `apply_subscription_plan (checkout.session.completed) falhou: ${error.message}`,
+          );
+        }
 
         // Purchase da Meta (Conversions API). Fica AQUI e em nenhum outro
         // case porque checkout.session.completed é o único que representa a
@@ -108,7 +118,11 @@ export async function POST(request: Request) {
           p_status: "active",
           p_current_period_end: currentPeriodEndIso(subscription),
         });
-        if (error) console.error("[webhooks/stripe] apply_subscription_plan (renovação) falhou:", error);
+        // Mesma razão do checkout.session.completed: renovação paga que não
+        // é aplicada deixa o assinante sem acesso até o fim do ciclo antigo.
+        if (error) {
+          throw new Error(`apply_subscription_plan (renovação) falhou: ${error.message}`);
+        }
         break;
       }
 
@@ -140,7 +154,11 @@ export async function POST(request: Request) {
           p_status: mapStripeStatus(subscription.status),
           p_current_period_end: currentPeriodEndIso(subscription),
         });
-        if (error) console.error("[webhooks/stripe] apply_subscription_plan (subscription.updated) falhou:", error);
+        // Idem: este case cobre troca de plano e mudança de status. Perder
+        // a atualização em silêncio deixa o Supabase divergente da Stripe.
+        if (error) {
+          throw new Error(`apply_subscription_plan (subscription.updated) falhou: ${error.message}`);
+        }
         break;
       }
 
@@ -155,10 +173,51 @@ export async function POST(request: Request) {
     }
   } catch (err) {
     console.error("[webhooks/stripe] falhou ao processar evento:", err);
+    // Devolve a vaga do event.id ANTES de pedir o reenvio. Sem isto o 500
+    // abaixo não resolve nada: a Stripe reenviaria o MESMO event.id, que
+    // cairia no guard de duplicata lá em cima e seria descartado sem ser
+    // processado — pagamento confirmado na Stripe, assinatura inativa no
+    // Supabase, e nenhuma tentativa restante.
+    await releaseStripeEvent(supabase, event.id);
     return NextResponse.json({ error: "Erro ao processar evento." }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
+}
+
+// Apaga o event.id reivindicado no topo da rota, devolvendo o evento ao
+// estado "nunca processado" — é o que torna a reentrega da Stripe capaz de
+// REPROCESSAR em vez de bater no guard de duplicata.
+//
+// Só é chamada no caminho de falha, imediatamente antes de responder 500.
+// No caminho de sucesso a reivindicação continua valendo, que é justamente
+// o que impede o mesmo evento de ser aplicado duas vezes.
+//
+// Se a própria liberação falhar, não há o que fazer além de registrar: o
+// comportamento degrada exatamente para o que era antes desta mudança (a
+// reentrega será descartada como duplicata), nunca para algo pior. Por isso
+// o erro é logado e não relançado — relançar aqui, dentro do catch, só
+// trocaria uma falha por outra sem mudar o desfecho.
+async function releaseStripeEvent(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  eventId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("stripe_processed_events")
+    .delete()
+    .eq("event_id", eventId);
+
+  if (error) {
+    console.error(
+      `[webhooks/stripe] NÃO foi possível liberar o event.id=${eventId} — a reentrega da Stripe será descartada como duplicata e este evento precisa de conferência manual:`,
+      error,
+    );
+    return;
+  }
+
+  console.warn(
+    `[webhooks/stripe] event.id=${eventId} liberado após falha — aguardando reentrega da Stripe.`,
+  );
 }
 
 // Envia o Purchase da compra inicial pra Meta a partir da Checkout Session

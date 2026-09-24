@@ -4,6 +4,7 @@ import TopBar from "@/components/dashboard/TopBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import CreateVideoWizard from "@/components/dashboard/CreateVideoWizard";
 import PlanPickerModalGate from "@/components/dashboard/PlanPickerModalGate";
+import PurchaseTracker from "@/components/analytics/PurchaseTracker";
 import { DashboardProvider } from "@/components/dashboard/DashboardContext";
 import { mapVideoRow, type VideoRow } from "@/components/dashboard/videoMapping";
 import { createClient } from "@/utils/supabase/server";
@@ -72,6 +73,9 @@ export default async function DashboardLayout({
       </div>
       <CreateVideoWizard />
       <PlanPickerModalGate />
+      {/* Não renderiza nada. É o destino do redirecionamento da Stripe —
+          só age quando a URL traz session_id. */}
+      <PurchaseTracker />
     </DashboardProvider>
   );
 }

@@ -29,9 +29,11 @@ declare global {
 
 // `options.eventID` existe pra deduplicação navegador <-> Conversions API:
 // quando o mesmo evento é enviado dos dois lados com o MESMO id, a Meta
-// descarta a segunda ocorrência (janela de ~48h). Hoje nenhum evento do
-// navegador tem par no servidor — o Purchase é exclusivamente server-side —
-// então o parâmetro fica disponível sem ser usado ainda.
+// descarta a segunda ocorrência (janela de ~48h). Hoje só o Purchase usa
+// isso: PurchaseTracker (navegador) e o webhook da Stripe (servidor)
+// mandam o mesmo evento com o session.id da Stripe como id — quem passar
+// eventID precisa garantir que o outro lado use exatamente o mesmo valor,
+// senão a venda é contada duas vezes.
 export function trackPixel(
   eventName: string,
   params?: PixelParams,

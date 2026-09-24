@@ -159,7 +159,13 @@ export async function POST(request: Request) {
             customer: customerId,
             client_reference_id: user.id,
             line_items: [{ price: plan.stripePriceId, quantity: 1 }],
-            success_url: `${origin}/dashboard?checkout=success`,
+            // {CHECKOUT_SESSION_ID} é um marcador que a PRÓPRIA Stripe
+            // troca pelo id da sessão no redirecionamento — não é template
+            // do JavaScript, por isso fica em chaves literais. Sem ele a
+            // página de retorno não teria como saber qual compra foi feita
+            // e o Purchase do Pixel não teria valor nem chave de dedup.
+            // Só muda a URL de volta: não afeta preço, plano nem cobrança.
+            success_url: `${origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/dashboard?checkout=canceled`,
             // Só analytics — lido de volta pelo webhook pra montar o
             // Purchase da Meta Conversions API. Não afeta cobrança.

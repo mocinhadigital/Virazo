@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createClient } from "@/utils/supabase/server";
+import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import { stripe } from "@/lib/billing/stripe";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
 
@@ -76,6 +77,59 @@ function metaTrackingMetadata(request: Request, origin: string): Record<string, 
   return metadata;
 }
 
+// A Stripe responde `resource_missing` quando o id não existe na conta (ou
+// no modo) da chave em uso. Só esse código significa "cliente órfão".
+//
+// Qualquer OUTRO erro — rede, rate limit, chave inválida — é relançado de
+// propósito: tratar falha de infraestrutura como cliente inexistente faria
+// o código criar um cliente novo na Stripe a cada clique durante uma
+// instabilidade, enchendo a conta de duplicatas.
+async function stripeCustomerExists(customerId: string): Promise<boolean> {
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    // Cliente apagado no painel volta como objeto com `deleted: true`, sem
+    // lançar nada — pro checkout é tão inútil quanto um que não existe.
+    return !(customer as Stripe.DeletedCustomer).deleted;
+  } catch (err) {
+    if (typeof err === "object" && err !== null && (err as { code?: string }).code === "resource_missing") {
+      return false;
+    }
+    throw err;
+  }
+}
+
+// `subscriptions` não tem policy de insert/update/delete pra authenticated
+// (migration 0017: "toda escrita acontece via service_role"), então corrigir
+// o id órfão exige o cliente de service role — o cliente da sessão do
+// usuário seria silenciosamente barrado pela RLS.
+//
+// O escopo é o menor possível: UMA coluna, filtrada pelo user_id que veio
+// do supabase.auth.getUser() desta requisição, nunca de algo enviado pelo
+// navegador. Não lê nem escreve linha de mais ninguém.
+//
+// Falhar aqui não é fatal e não interrompe o checkout: o cliente novo já
+// está criado e o webhook grava o id certo quando o pagamento fecha. O
+// único efeito de uma falha é um checkout abandonado poder gerar outro
+// cliente na tentativa seguinte.
+async function persistStripeCustomerId(userId: string, customerId: string): Promise<void> {
+  try {
+    const admin = createServiceRoleClient();
+    const { error } = await admin
+      .from("subscriptions")
+      .update({ stripe_customer_id: customerId })
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error(
+        "[/api/checkout/create-subscription] falha ao salvar o stripe_customer_id novo:",
+        error,
+      );
+    }
+  } catch (err) {
+    console.error("[/api/checkout/create-subscription] falha ao salvar o stripe_customer_id novo:", err);
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
@@ -127,12 +181,34 @@ export async function POST(request: Request) {
 
       let customerId = existing?.stripe_customer_id ?? undefined;
 
+      // O id salvo pode não existir mais na conta Stripe em uso: cliente
+      // criado no modo TESTE (uma chave live não enxerga objeto de teste,
+      // e vice-versa), cliente apagado no painel, ou banco restaurado de
+      // outro ambiente. Sem esta checagem o subscriptions.list logo abaixo
+      // estoura e o erro cru da Stripe vazava pra tela do usuário como
+      // "No such customer: cus_...", deixando a conta sem conseguir assinar.
+      if (customerId && !(await stripeCustomerExists(customerId))) {
+        console.warn(
+          `[/api/checkout/create-subscription] stripe_customer_id órfão (${customerId}) para o usuário ${user.id} — criando um cliente novo.`,
+        );
+        customerId = undefined;
+      }
+
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: user.email ?? undefined,
           metadata: { supabase_user_id: user.id },
         });
         customerId = customer.id;
+
+        // Grava o id novo por cima do órfão. Sem isto, abandonar o checkout
+        // faria a próxima tentativa reencontrar o mesmo id quebrado e criar
+        // mais um cliente a cada clique. Quando o pagamento é concluído o
+        // webhook grava o id de novo — aqui é só pra não depender disso.
+        // No-op para quem ainda não tem nenhuma linha em subscriptions.
+        if (existing?.stripe_customer_id) {
+          await persistStripeCustomerId(user.id, customerId);
+        }
       }
 
       // Fonte de verdade pra "o usuário já tem assinatura ativa?" é a

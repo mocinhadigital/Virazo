@@ -22,6 +22,42 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
+  // Voltar do Stripe pela seta do navegador normalmente restaura a página
+  // do bfcache: o DOM e o estado do React voltam EXATAMENTE como estavam,
+  // com loadingPlan ainda apontando pro plano clicado. Como a navegação de
+  // ida foi um window.location.assign (saída de página de verdade), nada
+  // remonta o componente na volta — sem isto o spinner gira pra sempre e o
+  // modal inteiro fica inútil até um F5.
+  //
+  // São dois gatilhos porque o retorno nem sempre passa pelo mesmo caminho:
+  // pageshow com persisted=true é a restauração do bfcache propriamente
+  // dita; visibilitychange cobre voltar pra aba ou restaurar a janela em
+  // navegadores que não usaram o bfcache nessa transição.
+  //
+  // Resetar à toa não causa dano: o pior caso é o spinner sumir enquanto um
+  // pedido legítimo ainda está no ar, e esse pedido segue até o fim e
+  // redireciona normalmente.
+  useEffect(() => {
+    function resetLoading() {
+      setLoadingPlan(null);
+    }
+
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) resetLoading();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") resetLoading();
+    }
+
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   async function handleSubscribe(item: PlanKey) {
     const plan = PLANS[item];
     setError(null);
@@ -123,9 +159,14 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
                   {plan.description} · R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
                 </p>
               </div>
+              {/* Trava SÓ o botão que está carregando. Antes um loadingPlan
+                  preso desabilitava os três de uma vez, então qualquer estado
+                  travado levava o modal inteiro junto — agora os outros
+                  planos continuam clicáveis e servem de saída mesmo se um
+                  botão ficar preso. */}
               <button
                 type="button"
-                disabled={loadingPlan !== null}
+                disabled={loadingPlan === plan.key}
                 onClick={() => handleSubscribe(plan.key)}
                 className="inline-flex shrink-0 items-center gap-2 self-center rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-7 py-3.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >

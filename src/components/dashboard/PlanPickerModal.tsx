@@ -4,13 +4,24 @@ import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
 import { trackPixel } from "@/lib/meta/pixel";
+import type { CaktoCheckoutUrls } from "@/lib/billing/cakto";
 
 // Modal compacto de upgrade — reproduz o fluxo do AutoShortz: overlay
 // escuro, título "Escolha seu plano", X pra fechar, 3 linhas simples
 // (nome/descrição-preço à esquerda, botão Assinar à direita). Ao clicar em
 // Assinar, cria a Checkout Session e redireciona pro Stripe Checkout
 // hospedado — o pagamento nunca acontece dentro deste modal.
-export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
+//
+// caktoCheckoutUrls só vem preenchido com PAYMENT_PROVIDER=cakto (ver
+// getCaktoCheckoutUrls); aí o botão vai direto pro checkout da Cakto, com o
+// e-mail já na URL, e a rota do Stripe nem é chamada.
+export default function PlanPickerModal({
+  onClose,
+  caktoCheckoutUrls,
+}: {
+  onClose: () => void;
+  caktoCheckoutUrls: CaktoCheckoutUrls | null;
+}) {
   const [loadingPlan, setLoadingPlan] = useState<PlanKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +73,17 @@ export default function PlanPickerModal({ onClose }: { onClose: () => void }) {
     const plan = PLANS[item];
     setError(null);
     setLoadingPlan(item);
+
+    if (caktoCheckoutUrls) {
+      trackPixel("InitiateCheckout", {
+        value: plan.monthlyPriceCents / 100,
+        currency: "BRL",
+        content_name: plan.name,
+      });
+      window.location.assign(caktoCheckoutUrls[item]);
+      return;
+    }
+
     try {
       const response = await fetch("/api/checkout/create-subscription", {
         method: "POST",

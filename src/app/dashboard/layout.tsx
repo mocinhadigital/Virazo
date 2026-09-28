@@ -9,6 +9,7 @@ import { DashboardProvider } from "@/components/dashboard/DashboardContext";
 import { mapVideoRow, type VideoRow } from "@/components/dashboard/videoMapping";
 import { createClient } from "@/utils/supabase/server";
 import type { PlanKey } from "@/lib/billing/plans";
+import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/cakto";
 
 export default async function DashboardLayout({
   children,
@@ -23,6 +24,10 @@ export default async function DashboardLayout({
   if (!user) {
     redirect("/login");
   }
+
+  // Antes de ler a assinatura: se este e-mail comprou pela Cakto antes de
+  // ter conta, o plano já aparece ativo neste mesmo carregamento.
+  await claimCaktoPendingPurchases(user);
 
   const [
     { data: profile, error: profileError },
@@ -57,6 +62,8 @@ export default async function DashboardLayout({
 
   const initialVideos = (videoRows ?? []).map(mapVideoRow);
   const initialPlan = activeSubscription?.plan ?? null;
+  // null (o normal hoje) = o modal segue criando a Checkout Session do Stripe.
+  const caktoCheckoutUrls = getCaktoCheckoutUrls(user.email);
   const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (
@@ -72,7 +79,7 @@ export default async function DashboardLayout({
         <MobileNav />
       </div>
       <CreateVideoWizard />
-      <PlanPickerModalGate />
+      <PlanPickerModalGate caktoCheckoutUrls={caktoCheckoutUrls} />
       {/* Não renderiza nada. É o destino do redirecionamento da Stripe —
           só age quando a URL traz session_id. */}
       <PurchaseTracker />

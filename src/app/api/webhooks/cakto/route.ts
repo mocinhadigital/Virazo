@@ -9,9 +9,14 @@ export const runtime = "nodejs";
 type Supabase = ReturnType<typeof createServiceRoleClient>;
 
 // Eventos que mudam alguma coisa no Virazo. Qualquer outro (pix_gerado,
-// checkout_abandonment, subscription_created...) só é registrado em
-// cakto_events e respondido com 200.
-const ACTIVATE_EVENTS = new Set(["purchase_approved", "subscription_renewed"]);
+// checkout_abandonment...) só é registrado em cakto_events e respondido com
+// 200.
+//
+// A Cakto manda purchase_approved E subscription_created com o MESMO data.id
+// na compra inicial — os dois liberam o plano, mas a chave de idempotência
+// (activationKey) é só o data.id, então quem chegar primeiro aplica e o
+// outro cai como duplicata. Cada renovação chega com um data.id novo.
+const ACTIVATE_EVENTS = new Set(["purchase_approved", "subscription_created", "subscription_renewed"]);
 const DEACTIVATE_EVENTS = new Set(["subscription_canceled", "refund", "chargeback"]);
 
 // Sem assinatura a Cakto não manda próxima cobrança; o plano vale um ciclo
@@ -82,6 +87,19 @@ async function handleItem(supabase: Supabase, event: string, item: CaktoItem): P
   const product = item.product as CaktoItem | undefined;
   const email = str(customer?.email)?.trim().toLowerCase();
   const productId = str(product?.id) ?? str(product?.short_id);
+  const isActivate = ACTIVATE_EVENTS.has(event);
+  const isDeactivate = DEACTIVATE_EVENTS.has(event);
+
+  // Só UMA linha por idempotency_key pode ser marcada como processada
+  // (índice único da migration 0022). Liberação de plano: só o data.id,
+  // seja qual for o evento. Desativação: evento + data.id, como antes.
+  const idempotencyKey = !orderId
+    ? null
+    : isActivate
+      ? `activate:${orderId}`
+      : isDeactivate
+        ? `${event}:${orderId}`
+        : null;
 
   // Registra TODA entrega, antes de qualquer decisão. O segredo não é
   // gravado — só evento e dados do pedido.
@@ -92,6 +110,7 @@ async function handleItem(supabase: Supabase, event: string, item: CaktoItem): P
       event: event || "(sem evento)",
       email,
       product_id: productId,
+      idempotency_key: idempotencyKey,
       payload: { event, data: item },
     })
     .select("id")
@@ -102,8 +121,7 @@ async function handleItem(supabase: Supabase, event: string, item: CaktoItem): P
   }
   const logId = logRow.id;
 
-  const isActivate = ACTIVATE_EVENTS.has(event);
-  if (!isActivate && !DEACTIVATE_EVENTS.has(event)) {
+  if (!isActivate && !isDeactivate) {
     await finishLog(supabase, logId, { status: "ignored" });
     return;
   }

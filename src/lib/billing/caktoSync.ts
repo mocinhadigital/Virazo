@@ -1,6 +1,12 @@
 import "server-only";
 import { findPlanKeyByCaktoProductId } from "@/lib/billing/cakto";
-import { caktoGet, isCaktoApiConfigured } from "@/lib/billing/caktoApi";
+import {
+  getCaktoSubscription,
+  isCaktoApiConfigured,
+  latestOrderBySubscription,
+  listCustomerOrders,
+  type CaktoSubscription,
+} from "@/lib/billing/caktoApi";
 import {
   activationKey,
   FALLBACK_PERIOD_MS,
@@ -26,24 +32,7 @@ const API_EVENT = "api_order_paid";
 // Assinatura nesses estados ainda dá direito ao plano. 'late' = cobrança do
 // ciclo atrasada, mas a Cakto ainda está tentando; cancelada, expirada,
 // inativa ou pausada não ativa.
-const ENTITLED_SUBSCRIPTION_STATUSES = new Set(["active", "trial", "late"]);
-
-type CaktoOrder = CaktoItem & {
-  id?: string;
-  status?: string;
-  paidAt?: string | null;
-  subscription?: string | null;
-  product?: { id?: string; name?: string } | null;
-  customer?: { email?: string } | null;
-};
-
-type CaktoSubscription = CaktoItem & {
-  id?: string;
-  status?: string;
-  next_payment_date?: string | null;
-};
-
-type Paginated<T> = { results?: T[] };
+export const ENTITLED_SUBSCRIPTION_STATUSES = new Set(["active", "trial", "late"]);
 
 export type CaktoSyncResult =
   | { status: "activated"; plan: PlanKey }
@@ -76,22 +65,23 @@ export async function syncCaktoPaymentsForUser(user: {
     return { status: "rate_limited", retryAfterSeconds: waitSeconds };
   }
 
-  // O filtro `customer` da Cakto aceita id, nome, e-mail ou documento — por
-  // isso o e-mail é conferido de novo, exato, logo abaixo.
-  const page = await caktoGet<Paginated<CaktoOrder>>("/public_api/orders/", {
-    customer: email,
-    status: "paid",
-    ordering: "-paidAt",
-    limit: "100",
-  });
-
-  const candidates = (page.results ?? []).filter(
+  // Reembolsados/contestados vêm junto só para saber qual é o pedido mais
+  // recente de cada assinatura: se ele foi reembolsado, um pedido pago mais
+  // antigo da mesma assinatura NÃO reativa o plano (é o que o cron de
+  // cancelamentos acabou de desligar).
+  const orders = (await listCustomerOrders(email, ["paid", "refunded", "chargedback"])).filter(
     (order) =>
       !!order.id &&
-      order.status === "paid" &&
       order.customer?.email?.trim().toLowerCase() === email &&
       !!order.product?.id &&
       !!findPlanKeyByCaktoProductId(order.product.id),
+  );
+  const latestBySubscription = latestOrderBySubscription(orders);
+
+  const candidates = orders.filter(
+    (order) =>
+      order.status === "paid" &&
+      (!order.subscription || latestBySubscription.get(order.subscription)?.status === "paid"),
   );
   if (candidates.length === 0) return { status: "not_found" };
 
@@ -109,23 +99,19 @@ export async function syncCaktoPaymentsForUser(user: {
   // o plano que fica valendo é o da compra mais recente.
   const pending = candidates.filter((order) => !alreadyApplied.has(activationKey(order.id!))).reverse();
 
-  const subscriptions = new Map<string, CaktoSubscription | null>();
+  const subscriptions = new Map<string, CaktoSubscription>();
   let activatedPlan: PlanKey | undefined;
 
   for (const order of pending) {
     const item: CaktoItem = { ...order };
 
     if (order.subscription) {
-      if (!subscriptions.has(order.subscription)) {
-        subscriptions.set(
-          order.subscription,
-          await caktoGet<CaktoSubscription>(
-            `/public_api/subscriptions/${encodeURIComponent(order.subscription)}/`,
-          ),
-        );
+      let subscription = subscriptions.get(order.subscription);
+      if (!subscription) {
+        subscription = await getCaktoSubscription(order.subscription);
+        subscriptions.set(order.subscription, subscription);
       }
-      const subscription = subscriptions.get(order.subscription);
-      if (!subscription || !ENTITLED_SUBSCRIPTION_STATUSES.has(subscription.status ?? "")) continue;
+      if (!ENTITLED_SUBSCRIPTION_STATUSES.has(subscription.status ?? "")) continue;
 
       // Objeto no lugar do id: processCaktoItem tira daqui a chave da
       // assinatura (a mesma do webhook) e a próxima cobrança.

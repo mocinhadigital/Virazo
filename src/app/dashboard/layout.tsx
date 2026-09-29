@@ -5,11 +5,13 @@ import MobileNav from "@/components/dashboard/MobileNav";
 import CreateVideoWizard from "@/components/dashboard/CreateVideoWizard";
 import PlanPickerModalGate from "@/components/dashboard/PlanPickerModalGate";
 import PurchaseTracker from "@/components/analytics/PurchaseTracker";
+import CaktoPaymentVerifier from "@/components/dashboard/CaktoPaymentVerifier";
 import { DashboardProvider } from "@/components/dashboard/DashboardContext";
 import { mapVideoRow, type VideoRow } from "@/components/dashboard/videoMapping";
 import { createClient } from "@/utils/supabase/server";
 import type { PlanKey } from "@/lib/billing/plans";
 import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/cakto";
+import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
 
 export default async function DashboardLayout({
   children,
@@ -67,7 +69,11 @@ export default async function DashboardLayout({
   const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (
-    <DashboardProvider initialVideos={initialVideos} initialPlan={initialPlan}>
+    <DashboardProvider
+      initialVideos={initialVideos}
+      initialPlan={initialPlan}
+      caktoVerifyEnabled={isCaktoApiConfigured()}
+    >
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} />
         <div className="flex min-h-screen flex-col lg:pl-64">
@@ -83,6 +89,9 @@ export default async function DashboardLayout({
       {/* Não renderiza nada. É o destino do redirecionamento da Stripe —
           só age quando a URL traz session_id. */}
       <PurchaseTracker />
+      {/* Verificação de pagamento na Cakto: dashboard sem plano e volta do
+          checkout. */}
+      <CaktoPaymentVerifier />
     </DashboardProvider>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { mapVideoRow, type VideoRow } from "./videoMapping";
 import type { VideoRecord } from "./types";
@@ -40,7 +41,21 @@ type DashboardContextValue = {
   isPlanModalOpen: boolean;
   openPlanModal: () => void;
   closePlanModal: () => void;
+  // Verificação ativa de pagamento na Cakto (POST /api/billing/cakto/verify).
+  // caktoVerifyEnabled = CAKTO_CLIENT_ID/SECRET configurados no servidor.
+  caktoVerifyEnabled: boolean;
+  isVerifyingPayment: boolean;
+  verifyPayment: () => Promise<PaymentVerification>;
+  paymentNotice: string | null;
+  dismissPaymentNotice: () => void;
 };
+
+export type PaymentVerification =
+  | { status: "activated"; plan: PlanKey }
+  | { status: "not_found" }
+  | { status: "rate_limited"; retryAfterSeconds: number }
+  | { status: "not_configured" }
+  | { status: "error"; message: string };
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 
@@ -48,16 +63,65 @@ export function DashboardProvider({
   children,
   initialVideos,
   initialPlan,
+  caktoVerifyEnabled = false,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
   initialPlan: PlanKey | null;
+  caktoVerifyEnabled?: boolean;
 }) {
+  const router = useRouter();
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [plan, setPlan] = useState<PlanKey | null>(initialPlan);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardInitial, setWizardInitial] = useState<WizardInitial>({});
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+  const verifyInFlight = useRef<Promise<PaymentVerification> | null>(null);
+
+  // Quem chamar enquanto já existe uma verificação no ar recebe a MESMA
+  // promessa — o botão do pop-up e a verificação automática nunca disparam
+  // duas consultas ao mesmo tempo.
+  const verifyPayment = useCallback((): Promise<PaymentVerification> => {
+    if (verifyInFlight.current) return verifyInFlight.current;
+
+    const run = (async (): Promise<PaymentVerification> => {
+      setIsVerifyingPayment(true);
+      try {
+        const response = await fetch("/api/billing/cakto/verify", { method: "POST" });
+        const rawBody = await response.text();
+        let data: Partial<PaymentVerification> & { error?: string } = {};
+        try {
+          data = rawBody ? JSON.parse(rawBody) : {};
+        } catch {
+          // corpo não-JSON: cai no erro genérico abaixo
+        }
+        if (!response.ok || !data.status) {
+          return { status: "error", message: data.error ?? "Não foi possível verificar o pagamento agora." };
+        }
+
+        const result = data as PaymentVerification;
+        if (result.status === "activated") {
+          setPlan(result.plan);
+          setPaymentNotice(`Pagamento confirmado! Plano ${PLANS[result.plan].name} ativado.`);
+          // Atualiza o que foi renderizado no servidor (ex.: Configurações).
+          router.refresh();
+        }
+        return result;
+      } catch {
+        return { status: "error", message: "Não foi possível conectar ao servidor." };
+      } finally {
+        setIsVerifyingPayment(false);
+        verifyInFlight.current = null;
+      }
+    })();
+
+    verifyInFlight.current = run;
+    return run;
+  }, [router]);
+
+  const dismissPaymentNotice = useCallback(() => setPaymentNotice(null), []);
 
   const dailyVideoLimit = plan ? PLANS[plan].dailyVideoLimit : 0;
   const videosUsedToday = useMemo(() => countVideosUsedToday(videos), [videos]);
@@ -210,6 +274,11 @@ export function DashboardProvider({
         isPlanModalOpen,
         openPlanModal,
         closePlanModal,
+        caktoVerifyEnabled,
+        isVerifyingPayment,
+        verifyPayment,
+        paymentNotice,
+        dismissPaymentNotice,
       }}
     >
       {children}

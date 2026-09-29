@@ -5,6 +5,8 @@ import { X, Loader2 } from "lucide-react";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
 import { trackPixel } from "@/lib/meta/pixel";
 import type { CaktoCheckoutUrls } from "@/lib/billing/cakto";
+import { useDashboard } from "./DashboardContext";
+import { markCaktoCheckoutStarted } from "./CaktoPaymentVerifier";
 
 // Modal compacto de upgrade — reproduz o fluxo do AutoShortz: overlay
 // escuro, título "Escolha seu plano", X pra fechar, 3 linhas simples
@@ -24,6 +26,36 @@ export default function PlanPickerModal({
 }) {
   const [loadingPlan, setLoadingPlan] = useState<PlanKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+  const { caktoVerifyEnabled, isVerifyingPayment, verifyPayment } = useDashboard();
+
+  // "Já paguei": consulta a Cakto na hora. Se achar o pagamento, o plano é
+  // ativado no contexto (que também mostra o aviso de confirmação) e o
+  // pop-up fecha.
+  async function handleVerifyPayment() {
+    setError(null);
+    setVerifyMessage(null);
+    const result = await verifyPayment();
+    switch (result.status) {
+      case "activated":
+        onClose();
+        return;
+      case "not_found":
+        setVerifyMessage(
+          "Ainda não encontramos um pagamento aprovado no e-mail da sua conta. Pix e boleto podem levar alguns minutos — tente de novo em instantes.",
+        );
+        return;
+      case "rate_limited":
+        setVerifyMessage(`Acabamos de verificar. Tente de novo em ${result.retryAfterSeconds}s.`);
+        return;
+      case "not_configured":
+        setVerifyMessage("A verificação automática não está disponível no momento.");
+        return;
+      case "error":
+        setError(result.message);
+        return;
+    }
+  }
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -80,6 +112,9 @@ export default function PlanPickerModal({
         currency: "BRL",
         content_name: plan.name,
       });
+      // Na volta, o dashboard sabe que deve verificar o pagamento mesmo se
+      // a Cakto não redirecionar com ?checkout=cakto.
+      markCaktoCheckoutStarted();
       window.location.assign(caktoCheckoutUrls[item]);
       return;
     }
@@ -180,6 +215,7 @@ export default function PlanPickerModal({
                 <p className="truncate text-sm text-zinc-400">
                   {plan.description} · R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
                 </p>
+                <p className="mt-0.5 text-[11px] text-zinc-500">+ R$ 0,99 de taxa de processamento</p>
               </div>
               {/* Trava SÓ o botão que está carregando. Antes um loadingPlan
                   preso desabilitava os três de uma vez, então qualquer estado
@@ -198,6 +234,24 @@ export default function PlanPickerModal({
             </div>
           ))}
         </div>
+
+        {caktoVerifyEnabled && (
+          <button
+            type="button"
+            disabled={isVerifyingPayment}
+            onClick={handleVerifyPayment}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isVerifyingPayment && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isVerifyingPayment ? "Verificando seu pagamento..." : "Já paguei, verificar meu pagamento"}
+          </button>
+        )}
+
+        {verifyMessage && (
+          <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-center text-xs font-medium text-zinc-300">
+            {verifyMessage}
+          </p>
+        )}
 
         {error && (
           <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-center text-xs font-medium text-red-400">

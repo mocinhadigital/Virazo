@@ -1,8 +1,13 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateScript } from "@/lib/ai/script";
-import { renderFinalVideo } from "@/lib/video/render";
-import { buildRenderScenes } from "@/lib/video/scenePipeline";
+import {
+  createProgressReporter,
+  generateVideoAssets,
+  GENERATION_TIME_BUDGET_MS,
+  withDeadline,
+} from "@/lib/video/generateAssets";
+import { effectiveDuration } from "@/lib/video/durations";
+import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
 import { PLANS, DEFAULT_MAX_CONCURRENT_GENERATIONS } from "@/lib/billing/plans";
@@ -77,7 +82,16 @@ export async function runSeriesGeneration(
   supabase: SupabaseClient<any, any, any>,
   userId: string,
   series: SeriesRow,
+  // Até quando a geração pode rodar. O padrão serve para uma invocação que
+  // gera UM vídeo ("Gerar agora"); o agendador, que gera várias séries na
+  // mesma invocação, passa o prazo da invocação inteira.
+  deadline: number = Date.now() + GENERATION_TIME_BUDGET_MS,
 ): Promise<SeriesGenerationResult> {
+  // Série configurada em 60s com a chave de vídeos longos desligada gera
+  // em 30s (ver src/lib/video/durations.ts) — melhor que um vídeo que
+  // estoura o tempo e falha.
+  const duration = effectiveDuration(series.duration, areLongVideosEnabled());
+
   // 0. Reivindica a série atomicamente ANTES de criar qualquer vídeo — a
   // trava de verdade contra dupla geração (cron, "Gerar agora", clique
   // duplicado). Se outra execução já detém o lock, paramos aqui sem criar
@@ -132,7 +146,7 @@ export async function runSeriesGeneration(
       p_title: `${series.title} — ${new Date().toLocaleDateString("pt-BR")}`,
       p_topic: topic,
       p_style: series.tom_de_voz,
-      p_duration: series.duration,
+      p_duration: duration,
       p_voice: series.voice,
       p_captions_enabled: series.captions_enabled,
       p_caption_style: series.caption_style,
@@ -175,57 +189,69 @@ export async function runSeriesGeneration(
       }
     }
 
-    const script = await generateScript({
-      topic,
-      coreTheme: series.title,
-      contentStyle: series.tom_de_voz,
-      visualStyle: series.visual_style,
-      duration: series.duration,
-      language: series.idioma,
-    });
+    const report = createProgressReporter(supabase, created.id, userId);
 
-    const renderScenes = await buildRenderScenes(script, series.voice ?? "", series.visual_style, series.idioma);
+    // Roteiro → cenas → montagem → upload → pronto, contra o prazo da
+    // invocação (ver GENERATION_TIME_BUDGET_MS em generateAssets.ts): se
+    // estourar, cai no catch e o vídeo vira "Falhou" em vez de ficar
+    // "Gerando" para sempre.
+    const ready = await withDeadline(
+      (async () => {
+        const { finalVideo, thumbnail } = await generateVideoAssets({
+          script: {
+            topic,
+            coreTheme: series.title,
+            contentStyle: series.tom_de_voz,
+            visualStyle: series.visual_style,
+            duration,
+            language: series.idioma,
+          },
+          voice: series.voice ?? "",
+          visualStyle: series.visual_style,
+          language: series.idioma,
+          captionsEnabled: series.captions_enabled,
+          captionStyle: series.caption_style,
+          backgroundMusic,
+          report,
+        });
 
-    const finalVideo = await renderFinalVideo(
-      renderScenes,
-      series.captions_enabled,
-      series.caption_style,
-      backgroundMusic,
+        await report("salvando");
+        const videoPath = `${userId}/${created.id}.mp4`;
+        const { error: uploadVideoError } = await supabase.storage
+          .from("videos")
+          .upload(videoPath, finalVideo, { contentType: "video/mp4", upsert: true });
+        if (uploadVideoError) throw new Error(`Falha ao salvar o vídeo: ${uploadVideoError.message}`);
+
+        let thumbnailUrl: string | null = null;
+        if (thumbnail) {
+          const thumbnailPath = `${userId}/${created.id}-thumb.jpg`;
+          const { error: uploadThumbError } = await supabase.storage
+            .from("videos")
+            .upload(thumbnailPath, thumbnail, { contentType: "image/jpeg", upsert: true });
+          if (!uploadThumbError) {
+            thumbnailUrl = supabase.storage.from("videos").getPublicUrl(thumbnailPath).data.publicUrl;
+          }
+        }
+
+        const videoUrl = supabase.storage.from("videos").getPublicUrl(videoPath).data.publicUrl;
+
+        const { data: ready, error: readyError } = await supabase
+          .rpc("mark_video_ready", {
+            p_video_id: created.id,
+            p_video_url: videoUrl,
+            p_thumbnail_url: thumbnailUrl,
+            p_user_id: userId,
+          })
+          .single()
+          .returns<VideoRow>();
+
+        if (readyError || !ready) {
+          throw new Error(readyError?.message ?? "Não foi possível finalizar o vídeo.");
+        }
+        return ready;
+      })(),
+      deadline,
     );
-    const thumbnail = renderScenes[0]?.image;
-
-    const videoPath = `${userId}/${created.id}.mp4`;
-    const { error: uploadVideoError } = await supabase.storage
-      .from("videos")
-      .upload(videoPath, finalVideo, { contentType: "video/mp4", upsert: true });
-    if (uploadVideoError) throw new Error(`Falha ao salvar o vídeo: ${uploadVideoError.message}`);
-
-    let thumbnailUrl: string | null = null;
-    if (thumbnail) {
-      const thumbnailPath = `${userId}/${created.id}-thumb.jpg`;
-      const { error: uploadThumbError } = await supabase.storage
-        .from("videos")
-        .upload(thumbnailPath, thumbnail, { contentType: "image/jpeg", upsert: true });
-      if (!uploadThumbError) {
-        thumbnailUrl = supabase.storage.from("videos").getPublicUrl(thumbnailPath).data.publicUrl;
-      }
-    }
-
-    const videoUrl = supabase.storage.from("videos").getPublicUrl(videoPath).data.publicUrl;
-
-    const { data: ready, error: readyError } = await supabase
-      .rpc("mark_video_ready", {
-        p_video_id: created.id,
-        p_video_url: videoUrl,
-        p_thumbnail_url: thumbnailUrl,
-        p_user_id: userId,
-      })
-      .single()
-      .returns<VideoRow>();
-
-    if (readyError || !ready) {
-      throw new Error(readyError?.message ?? "Não foi possível finalizar o vídeo.");
-    }
 
     await supabase.rpc("record_series_generation", {
       p_series_id: series.id,

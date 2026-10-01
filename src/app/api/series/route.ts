@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { mapSeriesRow, type SeriesRow } from "@/components/dashboard/seriesMapping";
 import { computeNextGenerationAt, HORARIO_PATTERN } from "@/lib/series/schedule";
+import { isLongDuration } from "@/lib/video/durations";
+import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 
 type CreateSeriesBody = {
   title: string;
@@ -81,6 +83,12 @@ export async function POST(request: Request) {
   }
   if (!["pt", "en", "es"].includes(body.idioma)) {
     return NextResponse.json({ error: "Idioma inválido." }, { status: 400 });
+  }
+  if (isLongDuration(body.duration) && !areLongVideosEnabled()) {
+    return NextResponse.json(
+      { error: "Vídeos de 60 segundos estão temporariamente indisponíveis. Escolha 30 segundos." },
+      { status: 400 },
+    );
   }
   if (!Number.isInteger(body.frequenciaDias) || body.frequenciaDias < 1) {
     return NextResponse.json({ error: "Frequência inválida." }, { status: 400 });

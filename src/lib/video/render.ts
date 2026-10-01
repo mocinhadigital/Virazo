@@ -35,19 +35,44 @@ const FONTS_DIR = path.join(process.cwd(), "public", "fonts");
 // por vídeo" do AutoShortz: aqui a faixa já vem escolhida (generate.ts).
 const BACKGROUND_MUSIC_VOLUME = 0.18;
 
+// Codificação de cada cena. Antes: preset padrão do x264 ("medium") e um
+// SEGUNDO passe de codificação do vídeo inteiro só para gravar a legenda —
+// num vídeo de 60s isso, somado ao resto do pipeline, passava dos 300s da
+// função da Vercel e o vídeo ficava preso em "Gerando". Agora:
+// - "veryfast" + "-tune stillimage": a cena é uma imagem parada com zoom
+//   lento, o caso ideal para esses ajustes (qualidade visual equivalente,
+//   ~4x mais rápido medido com 1 núcleo);
+// - a legenda é gravada na MESMA codificação de cada cena (filtro "ass" com
+//   os tempos da própria cena), então não existe mais o passe final.
+// Todas as cenas saem com os mesmos parâmetros, o que mantém o concat por
+// cópia (sem recodificar) funcionando.
+const X264_ARGS = ["-preset", "veryfast", "-tune", "stillimage", "-crf", "23"];
+
+// O filtro "ass" do ffmpeg exige escapar ":" no caminho (por causa da letra
+// de unidade no Windows, ex. "C:") e usar barras normais. Mesma regra vale
+// pro "fontsdir" — que aponta a fonte empacotada no projeto pro libass, em
+// vez de depender da fonte "Arial" do sistema operacional (inexistente no
+// runtime Linux da Vercel).
+const escapePathForFilter = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
+
 export async function renderFinalVideo(
   scenes: RenderScene[],
   burnCaptions: boolean,
   captionStyle: string | null | undefined,
   backgroundMusic?: Buffer,
+  // Chamado antes de codificar cada cena (1..total) — alimenta o progresso
+  // "Montagem" na tela.
+  onSceneStart?: (current: number, total: number) => void | Promise<void>,
 ): Promise<Buffer> {
   const workDir = await mkdtemp(path.join(tmpdir(), "virazo-"));
   try {
     const sceneClipPaths: string[] = [];
-    const captionCues: { start: number; end: number; text: string }[] = [];
     let cumulativeSeconds = 0;
+    const escapedFontsDir = escapePathForFilter(FONTS_DIR);
 
     for (let i = 0; i < scenes.length; i++) {
+      await onSceneStart?.(i + 1, scenes.length);
+
       const scene = scenes[i];
       const imagePath = path.join(workDir, `scene_${i}.jpg`);
       const audioPath = path.join(workDir, `scene_${i}.mp3`);
@@ -58,6 +83,16 @@ export async function renderFinalVideo(
       const durationSeconds = Math.max(0.5, scene.durationSeconds);
       const frames = Math.max(1, Math.round(durationSeconds * FPS));
 
+      let filter = `[0:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},zoompan=z='min(zoom+0.0015,1.2)':d=${frames}:s=${WIDTH}x${HEIGHT}:fps=${FPS}`;
+
+      // Legenda desta cena, com tempos relativos ao início dela.
+      const cues = burnCaptions ? groupWordsIntoCues(scene.words) : [];
+      if (cues.length > 0) {
+        const assPath = path.join(workDir, `scene_${i}.ass`);
+        await writeFile(assPath, buildAss(cues, captionStyle ?? null), "utf-8");
+        filter += `,ass='${escapePathForFilter(assPath)}':fontsdir='${escapedFontsDir}'`;
+      }
+
       await execFileAsync(ffmpeg.path, [
         "-y",
         "-loop",
@@ -67,13 +102,14 @@ export async function renderFinalVideo(
         "-i",
         audioPath,
         "-filter_complex",
-        `[0:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},zoompan=z='min(zoom+0.0015,1.2)':d=${frames}:s=${WIDTH}x${HEIGHT}:fps=${FPS}[v]`,
+        `${filter}[v]`,
         "-map",
         "[v]",
         "-map",
         "1:a",
         "-c:v",
         "libx264",
+        ...X264_ARGS,
         "-pix_fmt",
         "yuv420p",
         "-c:a",
@@ -84,16 +120,6 @@ export async function renderFinalVideo(
         clipPath,
       ]);
       sceneClipPaths.push(clipPath);
-
-      if (burnCaptions) {
-        for (const cue of groupWordsIntoCues(scene.words)) {
-          captionCues.push({
-            start: cumulativeSeconds + cue.start,
-            end: cumulativeSeconds + cue.end,
-            text: cue.text,
-          });
-        }
-      }
       cumulativeSeconds += durationSeconds;
     }
 
@@ -117,67 +143,39 @@ export async function renderFinalVideo(
       concatPath,
     ]);
 
-    let audioBasePath = concatPath;
-
-    if (backgroundMusic) {
-      const musicPath = path.join(workDir, "music.mp3");
-      await writeFile(musicPath, backgroundMusic);
-
-      const mixedPath = path.join(workDir, "mixed.mp4");
-      await execFileAsync(ffmpeg.path, [
-        "-y",
-        "-i",
-        concatPath,
-        "-stream_loop",
-        "-1",
-        "-i",
-        musicPath,
-        "-filter_complex",
-        `[1:a]volume=${BACKGROUND_MUSIC_VOLUME}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[aout]`,
-        "-map",
-        "0:v",
-        "-map",
-        "[aout]",
-        "-c:v",
-        "copy",
-        "-c:a",
-        "aac",
-        "-t",
-        cumulativeSeconds.toFixed(2),
-        mixedPath,
-      ]);
-      audioBasePath = mixedPath;
+    if (!backgroundMusic) {
+      return await readFile(concatPath);
     }
 
-    if (!burnCaptions || captionCues.length === 0) {
-      return await readFile(audioBasePath);
-    }
+    // Música de fundo: só o áudio é recodificado; o vídeo é copiado.
+    const musicPath = path.join(workDir, "music.mp3");
+    await writeFile(musicPath, backgroundMusic);
 
-    const assPath = path.join(workDir, "captions.ass");
-    await writeFile(assPath, buildAss(captionCues, captionStyle ?? null), "utf-8");
-
-    const finalPath = path.join(workDir, "final.mp4");
-    // O filtro "ass" do ffmpeg exige escapar ":" no caminho (por causa da
-    // letra de unidade no Windows, ex. "C:") e usar barras normais. Mesma
-    // regra vale pro "fontsdir" — que aponta a fonte empacotada no projeto
-    // pro libass, em vez de depender da fonte "Arial" do sistema operacional
-    // (inexistente no runtime Linux da Vercel).
-    const escapePathForFilter = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
-    const escapedAssPath = escapePathForFilter(assPath);
-    const escapedFontsDir = escapePathForFilter(FONTS_DIR);
-
+    const mixedPath = path.join(workDir, "mixed.mp4");
     await execFileAsync(ffmpeg.path, [
       "-y",
       "-i",
-      audioBasePath,
-      "-vf",
-      `ass='${escapedAssPath}':fontsdir='${escapedFontsDir}'`,
-      "-c:a",
+      concatPath,
+      "-stream_loop",
+      "-1",
+      "-i",
+      musicPath,
+      "-filter_complex",
+      `[1:a]volume=${BACKGROUND_MUSIC_VOLUME}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[aout]`,
+      "-map",
+      "0:v",
+      "-map",
+      "[aout]",
+      "-c:v",
       "copy",
-      finalPath,
+      "-c:a",
+      "aac",
+      "-t",
+      cumulativeSeconds.toFixed(2),
+      mixedPath,
     ]);
 
-    return await readFile(finalPath);
+    return await readFile(mixedPath);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }

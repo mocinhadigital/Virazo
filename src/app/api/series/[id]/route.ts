@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { mapSeriesRow, type SeriesRow } from "@/components/dashboard/seriesMapping";
 import { computeNextGenerationAt, HORARIO_PATTERN } from "@/lib/series/schedule";
+import { isLongDuration } from "@/lib/video/durations";
+import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 
 type UpdateSeriesBody = Partial<{
   title: string;
@@ -46,6 +48,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (body.idioma !== undefined && !["pt", "en", "es"].includes(body.idioma)) {
     return NextResponse.json({ error: "Idioma inválido." }, { status: 400 });
+  }
+  // Só barra quem MUDA para 60s com a chave desligada — editar outro campo
+  // de uma série que já era de 60s continua permitido (ela gera em 30s
+  // enquanto a chave estiver desligada, ver lib/series/generate.ts).
+  if (
+    body.duration !== undefined &&
+    body.duration !== existing.duration &&
+    isLongDuration(body.duration) &&
+    !areLongVideosEnabled()
+  ) {
+    return NextResponse.json(
+      { error: "Vídeos de 60 segundos estão temporariamente indisponíveis. Escolha 30 segundos." },
+      { status: 400 },
+    );
   }
   if (body.frequenciaDias !== undefined && (!Number.isInteger(body.frequenciaDias) || body.frequenciaDias < 1)) {
     return NextResponse.json({ error: "Frequência inválida." }, { status: 400 });

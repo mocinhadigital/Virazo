@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   X,
   Play,
   Pause,
-  CheckCircle2,
-  Loader2,
-  Circle,
   ArrowRight,
   ArrowLeft,
   Wand2,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
-import { useDashboard } from "./DashboardContext";
+import { useDashboard, VideoGenerationError } from "./DashboardContext";
+import VideoProgress from "./VideoProgress";
+import { isLongDuration } from "@/lib/video/durations";
 import { styleOptions } from "./styleOptions";
 import { VISUAL_STYLES } from "./visualStyles";
 
@@ -68,14 +68,6 @@ const CAPTION_STYLES = [
   { name: "Minimalista", sample: "texto discreto" },
 ];
 
-const STAGES = [
-  "Escrevendo roteiro",
-  "Gerando narração",
-  "Criando cenas",
-  "Adicionando legendas",
-  "Renderizando vídeo",
-];
-
 export default function CreateVideoWizard() {
   const { isWizardOpen } = useDashboard();
   if (!isWizardOpen) return null;
@@ -83,7 +75,16 @@ export default function CreateVideoWizard() {
 }
 
 function WizardPanel() {
-  const { wizardInitial, closeWizard, addVideo, videosRemainingToday, dailyVideoLimit } = useDashboard();
+  const {
+    wizardInitial,
+    closeWizard,
+    addVideo,
+    retryVideo,
+    videos,
+    longVideosEnabled,
+    videosRemainingToday,
+    dailyVideoLimit,
+  } = useDashboard();
 
   const [step, setStep] = useState<StepKey>("tema");
   const [topic, setTopic] = useState(wizardInitial.topic ?? "");
@@ -95,56 +96,70 @@ function WizardPanel() {
   const [captionsOn, setCaptionsOn] = useState(true);
   const [captionStyle, setCaptionStyle] = useState<string | null>("Destaque");
 
-  const [progress, setProgress] = useState(0);
   const [isDone, setIsDone] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  // Quando a geração começou — usado para achar, na lista do contexto, o
+  // registro real deste vídeo (e o progresso dele) entre os "Gerando".
+  const [generationStartedAt, setGenerationStartedAt] = useState(0);
+  // Vídeo que falhou e pode ser reprocessado com "Tentar de novo".
+  const [failedVideoId, setFailedVideoId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const stepIndex = STEP_ORDER.indexOf(step);
   const isFormStep = step !== "geracao";
 
-  useEffect(() => {
-    if (step !== "geracao" || progress >= 100) return;
-    const timer = setTimeout(() => setProgress((p) => Math.min(100, p + 4)), 140);
-    return () => clearTimeout(timer);
-  }, [step, progress]);
+  // Disparada no clique (e não por um efeito): assim limpar o erro para
+  // "Tentar de novo" nunca cria um vídeo novo por acidente.
+  async function startGeneration() {
+    const selectedStyle = styleOptions.find((s) => s.title === style);
+    try {
+      await addVideo({
+        title: topic.trim() || "Vídeo sem título",
+        topic: topic.trim(),
+        style: style ?? "Personalizado",
+        visualStyle,
+        duration: duration ?? "30s",
+        voice: voice ?? "",
+        captionsEnabled: captionsOn,
+        captionStyle: captionsOn ? captionStyle : null,
+        gradient: selectedStyle?.gradient ?? "from-[#4C3BFF] to-[#A855F7]",
+      });
+      setIsDone(true);
+    } catch (err) {
+      setFailedVideoId(err instanceof VideoGenerationError ? (err.videoId ?? null) : null);
+      setGenError(err instanceof Error ? err.message : "Não foi possível gerar o vídeo.");
+    }
+  }
 
-  useEffect(() => {
-    if (progress < 100 || isDone || genError) return;
-    let cancelled = false;
+  // Reprocessa o MESMO registro que falhou — sem gastar vaga nova do dia.
+  async function retryFailedVideo() {
+    if (!failedVideoId) return;
+    const videoId = failedVideoId;
+    setGenError(null);
+    setFailedVideoId(null);
+    setRetryingId(videoId);
+    try {
+      await retryVideo(videoId);
+      setIsDone(true);
+    } catch (err) {
+      setFailedVideoId(videoId);
+      setGenError(err instanceof Error ? err.message : "Não foi possível gerar o vídeo.");
+    } finally {
+      setRetryingId(null);
+    }
+  }
 
-    (async () => {
-      const selectedStyle = styleOptions.find((s) => s.title === style);
-      try {
-        await addVideo({
-          title: topic.trim() || "Vídeo sem título",
-          topic: topic.trim(),
-          style: style ?? "Personalizado",
-          visualStyle,
-          duration: duration ?? "30s",
-          voice: voice ?? "",
-          captionsEnabled: captionsOn,
-          captionStyle: captionsOn ? captionStyle : null,
-          gradient: selectedStyle?.gradient ?? "from-[#4C3BFF] to-[#A855F7]",
-        });
-        if (!cancelled) setIsDone(true);
-      } catch (err) {
-        if (!cancelled) {
-          setGenError(
-            err instanceof Error ? err.message : "Não foi possível gerar o vídeo.",
-          );
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [progress, isDone, genError, style, topic, duration, voice, captionsOn, captionStyle, addVideo]);
-
-  const currentStageIndex = Math.min(
-    STAGES.length - 1,
-    Math.floor((progress / 100) * STAGES.length),
-  );
+  // O vídeo em geração deste wizard, com o progresso atualizado pela
+  // consulta periódica do contexto. Antes do primeiro retorno do banco é o
+  // placeholder local (sem etapa ainda).
+  const generatingVideo = retryingId
+    ? videos.find((v) => v.id === retryingId)
+    : videos.find(
+        (v) =>
+          v.status === "Processando" &&
+          !v.seriesId &&
+          new Date(v.createdAtIso).getTime() >= generationStartedAt - 15_000,
+      );
 
   const canGoNext = (() => {
     switch (step) {
@@ -167,10 +182,12 @@ function WizardPanel() {
 
   function goNext() {
     if (step === "revisao") {
-      setProgress(0);
       setIsDone(false);
       setGenError(null);
+      setFailedVideoId(null);
+      setGenerationStartedAt(Date.now());
       setStep("geracao");
+      void startGeneration();
       return;
     }
     const next = STEP_ORDER[stepIndex + 1];
@@ -191,9 +208,9 @@ function WizardPanel() {
     setVoice(null);
     setCaptionsOn(true);
     setCaptionStyle("Destaque");
-    setProgress(0);
     setIsDone(false);
     setGenError(null);
+    setFailedVideoId(null);
   }
 
   function toggleVoicePreview(name: string) {
@@ -331,19 +348,28 @@ function WizardPanel() {
             <div className="grid grid-cols-2 gap-3">
               {DURATIONS.map(({ value, label }) => {
                 const isSelected = duration === value;
+                // 60s/90s desligados até LONG_VIDEOS_ENABLED=true (ver
+                // src/lib/video/durations.ts). Ficam visíveis, mas
+                // desabilitados, para o usuário entender que é temporário.
+                const isUnavailable = !longVideosEnabled && isLongDuration(value);
                 return (
                   <button
                     key={value}
                     type="button"
+                    disabled={isUnavailable}
                     onClick={() => setDuration(value)}
                     className={`flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition-colors ${
-                      isSelected
-                        ? "border-[#4C3BFF]/60 bg-white/[0.08]"
-                        : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
+                      isUnavailable
+                        ? "cursor-not-allowed border-white/5 bg-white/[0.01] opacity-50"
+                        : isSelected
+                          ? "border-[#4C3BFF]/60 bg-white/[0.08]"
+                          : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
                     <span className="text-lg font-bold text-white">{value}</span>
-                    <span className="text-xs text-zinc-400">{label}</span>
+                    <span className="text-xs text-zinc-400">
+                      {isUnavailable ? "Temporariamente indisponível" : label}
+                    </span>
                   </button>
                 );
               })}
@@ -490,46 +516,20 @@ function WizardPanel() {
           )}
 
           {step === "geracao" && !isDone && !genError && (
-            <div className="flex flex-col gap-6 py-2">
-              <div>
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span>Gerando com IA...</span>
-                  <span>{progress}%</span>
-                </div>
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] transition-all duration-150"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {STAGES.map((stageLabel, i) => {
-                  const state =
-                    i < currentStageIndex ? "done" : i === currentStageIndex ? "active" : "pending";
-                  return (
-                    <div key={stageLabel} className="flex items-center gap-3">
-                      {state === "done" && (
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-                      )}
-                      {state === "active" && (
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#4C3BFF]" />
-                      )}
-                      {state === "pending" && (
-                        <Circle className="h-4 w-4 shrink-0 text-zinc-700" />
-                      )}
-                      <span
-                        className={`text-sm ${
-                          state === "pending" ? "text-zinc-600" : "text-zinc-200"
-                        }`}
-                      >
-                        {stageLabel}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="flex flex-col gap-4 py-2">
+              {/* Progresso REAL, gravado pelo servidor a cada etapa. Pode
+                  fechar esta janela: a geração continua e o card em "Meus
+                  vídeos" mostra o mesmo progresso. */}
+              <VideoProgress
+                stage={generatingVideo?.progressStage ?? null}
+                current={generatingVideo?.progressCurrent ?? null}
+                total={generatingVideo?.progressTotal ?? null}
+                startedAtIso={generatingVideo?.startedAtIso ?? new Date(generationStartedAt).toISOString()}
+                duration={generatingVideo?.duration ?? duration ?? "30s"}
+              />
+              <p className="text-xs text-zinc-500">
+                Você pode fechar esta janela — o vídeo continua sendo gerado e aparece em &quot;Meus vídeos&quot;.
+              </p>
             </div>
           )}
 
@@ -542,19 +542,34 @@ function WizardPanel() {
                 Não foi possível gerar o vídeo
               </h3>
               <p className="mt-1 max-w-xs text-sm text-zinc-400">{genError}</p>
+              {failedVideoId && (
+                <p className="mt-2 max-w-xs text-xs text-zinc-500">
+                  Este vídeo não foi descontado do seu limite diário.
+                </p>
+              )}
 
               <div className="mt-6 flex w-full flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGenError(null);
-                    setProgress(0);
-                    setStep("revisao");
-                  }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
-                >
-                  Voltar para revisão
-                </button>
+                {failedVideoId ? (
+                  <button
+                    type="button"
+                    onClick={() => void retryFailedVideo()}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Tentar de novo
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGenError(null);
+                      setStep("revisao");
+                    }}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
+                  >
+                    Voltar para revisão
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={closeWizard}

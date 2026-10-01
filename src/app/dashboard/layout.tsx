@@ -12,6 +12,7 @@ import { createClient } from "@/utils/supabase/server";
 import type { PlanKey } from "@/lib/billing/plans";
 import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/cakto";
 import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
+import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 
 export default async function DashboardLayout({
   children,
@@ -30,6 +31,12 @@ export default async function DashboardLayout({
   // Antes de ler a assinatura: se este e-mail comprou pela Cakto antes de
   // ter conta, o plano já aparece ativo neste mesmo carregamento.
   await claimCaktoPendingPurchases(user);
+
+  // Vídeo "Gerando" há mais de 10 minutos já chega na tela como "Falhou",
+  // com o botão "Tentar de novo" (migration 0025). Falhar aqui não impede
+  // o dashboard de abrir.
+  const { error: expireError } = await supabase.rpc("expire_stale_videos");
+  if (expireError) console.error("Falha ao expirar vídeos travados:", expireError.message);
 
   const [
     { data: profile, error: profileError },
@@ -73,6 +80,7 @@ export default async function DashboardLayout({
       initialVideos={initialVideos}
       initialPlan={initialPlan}
       caktoVerifyEnabled={isCaktoApiConfigured()}
+      longVideosEnabled={areLongVideosEnabled()}
     >
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} />

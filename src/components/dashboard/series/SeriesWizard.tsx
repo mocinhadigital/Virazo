@@ -17,6 +17,7 @@ import { VISUAL_STYLES } from "../visualStyles";
 import type { MusicTrackRecord } from "../musicMapping";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
+import { isLongDuration } from "@/lib/video/durations";
 import {
   SERIES_DURATIONS,
   SERIES_VOICES,
@@ -127,7 +128,7 @@ const EMPTY_FORM: FormState = {
 
 export default function SeriesWizard() {
   const router = useRouter();
-  const { plan, openPlanModal } = useDashboard();
+  const { plan, openPlanModal, longVideosEnabled } = useDashboard();
   const [step, setStep] = useState<StepKey>("nicho");
   const [nichoTab, setNichoTab] = useState<"presets" | "personalizado">("presets");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -718,11 +719,16 @@ export default function SeriesWizard() {
                 onChange={(e) => update("duration", e.target.value)}
                 className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0b] px-3.5 text-[15px] text-white/92 focus:border-[#4C3BFF]/50 focus:outline-none"
               >
-                {SERIES_DURATIONS.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
+                {SERIES_DURATIONS.map((d) => {
+                  // 60s desligado até LONG_VIDEOS_ENABLED=true (ver
+                  // src/lib/video/durations.ts).
+                  const isUnavailable = !longVideosEnabled && isLongDuration(d.value);
+                  return (
+                    <option key={d.value} value={d.value} disabled={isUnavailable}>
+                      {isUnavailable ? `${d.label} (temporariamente indisponível)` : d.label}
+                    </option>
+                  );
+                })}
               </select>
             </label>
 

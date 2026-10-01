@@ -18,6 +18,10 @@ export type VideoRow = {
   error_message: string | null;
   created_at: string;
   series_id?: string | null;
+  reserved_at?: string | null;
+  progress_stage?: string | null;
+  progress_current?: number | null;
+  progress_total?: number | null;
 };
 
 export function mapVideoRow(row: VideoRow): VideoRecord {
@@ -39,6 +43,10 @@ export function mapVideoRow(row: VideoRow): VideoRecord {
     thumbnailUrl: row.thumbnail_url,
     errorMessage: row.error_message,
     seriesId: row.series_id ?? null,
+    progressStage: row.progress_stage ?? null,
+    progressCurrent: row.progress_current ?? null,
+    progressTotal: row.progress_total ?? null,
+    startedAtIso: row.reserved_at ?? row.created_at,
   };
 }
 

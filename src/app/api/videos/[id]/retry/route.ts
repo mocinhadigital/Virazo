@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { generateScript } from "@/lib/ai/script";
-import { renderFinalVideo } from "@/lib/video/render";
-import { buildRenderScenes } from "@/lib/video/scenePipeline";
+import {
+  createProgressReporter,
+  generateVideoAssets,
+  GENERATION_TIME_BUDGET_MS,
+  withDeadline,
+} from "@/lib/video/generateAssets";
+import { effectiveDuration } from "@/lib/video/durations";
+import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 
 // Reprocessa um vídeo que falhou, no MESMO registro (mesmo id) — nunca cria
@@ -40,6 +45,7 @@ type FailedVideoRow = VideoRow & {
 };
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const startedAt = Date.now();
   const { id: videoId } = await params;
   const supabase = await createClient();
 
@@ -119,67 +125,79 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    // 2. Roteiro — mesmo título/tópico/estilo/duração já salvos no registro.
-    const script = await generateScript({
-      topic: retried.topic,
-      coreTheme: seriesTitle ?? retried.topic,
-      contentStyle: retried.style,
-      visualStyle: retried.visual_style ?? "Realista",
-      duration: retried.duration,
-      language: idioma,
-    });
-
-    // 3. Narração (1 chamada TTS por vez — ver scenePipeline.ts) + legenda
-    // (por cena) + imagem (fal.ai, em paralelo) — mesma voz.
-    const renderScenes = await buildRenderScenes(
-      script,
-      retried.voice ?? "",
-      retried.visual_style ?? "Realista",
-      idioma,
-    );
-
-    // 4. Monta o vídeo final — mesma legenda ligada/desligada, mesma música.
-    const finalVideo = await renderFinalVideo(
-      renderScenes,
-      retried.captions_enabled,
-      retried.caption_style,
-      backgroundMusic,
-    );
-    const thumbnail = renderScenes[0]?.image;
-
-    // 5. Sobe pro Storage, sobrescrevendo o arquivo antigo (mesmo video_id).
-    const videoPath = `${user.id}/${retried.id}.mp4`;
-    const { error: uploadVideoError } = await supabase.storage
-      .from("videos")
-      .upload(videoPath, finalVideo, { contentType: "video/mp4", upsert: true });
-    if (uploadVideoError) throw new Error(`Falha ao salvar o vídeo: ${uploadVideoError.message}`);
-
-    let thumbnailUrl: string | null = null;
-    if (thumbnail) {
-      const thumbnailPath = `${user.id}/${retried.id}-thumb.jpg`;
-      const { error: uploadThumbError } = await supabase.storage
-        .from("videos")
-        .upload(thumbnailPath, thumbnail, { contentType: "image/jpeg", upsert: true });
-      if (!uploadThumbError) {
-        thumbnailUrl = supabase.storage.from("videos").getPublicUrl(thumbnailPath).data.publicUrl;
-      }
+    // Com 60s/90s desligados (ver src/lib/video/durations.ts), refaz em
+    // 30s e grava a duração real no registro, para a tela não mostrar 60s
+    // num vídeo de 30s.
+    const duration = effectiveDuration(retried.duration, areLongVideosEnabled());
+    if (duration !== retried.duration) {
+      await supabase.from("videos").update({ duration }).eq("id", retried.id).eq("user_id", user.id);
     }
 
-    const videoUrl = supabase.storage.from("videos").getPublicUrl(videoPath).data.publicUrl;
+    const report = createProgressReporter(supabase, retried.id);
 
-    // 6. Marca como pronto — mesmo id do começo ao fim.
-    const { data: ready, error: readyError } = await supabase
-      .rpc("mark_video_ready", {
-        p_video_id: retried.id,
-        p_video_url: videoUrl,
-        p_thumbnail_url: thumbnailUrl,
-      })
-      .single()
-      .returns<VideoRow>();
+    // 2-6 correm contra o prazo de GENERATION_TIME_BUDGET_MS (ver
+    // generateAssets.ts): se estourar, cai no catch e o vídeo volta a
+    // "Falhou" em vez de ficar "Gerando" para sempre.
+    const ready = await withDeadline(
+      (async () => {
+        // 2-4. Roteiro (mesmo tópico/estilo do registro), narração + legenda
+        // + imagem por cena (mesma voz), montagem (mesma legenda e música).
+        const { finalVideo, thumbnail } = await generateVideoAssets({
+          script: {
+            topic: retried.topic,
+            coreTheme: seriesTitle ?? retried.topic,
+            contentStyle: retried.style,
+            visualStyle: retried.visual_style ?? "Realista",
+            duration,
+            language: idioma,
+          },
+          voice: retried.voice ?? "",
+          visualStyle: retried.visual_style ?? "Realista",
+          language: idioma,
+          captionsEnabled: retried.captions_enabled,
+          captionStyle: retried.caption_style,
+          backgroundMusic,
+          report,
+        });
 
-    if (readyError || !ready) {
-      throw new Error(readyError?.message ?? "Não foi possível finalizar o vídeo.");
-    }
+        // 5. Sobe pro Storage, sobrescrevendo o arquivo antigo (mesmo video_id).
+        await report("salvando");
+        const videoPath = `${user.id}/${retried.id}.mp4`;
+        const { error: uploadVideoError } = await supabase.storage
+          .from("videos")
+          .upload(videoPath, finalVideo, { contentType: "video/mp4", upsert: true });
+        if (uploadVideoError) throw new Error(`Falha ao salvar o vídeo: ${uploadVideoError.message}`);
+
+        let thumbnailUrl: string | null = null;
+        if (thumbnail) {
+          const thumbnailPath = `${user.id}/${retried.id}-thumb.jpg`;
+          const { error: uploadThumbError } = await supabase.storage
+            .from("videos")
+            .upload(thumbnailPath, thumbnail, { contentType: "image/jpeg", upsert: true });
+          if (!uploadThumbError) {
+            thumbnailUrl = supabase.storage.from("videos").getPublicUrl(thumbnailPath).data.publicUrl;
+          }
+        }
+
+        const videoUrl = supabase.storage.from("videos").getPublicUrl(videoPath).data.publicUrl;
+
+        // 6. Marca como pronto — mesmo id do começo ao fim.
+        const { data: ready, error: readyError } = await supabase
+          .rpc("mark_video_ready", {
+            p_video_id: retried.id,
+            p_video_url: videoUrl,
+            p_thumbnail_url: thumbnailUrl,
+          })
+          .single()
+          .returns<VideoRow>();
+
+        if (readyError || !ready) {
+          throw new Error(readyError?.message ?? "Não foi possível finalizar o vídeo.");
+        }
+        return ready;
+      })(),
+      startedAt + GENERATION_TIME_BUDGET_MS,
+    );
 
     if (retried.series_id) {
       await supabase.rpc("record_series_generation", {

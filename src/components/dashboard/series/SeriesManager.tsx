@@ -18,6 +18,7 @@ import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
+import { isLongDuration } from "@/lib/video/durations";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import {
@@ -128,7 +129,7 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function SeriesManager({ initialSeries }: { initialSeries: SeriesRecord[] }) {
-  const { plan, openPlanModal } = useDashboard();
+  const { plan, openPlanModal, longVideosEnabled } = useDashboard();
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -451,7 +452,20 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     <Select
                       value={form.duration}
                       onChange={(v) => setForm((f) => ({ ...f, duration: v }))}
-                      options={SERIES_DURATIONS.map((d) => ({ value: d.value, label: d.value, description: d.label }))}
+                      // 60s fica de fora com LONG_VIDEOS_ENABLED desligado
+                      // (ver src/lib/video/durations.ts), exceto se for o
+                      // valor atual da série — que segue editável e gera em
+                      // 30s até a chave ser ligada.
+                      options={SERIES_DURATIONS.filter(
+                        (d) => longVideosEnabled || !isLongDuration(d.value) || d.value === form.duration,
+                      ).map((d) => ({
+                        value: d.value,
+                        label: d.value,
+                        description:
+                          !longVideosEnabled && isLongDuration(d.value)
+                            ? "Temporariamente gerado em 30s"
+                            : d.label,
+                      }))}
                       aria-label="Duração"
                     />
                   </Field>

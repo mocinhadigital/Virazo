@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
+import VideoProgress from "./VideoProgress";
 import { createClient } from "@/utils/supabase/client";
 import type { VideoRecord, VideoStatus } from "./types";
 
@@ -61,7 +62,7 @@ function getEffectiveStatus(video: VideoRecord): VideoStatus {
 }
 
 export default function MeusVideos() {
-  const { videos, openWizard, removeVideo, refetchVideos } = useDashboard();
+  const { videos, openWizard, removeVideo, refetchVideos, retryVideo } = useDashboard();
   const [activeVideo, setActiveVideo] = useState<VideoRecord | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
@@ -86,22 +87,15 @@ export default function MeusVideos() {
     setRetryError(null);
     try {
       // Reprocessa o MESMO registro (mesmo video_id) — nunca cria um vídeo
-      // novo. A trava contra retry duplicado/paralelo de verdade é atômica,
-      // no banco (retry_video_and_consume_credit só afeta a linha se ela
-      // ainda estiver com status = 'Erro').
-      const res = await fetch(`/api/videos/${video.id}/retry`, { method: "POST" });
-      const data: unknown = await res.json();
-      if (!res.ok) {
-        const message = (data as { error?: string } | null)?.error ?? "Não foi possível gerar o vídeo.";
-        throw new Error(message);
-      }
+      // novo nem gasta vaga do limite diário. A trava contra retry
+      // duplicado/paralelo de verdade é atômica, no banco (retry_video só
+      // afeta a linha se ela ainda estiver com status = 'Erro'). O card
+      // mostra o progresso enquanto isso (retryVideo, no contexto).
+      await retryVideo(video.id);
     } catch (err) {
       setRetryError(err instanceof Error ? err.message : "Não foi possível gerar o vídeo.");
     } finally {
       setRetryingId(null);
-      // Rebusca do Supabase pra refletir o status final real (Pronto/Erro)
-      // no mesmo card, sem depender de otimismo local.
-      await refetchVideos();
     }
   }
 
@@ -326,9 +320,21 @@ function VideoRow({
           <span>{video.createdAt}</span>
         </div>
         {isFailed && (
-          <p className="mt-1 truncate text-[11px] text-red-400">
+          <p className="mt-1 text-[11px] text-red-400">
             {video.errorMessage ?? "O vídeo não chegou a ser concluído."}
           </p>
+        )}
+        {status === "Processando" && (
+          <div className="mt-1">
+            <VideoProgress
+              compact
+              stage={video.progressStage}
+              current={video.progressCurrent}
+              total={video.progressTotal}
+              startedAtIso={video.startedAtIso}
+              duration={video.duration}
+            />
+          </div>
         )}
       </div>
 
@@ -365,7 +371,7 @@ function VideoRow({
               ) : (
                 <RotateCcw className="h-3.5 w-3.5" />
               )}
-              {isRetrying ? "Gerando..." : "Tentar novamente"}
+              {isRetrying ? "Gerando..." : "Tentar de novo"}
             </button>
             <button
               type="button"

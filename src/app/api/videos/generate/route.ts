@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { generateScript } from "@/lib/ai/script";
-import { renderFinalVideo } from "@/lib/video/render";
-import { buildRenderScenes } from "@/lib/video/scenePipeline";
+import {
+  createProgressReporter,
+  generateVideoAssets,
+  GENERATION_TIME_BUDGET_MS,
+  withDeadline,
+} from "@/lib/video/generateAssets";
+import { isLongDuration } from "@/lib/video/durations";
+import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import { checkConcurrencyLimit } from "@/lib/series/generate";
 
@@ -46,6 +51,7 @@ type GenerateVideoBody = {
 };
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   const body = (await request.json()) as GenerateVideoBody;
   const supabase = await createClient();
 
@@ -55,6 +61,15 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  // Ver src/lib/video/durations.ts — recusado ANTES de reservar a vaga do
+  // dia, então não gasta nada do usuário.
+  if (isLongDuration(body.duration) && !areLongVideosEnabled()) {
+    return NextResponse.json(
+      { error: "Vídeos de 60 segundos ou mais estão temporariamente indisponíveis. Escolha 30 segundos." },
+      { status: 400 },
+    );
   }
 
   const visualStyle = body.visualStyle ?? "Realista";
@@ -94,56 +109,67 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 2. Roteiro.
-    const script = await generateScript({
-      topic: body.topic,
-      coreTheme: body.topic,
-      contentStyle: body.style,
-      visualStyle,
-      duration: body.duration,
-    });
+    const report = createProgressReporter(supabase, created.id);
 
-    // 3. Narração (1 chamada TTS por vez — ver scenePipeline.ts) + legenda
-    // (por cena) + imagem (fal.ai, em paralelo).
-    const renderScenes = await buildRenderScenes(script, body.voice, visualStyle);
+    // 2-6 correm contra o prazo de GENERATION_TIME_BUDGET_MS: se estourar,
+    // cai no catch abaixo e o vídeo vira "Falhou" em vez de ficar
+    // "Gerando" para sempre quando a Vercel encerra a função.
+    const ready = await withDeadline(
+      (async () => {
+        // 2-4. Roteiro, narração + legenda + imagem por cena, montagem.
+        const { finalVideo, thumbnail } = await generateVideoAssets({
+          script: {
+            topic: body.topic,
+            coreTheme: body.topic,
+            contentStyle: body.style,
+            visualStyle,
+            duration: body.duration,
+          },
+          voice: body.voice,
+          visualStyle,
+          captionsEnabled: body.captionsEnabled,
+          captionStyle: body.captionStyle,
+          report,
+        });
 
-    // 4. Monta o vídeo final.
-    const finalVideo = await renderFinalVideo(renderScenes, body.captionsEnabled, body.captionStyle);
-    const thumbnail = renderScenes[0]?.image;
+        // 5. Sobe pro Storage.
+        await report("salvando");
+        const videoPath = `${user.id}/${created.id}.mp4`;
+        const { error: uploadVideoError } = await supabase.storage
+          .from("videos")
+          .upload(videoPath, finalVideo, { contentType: "video/mp4", upsert: true });
+        if (uploadVideoError) throw new Error(`Falha ao salvar o vídeo: ${uploadVideoError.message}`);
 
-    // 5. Sobe pro Storage.
-    const videoPath = `${user.id}/${created.id}.mp4`;
-    const { error: uploadVideoError } = await supabase.storage
-      .from("videos")
-      .upload(videoPath, finalVideo, { contentType: "video/mp4", upsert: true });
-    if (uploadVideoError) throw new Error(`Falha ao salvar o vídeo: ${uploadVideoError.message}`);
+        let thumbnailUrl: string | null = null;
+        if (thumbnail) {
+          const thumbnailPath = `${user.id}/${created.id}-thumb.jpg`;
+          const { error: uploadThumbError } = await supabase.storage
+            .from("videos")
+            .upload(thumbnailPath, thumbnail, { contentType: "image/jpeg", upsert: true });
+          if (!uploadThumbError) {
+            thumbnailUrl = supabase.storage.from("videos").getPublicUrl(thumbnailPath).data.publicUrl;
+          }
+        }
 
-    let thumbnailUrl: string | null = null;
-    if (thumbnail) {
-      const thumbnailPath = `${user.id}/${created.id}-thumb.jpg`;
-      const { error: uploadThumbError } = await supabase.storage
-        .from("videos")
-        .upload(thumbnailPath, thumbnail, { contentType: "image/jpeg", upsert: true });
-      if (!uploadThumbError) {
-        thumbnailUrl = supabase.storage.from("videos").getPublicUrl(thumbnailPath).data.publicUrl;
-      }
-    }
+        const videoUrl = supabase.storage.from("videos").getPublicUrl(videoPath).data.publicUrl;
 
-    const videoUrl = supabase.storage.from("videos").getPublicUrl(videoPath).data.publicUrl;
+        // 6. Marca como pronto.
+        const { data: ready, error: readyError } = await supabase
+          .rpc("mark_video_ready", {
+            p_video_id: created.id,
+            p_video_url: videoUrl,
+            p_thumbnail_url: thumbnailUrl,
+          })
+          .single()
+          .returns<VideoRow>();
 
-    // 6. Marca como pronto.
-    const { data: ready, error: readyError } = await supabase
-      .rpc("mark_video_ready", {
-        p_video_id: created.id,
-        p_video_url: videoUrl,
-        p_thumbnail_url: thumbnailUrl,
-      })
-      .single()
-      .returns<VideoRow>();
-
-    if (readyError || !ready) {
-      throw new Error(readyError?.message ?? "Não foi possível finalizar o vídeo.");
-    }
+        if (readyError || !ready) {
+          throw new Error(readyError?.message ?? "Não foi possível finalizar o vídeo.");
+        }
+        return ready;
+      })(),
+      startedAt + GENERATION_TIME_BUDGET_MS,
+    );
 
     return NextResponse.json(ready);
   } catch (err) {

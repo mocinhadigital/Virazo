@@ -18,6 +18,13 @@ export type VideoRecord = {
   thumbnailUrl: string | null;
   errorMessage: string | null;
   seriesId: string | null;
+  // Progresso da geração (migration 0025) — só faz sentido em 'Processando'.
+  progressStage: string | null;
+  progressCurrent: number | null;
+  progressTotal: number | null;
+  // Início da tentativa atual (reserved_at; o "Tentar de novo" renova).
+  // Base do tempo estimado e do limite de 10 minutos.
+  startedAtIso: string;
 };
 
 export type SeriesStatus = "ativa" | "pausada" | "arquivada";

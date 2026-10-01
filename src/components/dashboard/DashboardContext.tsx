@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { mapVideoRow, type VideoRow } from "./videoMapping";
@@ -12,6 +21,21 @@ export type WizardInitial = {
   topic?: string;
   style?: string;
 };
+
+// Intervalo da consulta de status enquanto houver vídeo "Gerando".
+const PROGRESS_POLL_MS = 4000;
+
+// Falha de geração. `videoId` vem preenchido quando o registro existe e
+// ficou como "Falhou" — é o que permite oferecer "Tentar de novo".
+export class VideoGenerationError extends Error {
+  constructor(
+    message: string,
+    readonly videoId?: string,
+  ) {
+    super(message);
+    this.name = "VideoGenerationError";
+  }
+}
 
 export type NewVideoInput = {
   title: string;
@@ -30,6 +54,10 @@ type DashboardContextValue = {
   addVideo: (input: NewVideoInput) => Promise<void>;
   removeVideo: (id: string) => void;
   refetchVideos: () => Promise<void>;
+  retryVideo: (videoId: string) => Promise<void>;
+  // false = só 15s/30s disponíveis (LONG_VIDEOS_ENABLED, ver
+  // src/lib/video/durations.ts).
+  longVideosEnabled: boolean;
   plan: PlanKey | null;
   dailyVideoLimit: number;
   videosUsedToday: number;
@@ -64,11 +92,13 @@ export function DashboardProvider({
   initialVideos,
   initialPlan,
   caktoVerifyEnabled = false,
+  longVideosEnabled = false,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
   initialPlan: PlanKey | null;
   caktoVerifyEnabled?: boolean;
+  longVideosEnabled?: boolean;
 }) {
   const router = useRouter();
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
@@ -130,70 +160,6 @@ export function DashboardProvider({
   const openPlanModal = useCallback(() => setIsPlanModalOpen(true), []);
   const closePlanModal = useCallback(() => setIsPlanModalOpen(false), []);
 
-  const addVideo = useCallback(async (input: NewVideoInput) => {
-    const tempId = `temp-${Date.now()}`;
-    const placeholder: VideoRecord = {
-      id: tempId,
-      title: input.title,
-      topic: input.topic,
-      style: input.style,
-      visualStyle: input.visualStyle,
-      status: "Processando",
-      duration: input.duration,
-      voice: input.voice,
-      captionsEnabled: input.captionsEnabled,
-      captionStyle: input.captionStyle,
-      createdAt: "agora",
-      createdAtIso: new Date().toISOString(),
-      gradient: input.gradient,
-      videoUrl: null,
-      thumbnailUrl: null,
-      errorMessage: null,
-      seriesId: null,
-    };
-    setVideos((prev) => [placeholder, ...prev]);
-
-    let result: VideoRow | null = null;
-    let errorMessage: string | null = null;
-    let reason: "no_subscription" | "daily_limit_reached" | "other" = "other";
-
-    try {
-      const response = await fetch("/api/videos/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      const data: unknown = await response.json();
-      if (data && typeof data === "object" && "id" in data) {
-        result = data as VideoRow;
-      } else {
-        const rawMessage = (data as { error?: string } | null)?.error ?? "Não foi possível gerar o vídeo.";
-        const parsed = parseGenerationError(rawMessage);
-        errorMessage = parsed.message;
-        reason = parsed.reason;
-      }
-    } catch {
-      errorMessage = "Não foi possível conectar ao servidor.";
-    }
-
-    setVideos((prev) => {
-      const withoutPlaceholder = prev.filter((v) => v.id !== tempId);
-      return result ? [mapVideoRow(result), ...withoutPlaceholder] : withoutPlaceholder;
-    });
-
-    if (errorMessage) {
-      if (reason === "no_subscription") {
-        setIsWizardOpen(false);
-        openPlanModal();
-      }
-      throw new Error(errorMessage);
-    }
-  }, [openPlanModal]);
-
-  const removeVideo = useCallback((id: string) => {
-    setVideos((prev) => prev.filter((v) => v.id !== id));
-  }, []);
-
   // `videos` só é carregado do Supabase UMA vez, no primeiro carregamento do
   // layout (server-side); depois disso fica só em memória, mantido por
   // `addVideo`/`removeVideo`. Isso busca de novo direto no Supabase (a
@@ -205,6 +171,11 @@ export function DashboardProvider({
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Antes de ler: vídeo "Gerando" há mais de 10 minutos vira "Falhou"
+    // (migration 0025). Falha aqui não impede a leitura.
+    const { error: expireError } = await supabase.rpc("expire_stale_videos");
+    if (expireError) console.warn("[DashboardContext] expire_stale_videos falhou:", expireError.message);
 
     const { data, error } = await supabase
       .from("videos")
@@ -218,6 +189,139 @@ export function DashboardProvider({
       return;
     }
     setVideos((data ?? []).map(mapVideoRow));
+  }, []);
+
+  // Enquanto houver vídeo "Gerando", relê a lista a cada poucos segundos —
+  // é o que faz a etapa/tempo estimado andarem na tela e o card virar
+  // "Pronto" ou "Falhou" sozinho, inclusive para vídeos de série gerados
+  // no servidor sem esta aba ter pedido nada.
+  const hasVideoInProgress = videos.some((v) => v.status === "Processando");
+  useEffect(() => {
+    if (!hasVideoInProgress) return;
+    const timer = setInterval(() => void refetchVideos(), PROGRESS_POLL_MS);
+    return () => clearInterval(timer);
+  }, [hasVideoInProgress, refetchVideos]);
+
+  const addVideo = useCallback(async (input: NewVideoInput) => {
+    const tempId = `temp-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const placeholder: VideoRecord = {
+      id: tempId,
+      title: input.title,
+      topic: input.topic,
+      style: input.style,
+      visualStyle: input.visualStyle,
+      status: "Processando",
+      duration: input.duration,
+      voice: input.voice,
+      captionsEnabled: input.captionsEnabled,
+      captionStyle: input.captionStyle,
+      createdAt: "agora",
+      createdAtIso: nowIso,
+      gradient: input.gradient,
+      videoUrl: null,
+      thumbnailUrl: null,
+      errorMessage: null,
+      seriesId: null,
+      progressStage: null,
+      progressCurrent: null,
+      progressTotal: null,
+      startedAtIso: nowIso,
+    };
+    setVideos((prev) => [placeholder, ...prev]);
+
+    let result: VideoRow | null = null;
+    let errorMessage: string | null = null;
+    let reason: "no_subscription" | "daily_limit_reached" | "other" = "other";
+    let connectionLost = false;
+
+    try {
+      const response = await fetch("/api/videos/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data: unknown = await response.json();
+      if (data && typeof data === "object" && "id" in data) {
+        result = data as VideoRow;
+        // Em falha a rota devolve o próprio registro já marcado como
+        // 'Erro' (status 500) — tem "id", mas NÃO é sucesso. Antes isso
+        // caía aqui como pronto e o wizard mostrava "vídeo gerado".
+        if (result.status === "Erro") errorMessage = result.error_message ?? "Não foi possível gerar o vídeo.";
+      } else {
+        const rawMessage = (data as { error?: string } | null)?.error ?? "Não foi possível gerar o vídeo.";
+        const parsed = parseGenerationError(rawMessage);
+        errorMessage = parsed.message;
+        reason = parsed.reason;
+      }
+    } catch {
+      // Resposta perdida (rede caiu, aba suspensa) — a geração pode seguir
+      // no servidor. Relê a lista para o card real aparecer com o status
+      // de verdade.
+      connectionLost = true;
+      errorMessage =
+        'Perdemos a conexão com o servidor. Se o vídeo continuar gerando, ele aparece em "Meus vídeos" quando terminar.';
+    }
+
+    setVideos((prev) => {
+      // Tira o placeholder e uma eventual cópia do mesmo registro que a
+      // consulta periódica já tenha trazido, antes de inserir o resultado.
+      const rest = prev.filter((v) => v.id !== tempId && v.id !== result?.id);
+      return result ? [mapVideoRow(result), ...rest] : rest;
+    });
+    if (connectionLost) void refetchVideos();
+
+    if (errorMessage) {
+      if (reason === "no_subscription") {
+        setIsWizardOpen(false);
+        openPlanModal();
+      }
+      throw new VideoGenerationError(errorMessage, result?.status === "Erro" ? result.id : undefined);
+    }
+  }, [openPlanModal, refetchVideos]);
+
+  // "Tentar de novo": reprocessa o MESMO registro (mesmo id), sem gastar
+  // vaga nova do limite diário. Marca o card como "Gerando" na hora para o
+  // progresso aparecer enquanto a requisição está no ar.
+  const retryVideo = useCallback(
+    async (videoId: string): Promise<void> => {
+      const nowIso = new Date().toISOString();
+      setVideos((prev) =>
+        prev.map((v) =>
+          v.id === videoId
+            ? {
+                ...v,
+                status: "Processando",
+                errorMessage: null,
+                progressStage: null,
+                progressCurrent: null,
+                progressTotal: null,
+                startedAtIso: nowIso,
+              }
+            : v,
+        ),
+      );
+
+      try {
+        const res = await fetch(`/api/videos/${videoId}/retry`, { method: "POST" });
+        const data: unknown = await res.json().catch(() => null);
+        const row = data as (VideoRow & { error?: string }) | null;
+        if (!res.ok || row?.status === "Erro") {
+          throw new VideoGenerationError(
+            row?.error_message ?? row?.error ?? "Não foi possível gerar o vídeo.",
+            videoId,
+          );
+        }
+      } finally {
+        // Status final real (Pronto/Erro) direto do Supabase.
+        await refetchVideos();
+      }
+    },
+    [refetchVideos],
+  );
+
+  const removeVideo = useCallback((id: string) => {
+    setVideos((prev) => prev.filter((v) => v.id !== id));
   }, []);
 
   const openWizard = useCallback((initial: WizardInitial = {}) => {
@@ -263,6 +367,8 @@ export function DashboardProvider({
         addVideo,
         removeVideo,
         refetchVideos,
+        retryVideo,
+        longVideosEnabled,
         plan,
         dailyVideoLimit,
         videosUsedToday,

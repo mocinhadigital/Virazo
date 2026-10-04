@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter_Tight, Geist_Mono } from "next/font/google";
 import MetaPixel from "@/components/analytics/MetaPixel";
+import UtmCapture from "@/components/analytics/UtmCapture";
 import "./globals.css";
 
 const interTight = Inter_Tight({
@@ -32,6 +33,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Não adicionar o snippet em nenhum outro lugar — ver o
             comentário em src/components/analytics/MetaPixel.tsx. */}
         <MetaPixel />
+        {/* Não renderiza nada: guarda as UTMs para o funil de conversão. */}
+        <UtmCapture />
       </body>
     </html>
   );

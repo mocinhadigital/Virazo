@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
 import { trackPixel } from "@/lib/meta/pixel";
+import { trackConversion } from "@/lib/analytics/conversion";
 import type { CaktoCheckoutUrls } from "@/lib/billing/cakto";
 import { useDashboard } from "./DashboardContext";
 import { markCaktoCheckoutStarted } from "./CaktoPaymentVerifier";
@@ -28,6 +29,16 @@ export default function PlanPickerModal({
   const [error, setError] = useState<string | null>(null);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
   const { caktoVerifyEnabled, isVerifyingPayment, verifyPayment } = useDashboard();
+  const paywallTracked = useRef(false);
+
+  // Funil: 1 paywall_viewed por abertura do pop-up. A ref segura
+  // re-renderizações e o efeito duplicado do Strict Mode em dev; o banco
+  // ainda descarta repetição do mesmo usuário em menos de 5s.
+  useEffect(() => {
+    if (paywallTracked.current) return;
+    paywallTracked.current = true;
+    trackConversion("paywall_viewed");
+  }, []);
 
   // "Já paguei": consulta a Cakto na hora. Se achar o pagamento, o plano é
   // ativado no contexto (que também mostra o aviso de confirmação) e o
@@ -105,6 +116,7 @@ export default function PlanPickerModal({
     const plan = PLANS[item];
     setError(null);
     setLoadingPlan(item);
+    trackConversion("plan_selected", item);
 
     if (caktoCheckoutUrls) {
       trackPixel("InitiateCheckout", {
@@ -115,6 +127,7 @@ export default function PlanPickerModal({
       // Na volta, o dashboard sabe que deve verificar o pagamento mesmo se
       // a Cakto não redirecionar com ?checkout=cakto.
       markCaktoCheckoutStarted();
+      trackConversion("checkout_started", item);
       window.location.assign(caktoCheckoutUrls[item]);
       return;
     }
@@ -175,6 +188,7 @@ export default function PlanPickerModal({
         currency: "BRL",
         content_name: plan.name,
       });
+      trackConversion("checkout_started", item);
 
       window.location.assign(data.url);
     } catch (err) {

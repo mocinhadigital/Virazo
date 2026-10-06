@@ -26,7 +26,7 @@ export default function PrivacidadePage() {
               <p className="mt-2">
                 Coletamos seu e-mail e nome (para autenticação e identificação da conta), os temas e
                 roteiros usados para gerar vídeos, e dados de pagamento processados diretamente pela
-                Stripe — o Virazo nunca armazena os dados do seu cartão.
+                Cakto — o Virazo nunca armazena os dados do seu cartão.
               </p>
             </section>
             <section>
@@ -40,7 +40,7 @@ export default function PrivacidadePage() {
               <h2 className="text-base font-semibold text-white">3. Onde seus dados ficam armazenados</h2>
               <p className="mt-2">
                 Autenticação, banco de dados e arquivos de vídeo ficam hospedados no Supabase.
-                Pagamentos ficam com a Stripe. Cada serviço segue suas próprias práticas de segurança
+                Pagamentos ficam com a Cakto. Cada serviço segue suas próprias práticas de segurança
                 e criptografia.
               </p>
             </section>

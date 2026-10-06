@@ -57,9 +57,14 @@ export default function Footer() {
           </div>
         </div>
 
-        <p className="text-xs text-zinc-500">
-          © {new Date().getFullYear()} Virazo. Todos os direitos reservados.
-        </p>
+        <div className="flex flex-col gap-1.5">
+          <p className="text-xs text-zinc-500">
+            © {new Date().getFullYear()} Virazo. Todos os direitos reservados.
+          </p>
+          <p className="text-xs text-zinc-500">
+            Pagamento seguro via Cakto · Garantia de 7 dias · contato@virazo.app
+          </p>
+        </div>
       </div>
     </footer>
   );

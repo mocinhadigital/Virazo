@@ -29,19 +29,19 @@ const FAQ_ITEMS = [
       "Ao criar uma série você escolhe o idioma — português, inglês ou espanhol —, e roteiro, narração e legenda saem nesse idioma.",
   },
   {
-    question: "Quantos vídeos posso criar por mês?",
+    question: "Quantos vídeos posso criar por dia?",
     answer:
-      "De acordo com o plano escolhido: cada plano tem uma quantidade de créditos por mês (1 crédito = 1 vídeo) e um limite de séries geradas ao mesmo tempo.",
+      "De acordo com o plano escolhido: cada plano permite gerar uma quantidade fixa de vídeos por dia (Diário: 1 vídeo por dia; Pro: 2; Ultra: 3).",
   },
   {
     question: "Posso cancelar quando quiser?",
     answer:
-      "Sim, o cancelamento é feito a qualquer momento direto pela Stripe, sem multa. Você continua com acesso até o fim do período já pago.",
+      "Sim, o cancelamento é feito a qualquer momento direto pela Cakto, sem multa. Você continua com acesso até o fim do período já pago.",
   },
   {
     question: "Meus dados e pagamentos estão seguros?",
     answer:
-      "Sim. A autenticação usa Supabase com criptografia padrão de mercado, e os pagamentos são processados pela Stripe — o Virazo nunca armazena os dados do seu cartão.",
+      "Sim. A autenticação usa Supabase com criptografia padrão de mercado, e os pagamentos são processados pela Cakto — o Virazo nunca armazena os dados do seu cartão.",
   },
 ];
 

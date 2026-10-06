@@ -15,10 +15,6 @@ export default function PrivacidadePage() {
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Política de Privacidade
           </h1>
-          <p className="mt-2 text-xs text-zinc-500">
-            Rascunho inicial — revise com um advogado e preencha os dados da empresa antes de
-            publicar oficialmente.
-          </p>
 
           <div className="mt-8 flex flex-col gap-6 text-sm leading-relaxed text-zinc-400">
             <section>

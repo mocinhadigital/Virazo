@@ -44,7 +44,7 @@ export default function TermosPage() {
               <p className="mt-2">
                 Você tem 7 dias, a partir da data da compra, para solicitar o reembolso integral do
                 valor pago, sem precisar justificar o motivo. Basta enviar um e-mail para{" "}
-                <span className="text-zinc-300">contato@virazo.app</span>.
+                <span className="text-zinc-300">mocinhadigital@gmail.com</span>.
               </p>
             </section>
             <section>
@@ -64,7 +64,7 @@ export default function TermosPage() {
             <section>
               <h2 className="text-base font-semibold text-white">7. Contato</h2>
               <p className="mt-2">
-                Dúvidas sobre estes termos: <span className="text-zinc-300">contato@virazo.app</span>.
+                Dúvidas sobre estes termos: <span className="text-zinc-300">mocinhadigital@gmail.com</span>.
               </p>
             </section>
           </div>

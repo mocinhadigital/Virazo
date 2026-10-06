@@ -62,7 +62,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Virazo. Todos os direitos reservados.
           </p>
           <p className="text-xs text-zinc-500">
-            Pagamento seguro via Cakto · Garantia de 7 dias · contato@virazo.app
+            Pagamento seguro via Cakto · Garantia de 7 dias · mocinhadigital@gmail.com
           </p>
         </div>
       </div>

@@ -11,7 +11,7 @@ export default function ContatoForm({ initialEmail }: { initialEmail: string }) 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = `Nome: ${nome}\nEmail: ${email}\n\n${mensagem}`;
-    const mailto = `mailto:contato@virazo.app?subject=${encodeURIComponent(
+    const mailto = `mailto:mocinhadigital@gmail.com?subject=${encodeURIComponent(
       assunto || "Fale Conosco",
     )}&body=${encodeURIComponent(body)}`;
     window.location.assign(mailto);

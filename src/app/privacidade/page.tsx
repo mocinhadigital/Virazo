@@ -50,7 +50,7 @@ export default function PrivacidadePage() {
             <section>
               <h2 className="text-base font-semibold text-white">5. Contato</h2>
               <p className="mt-2">
-                Dúvidas sobre privacidade: <span className="text-zinc-300">contato@virazo.app</span>.
+                Dúvidas sobre privacidade: <span className="text-zinc-300">mocinhadigital@gmail.com</span>.
               </p>
             </section>
           </div>

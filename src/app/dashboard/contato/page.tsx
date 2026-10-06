@@ -12,7 +12,7 @@ export default async function DashboardContatoPage() {
       <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-white">Fale Conosco</h1>
       <p className="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-zinc-400">
         Dúvidas, problemas ou sugestões? Escreva pra gente aqui mesmo. Também respondemos em
-        contato@virazo.app.
+        mocinhadigital@gmail.com.
       </p>
 
       <ContatoForm initialEmail={user?.email ?? ""} />

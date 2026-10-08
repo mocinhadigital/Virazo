@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, ShieldCheck, Check } from "lucide-react";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
 import { trackPixel } from "@/lib/meta/pixel";
 import { trackConversion } from "@/lib/analytics/conversion";
@@ -198,16 +198,20 @@ export default function PlanPickerModal({
   }
 
   return (
+    // m-auto (em vez de items-center no fundo): centraliza quando cabe e,
+    // em tela baixa, deixa rolar até o topo — com items-center o título e o
+    // X ficariam cortados e inalcançáveis quando o pop-up é mais alto que a
+    // tela.
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0a0a12] p-8"
+        className="m-auto w-full max-w-lg rounded-3xl border border-white/10 bg-[#0a0a12] p-5 sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Escolha seu plano</h2>
+          <h2 className="text-xl font-bold text-white sm:text-2xl">Escolha seu plano</h2>
           <button
             type="button"
             onClick={onClose}
@@ -218,16 +222,21 @@ export default function PlanPickerModal({
           </button>
         </div>
 
-        <div className="mt-8 flex flex-col gap-5">
+        <div className="mt-5 flex flex-col gap-3 sm:mt-8 sm:gap-5">
           {Object.values(PLANS).map((plan) => (
             <div
               key={plan.key}
-              className="flex items-center justify-between gap-5 rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-6"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 sm:gap-5 sm:px-6 sm:py-6"
             >
               <div className="min-w-0">
                 <p className="text-lg font-bold text-white">{plan.name}</p>
-                <p className="truncate text-sm text-zinc-400">
-                  {plan.description} · R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
+                {/* Quebra de linha em vez de "..." — no celular o preço
+                    não pode sumir. */}
+                <p className="text-sm text-zinc-400">
+                  {plan.description} ·{" "}
+                  <span className="whitespace-nowrap">
+                    R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
+                  </span>
                 </p>
                 <p className="mt-0.5 text-[11px] text-zinc-500">+ R$ 0,99 de taxa de processamento</p>
               </div>
@@ -236,17 +245,40 @@ export default function PlanPickerModal({
                   travado levava o modal inteiro junto — agora os outros
                   planos continuam clicáveis e servem de saída mesmo se um
                   botão ficar preso. */}
-              <button
-                type="button"
-                disabled={loadingPlan === plan.key}
-                onClick={() => handleSubscribe(plan.key)}
-                className="inline-flex shrink-0 items-center gap-2 self-center rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-7 py-3.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loadingPlan === plan.key && <Loader2 className="h-4 w-4 animate-spin" />}
-                Assinar
-              </button>
+              <div className="flex shrink-0 flex-col items-center gap-1.5 self-center">
+                <button
+                  type="button"
+                  disabled={loadingPlan === plan.key}
+                  onClick={() => handleSubscribe(plan.key)}
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:px-7 sm:py-3.5"
+                >
+                  {loadingPlan === plan.key && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Assinar
+                </button>
+                <p className="max-w-[7.5rem] text-center text-[10px] leading-tight text-zinc-400">
+                  Garantia de 7 dias • Cancele quando quiser
+                </p>
+              </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 sm:mt-5 sm:px-5">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 shrink-0 text-[#A855F7]" strokeWidth={2} />
+            <p className="text-sm font-bold text-white">Garantia de 7 dias</p>
+          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+            Teste o Virazo sem risco. Se não gostar, devolvemos 100% do seu dinheiro. Sem perguntas.
+          </p>
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {["Cancele quando quiser, sem multa", "Pagamento seguro via Pix ou cartão"].map((item) => (
+              <li key={item} className="flex items-center gap-2 text-xs text-zinc-300">
+                <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400" strokeWidth={3} />
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
 
         {caktoVerifyEnabled && (

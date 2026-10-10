@@ -1,5 +1,6 @@
 import Header from "@/components/landing/Header";
 import Hero from "@/components/landing/Hero";
+import VslSection from "@/components/landing/VslSection";
 import ViralGallery from "@/components/landing/ViralGallery";
 import RealAccounts from "@/components/landing/RealAccounts";
 import EarningsExamples from "@/components/landing/EarningsExamples";
@@ -15,6 +16,7 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
+        <VslSection />
         <ViralGallery />
         <RealAccounts />
         <EarningsExamples />

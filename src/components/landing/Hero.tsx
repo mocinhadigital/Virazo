@@ -39,7 +39,7 @@ export default function Hero() {
           </p>
 
           <Link
-            href="/login?mode=signup"
+            href="/planos"
             className="mt-10 inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-[15px] font-medium text-white/92 shadow-xl shadow-purple-600/25 transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
           >
             Criar meu primeiro vídeo

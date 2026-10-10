@@ -49,7 +49,7 @@ export default function Header() {
             Entrar
           </Link>
           <Link
-            href="/login?mode=signup"
+            href="/planos"
             className="rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-600/20 transition-transform active:scale-95 sm:hover:scale-[1.03]"
           >
             Começar agora

@@ -53,7 +53,7 @@ export default function Comparison() {
 
       <div className="mt-20 flex justify-center px-5">
         <Link
-          href="/login?mode=signup"
+          href="/planos"
           className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-medium text-white"
         >
           Criar meu primeiro vídeo

@@ -1,11 +1,18 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { trackPixel } from "@/lib/meta/pixel";
+import { PLANS, type PlanKey } from "@/lib/billing/plans";
+import {
+  checkoutPath,
+  parsePlanKey,
+  readSelectedPlanCookie,
+  rememberSelectedPlan,
+} from "@/lib/billing/selectedPlan";
 
 type Mode = "signin" | "signup";
 
@@ -48,6 +55,23 @@ function LoginForm() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [loadingEmail, setLoadingEmail] = useState(false);
   const isBusy = loadingGoogle || loadingEmail;
+
+  // Plano escolhido em /planos (ver lib/billing/selectedPlan.ts): do
+  // endereço ou, na falta dele, do cookie. Sem plano, o login segue
+  // exatamente como antes: termina no painel. (Este formulário só renderiza
+  // no navegador — useSearchParams dentro do Suspense —, então ler o cookie
+  // aqui não gera diferença entre servidor e navegador.)
+  const planFromUrl = parsePlanKey(searchParams.get("plano"));
+  const [planFromCookie] = useState<PlanKey | null>(() =>
+    typeof document === "undefined" ? null : readSelectedPlanCookie(),
+  );
+  const selectedPlan = planFromUrl ?? planFromCookie;
+  useEffect(() => {
+    // Grava também no cookie: é ele que o /auth/callback lê na volta do
+    // Google.
+    if (planFromUrl) rememberSelectedPlan(planFromUrl);
+  }, [planFromUrl]);
+  const afterAuthPath = selectedPlan ? checkoutPath(selectedPlan) : "/dashboard";
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -120,7 +144,7 @@ function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push(afterAuthPath);
       router.refresh();
       return;
     }
@@ -136,7 +160,7 @@ function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(afterAuthPath);
     router.refresh();
   }
 
@@ -180,6 +204,21 @@ function LoginForm() {
               Criar conta
             </button>
           </div>
+
+          {selectedPlan && (
+            <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[#4C3BFF]/30 bg-[#4C3BFF]/10 px-3.5 py-2.5">
+              <p className="text-xs text-zinc-300">
+                Plano escolhido:{" "}
+                <span className="font-semibold text-white">
+                  {PLANS[selectedPlan].name} — R${" "}
+                  {(PLANS[selectedPlan].monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
+                </span>
+              </p>
+              <Link href="/planos" className="shrink-0 text-xs font-medium text-zinc-400 hover:text-white">
+                Trocar
+              </Link>
+            </div>
+          )}
 
           <div className="text-center">
             <h1 className="text-2xl font-bold tracking-tight text-white">

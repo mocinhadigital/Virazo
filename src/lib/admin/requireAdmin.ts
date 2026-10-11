@@ -11,6 +11,20 @@ export async function getAdminUserId(): Promise<string | null> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // DIAGNÓSTICO TEMPORÁRIO — remover depois de localizar a causa do 404 nos
+  // painéis admin. Não loga token/cookie/e-mail, só o id da sessão (UUID,
+  // não é segredo) e o host do projeto Supabase (já é público via
+  // NEXT_PUBLIC_SUPABASE_URL).
+  const projectHost = (() => {
+    try {
+      return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").host;
+    } catch {
+      return "(NEXT_PUBLIC_SUPABASE_URL ausente/inválida)";
+    }
+  })();
+  console.log("[diag admin] projectHost =", projectHost, "| session user.id =", user?.id ?? "(sem sessão)");
+
   if (!user) return null;
 
   const { data, error } = await createServiceRoleClient()
@@ -18,6 +32,9 @@ export async function getAdminUserId(): Promise<string | null> {
     .select("user_id")
     .eq("user_id", user.id)
     .maybeSingle();
+
+  console.log("[diag admin] consulta admin_users -> error =", error?.message ?? null, "| encontrou linha =", !!data);
+
   if (error) {
     console.error("[admin] falha ao conferir admin_users:", error.message);
     return null;

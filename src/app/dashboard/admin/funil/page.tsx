@@ -58,9 +58,27 @@ export default async function FunilPage({
   const since = periodStart(period);
 
   const supabase = await createClient();
+
+  // DIAGNÓSTICO TEMPORÁRIO — remover junto com o de requireAdmin.ts. Só lê a
+  // sessão para logar o id (UUID, não é segredo); não altera a checagem real
+  // (que continua sendo feita dentro do RPC, via auth.uid()).
+  const {
+    data: { user: diagUser },
+  } = await supabase.auth.getUser();
+  const diagProjectHost = (() => {
+    try {
+      return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").host;
+    } catch {
+      return "(NEXT_PUBLIC_SUPABASE_URL ausente/inválida)";
+    }
+  })();
+  console.log("[diag admin] projectHost =", diagProjectHost, "| session user.id =", diagUser?.id ?? "(sem sessão)");
+
   const { data, error } = await supabase.rpc("get_conversion_funnel", {
     p_since: since?.toISOString() ?? null,
   });
+
+  console.log("[diag admin] get_conversion_funnel -> error =", error?.message ?? null, "| data =", data ? "ok" : null);
 
   if (error || !data) {
     if (error && !error.message.includes("Não autorizado")) {

@@ -62,7 +62,6 @@ export default function PlanosPage() {
                   <span className="text-4xl font-bold tracking-tight">{formatPrice(plan.monthlyPriceCents)}</span>
                   <span className="text-sm text-zinc-400">/mês</span>
                 </p>
-                <p className="mt-1 text-[12px] text-zinc-500">+ R$ 0,99 de taxa de processamento</p>
 
                 <PlanChoiceLink
                   plan={plan.key}

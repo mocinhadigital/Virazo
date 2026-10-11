@@ -238,7 +238,6 @@ export default function PlanPickerModal({
                     R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
                   </span>
                 </p>
-                <p className="mt-0.5 text-[11px] text-zinc-500">+ R$ 0,99 de taxa de processamento</p>
               </div>
               {/* Trava SÓ o botão que está carregando. Antes um loadingPlan
                   preso desabilitava os três de uma vez, então qualquer estado

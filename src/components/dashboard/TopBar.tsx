@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, ChevronRight } from "lucide-react";
+import { BarChart3, Sparkles, ChevronRight } from "lucide-react";
 import { useIsCriarVideoActive } from "./useCriarVideoHash";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -14,7 +14,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/dashboard/contato": "Fale Conosco",
 };
 
-export default function TopBar() {
+export default function TopBar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const isCriarVideo = useIsCriarVideoActive();
   const matchedRoute = Object.entries(ROUTE_TITLES).find(([prefix]) => pathname?.startsWith(prefix));
@@ -58,6 +58,17 @@ export default function TopBar() {
         )}
 
         <div className="flex items-center gap-3">
+          {/* Atalho do painel para administradores no celular (no desktop
+              o link fica no menu lateral). */}
+          {isAdmin && (
+            <Link
+              href="/dashboard/admin/funil"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white lg:hidden"
+            >
+              <BarChart3 className="h-3.5 w-3.5" strokeWidth={2} />
+              Funil
+            </Link>
+          )}
           <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] ring-2 ring-white/10" />
         </div>
       </div>

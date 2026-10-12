@@ -13,14 +13,27 @@ export async function getAdminUserId(): Promise<string | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await createServiceRoleClient()
-    .from("admin_users")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (error) {
-    console.error("[admin] falha ao conferir admin_users:", error.message);
-    return null;
+  return (await isAdminUserId(user.id)) ? user.id : null;
+}
+
+// Mesma checagem para quem já sabe o id (o layout do dashboard acabou de
+// ler o usuário). Só decide se o link do painel aparece no menu — qualquer
+// falha vale "não é admin" e nunca derruba a página. A proteção das páginas
+// admin em si continua sendo feita nelas (getAdminUserId / função do banco).
+export async function isAdminUserId(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await createServiceRoleClient()
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.error("[admin] falha ao conferir admin_users:", error.message);
+      return false;
+    }
+    return !!data;
+  } catch (err) {
+    console.error("[admin] falha ao conferir admin_users:", err instanceof Error ? err.message : err);
+    return false;
   }
-  return data ? user.id : null;
 }

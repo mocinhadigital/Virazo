@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Zap } from "lucide-react";
+import { BarChart3, Sparkles, Zap } from "lucide-react";
 import { navItems } from "./navItems";
 import SignOutButton from "./SignOutButton";
 import { useDashboard } from "./DashboardContext";
 
-export default function Sidebar({ userName }: { userName: string }) {
+export default function Sidebar({ userName, isAdmin = false }: { userName: string; isAdmin?: boolean }) {
   const pathname = usePathname();
   const { openPlanModal } = useDashboard();
 
@@ -51,6 +51,20 @@ export default function Sidebar({ userName }: { userName: string }) {
             </Link>
           );
         })}
+        {/* Só aparece para administradores; a página confere o acesso de novo. */}
+        {isAdmin && (
+          <Link
+            href="/dashboard/admin/funil"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              pathname?.startsWith("/dashboard/admin")
+                ? "bg-white/[0.06] text-white"
+                : "text-zinc-400 hover:bg-white/[0.04] hover:text-white"
+            }`}
+          >
+            <BarChart3 className="h-[18px] w-[18px]" strokeWidth={2} />
+            Funil de conversão
+          </Link>
+        )}
       </nav>
 
       <div className="flex flex-col gap-4 border-t border-white/[0.06] p-4">

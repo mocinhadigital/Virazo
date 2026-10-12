@@ -13,6 +13,7 @@ import type { PlanKey } from "@/lib/billing/plans";
 import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/cakto";
 import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
+import { isAdminUserId } from "@/lib/admin/requireAdmin";
 
 export default async function DashboardLayout({
   children,
@@ -39,10 +40,12 @@ export default async function DashboardLayout({
   if (expireError) console.error("Falha ao expirar vídeos travados:", expireError.message);
 
   const [
+    isAdmin,
     { data: profile, error: profileError },
     { data: videoRows, error: videosError },
     { data: activeSubscription, error: subscriptionError },
   ] = await Promise.all([
+    isAdminUserId(user.id),
     supabase
       .from("profiles")
       .select("full_name")
@@ -83,9 +86,9 @@ export default async function DashboardLayout({
       longVideosEnabled={areLongVideosEnabled()}
     >
       <div className="min-h-screen bg-[#05050a]">
-        <Sidebar userName={displayName} />
+        <Sidebar userName={displayName} isAdmin={isAdmin} />
         <div className="flex min-h-screen flex-col lg:pl-64">
-          <TopBar />
+          <TopBar isAdmin={isAdmin} />
           <main className="flex-1 px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10">
             {children}
           </main>

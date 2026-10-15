@@ -7,6 +7,7 @@ import {
   withDeadline,
 } from "@/lib/video/generateAssets";
 import { effectiveDuration } from "@/lib/video/durations";
+import { loadBackgroundMusic } from "@/lib/video/music";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
@@ -176,18 +177,7 @@ export async function runSeriesGeneration(
   }
 
   try {
-    let backgroundMusic: Buffer | undefined;
-    if (chosenMusicId) {
-      const { data: track } = await supabase
-        .from("music_tracks")
-        .select("storage_path")
-        .eq("id", chosenMusicId)
-        .maybeSingle<{ storage_path: string }>();
-      if (track) {
-        const { data: musicBlob } = await supabase.storage.from("music").download(track.storage_path);
-        if (musicBlob) backgroundMusic = Buffer.from(await musicBlob.arrayBuffer());
-      }
-    }
+    const backgroundMusic = await loadBackgroundMusic(supabase, chosenMusicId);
 
     const report = createProgressReporter(supabase, created.id, userId);
 

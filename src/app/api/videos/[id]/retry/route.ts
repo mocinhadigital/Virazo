@@ -7,6 +7,7 @@ import {
   withDeadline,
 } from "@/lib/video/generateAssets";
 import { effectiveDuration } from "@/lib/video/durations";
+import { loadBackgroundMusic } from "@/lib/video/music";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 
@@ -113,17 +114,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       seriesTitle = series?.title;
     }
 
-    if (retried.background_music_id) {
-      const { data: track } = await supabase
-        .from("music_tracks")
-        .select("storage_path")
-        .eq("id", retried.background_music_id)
-        .maybeSingle<{ storage_path: string }>();
-      if (track) {
-        const { data: musicBlob } = await supabase.storage.from("music").download(track.storage_path);
-        if (musicBlob) backgroundMusic = Buffer.from(await musicBlob.arrayBuffer());
-      }
-    }
+    backgroundMusic = await loadBackgroundMusic(supabase, retried.background_music_id);
 
     // Com 60s/90s desligados (ver src/lib/video/durations.ts), refaz em
     // 30s e grava a duração real no registro, para a tela não mostrar 60s

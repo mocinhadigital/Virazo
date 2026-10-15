@@ -161,7 +161,10 @@ export async function renderFinalVideo(
       "-i",
       musicPath,
       "-filter_complex",
-      `[1:a]volume=${BACKGROUND_MUSIC_VOLUME}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[aout]`,
+      // O amix divide cada entrada pelo nº de entradas (voz cairia pela metade);
+      // "volume=2" devolve a voz ao nível original sem mexer na proporção
+      // música/voz (18%), e o alimiter evita estourar se os picos somarem.
+      `[1:a]volume=${BACKGROUND_MUSIC_VOLUME}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0,volume=2,alimiter=limit=0.95[aout]`,
       "-map",
       "0:v",
       "-map",

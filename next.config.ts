@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   // Next.js carregá-lo via require normal em runtime, sem tentar empacotar.
   serverExternalPackages: ["@ffmpeg-installer/ffmpeg"],
 
+  // As faixas prontas são lidas com fs de public/audio/music-library dentro
+  // das rotas de geração — garante que entrem no bundle das functions.
+  outputFileTracingIncludes: {
+    "/api/*": ["public/audio/music-library/**/*"],
+  },
+
   // NÃO adicionar aqui um redirect www->apex enquanto a Vercel (Project
   // Settings -> Domains) ainda redirecionar apex->www: as duas regras juntas
   // criam um loop infinito de redirecionamento entre os dois domínios (fora

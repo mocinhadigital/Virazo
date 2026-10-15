@@ -217,7 +217,7 @@ export default function SeriesWizard() {
     previewAudioRef.current?.pause();
     setPreviewLoadingVoice(voiceName);
     try {
-      const res = await fetch(`/api/voices/preview?voice=${encodeURIComponent(voiceName)}`);
+      const res = await fetch(`/api/voices/preview?voice=${encodeURIComponent(voiceName)}&lang=${form.idioma}`);
       if (!res.ok) throw new Error("Não foi possível carregar a prévia.");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

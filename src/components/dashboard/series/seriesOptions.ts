@@ -40,7 +40,7 @@ export const SERIES_VOICES = [
   {
     name: "Clara",
     gender: "Feminina",
-    description: "Viva e expressiva, boa para e se e espaço.",
+    description: "Viva e expressiva, boa para ciência e espaço.",
   },
 ];
 

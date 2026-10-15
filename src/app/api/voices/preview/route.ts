@@ -3,8 +3,13 @@ import { createClient } from "@/utils/supabase/server";
 import { synthesizeNarration } from "@/lib/ai/narration";
 
 // Frase curta e fixa só pra dar uma amostra real do timbre da voz — o
-// mesmo texto pra todas, pra comparação justa entre elas.
-const PREVIEW_TEXT = "Esta é uma prévia da narração.";
+// mesmo texto pra todas, pra comparação justa entre elas. Uma versão por
+// idioma da série, pra o cliente ouvir o sotaque real antes de escolher.
+const PREVIEW_TEXTS = {
+  pt: "Esta é uma prévia da narração.",
+  en: "This is a preview of the narration.",
+  es: "Esta es una vista previa de la narración.",
+} as const;
 
 // Só as vozes realmente selecionáveis no wizard (SERIES_VOICES) — evita
 // custo de API da ElevenLabs pra nomes arbitrários.
@@ -25,8 +30,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Voz inválida." }, { status: 400 });
   }
 
+  // Idioma ausente ou desconhecido cai em português (comportamento anterior).
+  const lang = new URL(request.url).searchParams.get("lang");
+  const previewText = lang === "en" || lang === "es" ? PREVIEW_TEXTS[lang] : PREVIEW_TEXTS.pt;
+
   try {
-    const audio = await synthesizeNarration(PREVIEW_TEXT, voice);
+    const audio = await synthesizeNarration(previewText, voice);
     return new NextResponse(new Uint8Array(audio), {
       headers: {
         "Content-Type": "audio/mpeg",

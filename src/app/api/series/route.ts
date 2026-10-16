@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { mapSeriesRow, type SeriesRow } from "@/components/dashboard/seriesMapping";
 import { computeNextGenerationAt, HORARIO_PATTERN } from "@/lib/series/schedule";
+import { isAdminUserId } from "@/lib/admin/requireAdmin";
 import { isLongDuration } from "@/lib/video/durations";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 
@@ -71,7 +72,8 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (!activeSubscription) {
+  // Administradores (admin_users) criam série sem assinatura, para testes.
+  if (!activeSubscription && !(await isAdminUserId(user.id))) {
     return NextResponse.json(
       { error: "no_subscription: assinatura ativa necessária para criar uma série." },
       { status: 400 },

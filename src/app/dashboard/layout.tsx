@@ -84,6 +84,7 @@ export default async function DashboardLayout({
       initialPlan={initialPlan}
       caktoVerifyEnabled={isCaktoApiConfigured()}
       longVideosEnabled={areLongVideosEnabled()}
+      isAdmin={isAdmin}
     >
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} isAdmin={isAdmin} />

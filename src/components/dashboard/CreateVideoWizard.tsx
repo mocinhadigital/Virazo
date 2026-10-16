@@ -83,6 +83,7 @@ function WizardPanel() {
     videos,
     longVideosEnabled,
     videosRemainingToday,
+    isAdmin,
     dailyVideoLimit,
   } = useDashboard();
 
@@ -500,7 +501,11 @@ function WizardPanel() {
                 value={captionsOn ? (captionStyle ?? "Ativadas") : "Desativadas"}
                 onEdit={() => setStep("legendas")}
               />
-              {videosRemainingToday > 0 ? (
+              {isAdmin ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Conta de administrador: sem limite diário de vídeos.
+                </p>
+              ) : videosRemainingToday > 0 ? (
                 <p className="mt-2 text-xs text-zinc-500">
                   Este vídeo vai contar como 1 dos seus vídeos de hoje. Você tem{" "}
                   {videosRemainingToday} de {dailyVideoLimit}{" "}

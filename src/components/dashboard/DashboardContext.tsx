@@ -59,6 +59,8 @@ type DashboardContextValue = {
   // src/lib/video/durations.ts).
   longVideosEnabled: boolean;
   plan: PlanKey | null;
+  // Conta de administrador (admin_users): sem limite diário de vídeos.
+  isAdmin: boolean;
   dailyVideoLimit: number;
   videosUsedToday: number;
   videosRemainingToday: number;
@@ -93,12 +95,14 @@ export function DashboardProvider({
   initialPlan,
   caktoVerifyEnabled = false,
   longVideosEnabled = false,
+  isAdmin = false,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
   initialPlan: PlanKey | null;
   caktoVerifyEnabled?: boolean;
   longVideosEnabled?: boolean;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
@@ -155,7 +159,10 @@ export function DashboardProvider({
 
   const dailyVideoLimit = plan ? PLANS[plan].dailyVideoLimit : 0;
   const videosUsedToday = useMemo(() => countVideosUsedToday(videos), [videos]);
-  const videosRemainingToday = Math.max(0, dailyVideoLimit - videosUsedToday);
+  // Administrador: nunca chega a 0 (a regra real está em reserve_daily_video_slot).
+  const videosRemainingToday = isAdmin
+    ? Number.MAX_SAFE_INTEGER
+    : Math.max(0, dailyVideoLimit - videosUsedToday);
 
   const openPlanModal = useCallback(() => setIsPlanModalOpen(true), []);
   const closePlanModal = useCallback(() => setIsPlanModalOpen(false), []);
@@ -370,6 +377,7 @@ export function DashboardProvider({
         retryVideo,
         longVideosEnabled,
         plan,
+        isAdmin,
         dailyVideoLimit,
         videosUsedToday,
         videosRemainingToday,

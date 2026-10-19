@@ -55,6 +55,53 @@ const X264_ARGS = ["-preset", "veryfast", "-tune", "stillimage", "-crf", "23"];
 // runtime Linux da Vercel).
 const escapePathForFilter = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
 
+// Movimento de cada cena, do primeiro ao último quadro: alterna zoom entrando,
+// deslocamento lateral (direita), zoom saindo e deslocamento lateral
+// (esquerda). Usa o número do quadro de saída ("on"), então o movimento
+// ocupa exatamente a duração da cena, seja ela de 1s ou de 4s.
+const ZOOM_AMOUNT = 0.18; // 18% de zoom no início->fim (e zoom fixo no deslocamento)
+type Motion = "zoomIn" | "panRight" | "zoomOut" | "panLeft";
+const MOTION_CYCLE: Motion[] = ["zoomIn", "panRight", "zoomOut", "panLeft"];
+
+function buildMotionFilter(sceneIndex: number, frames: number): string {
+  const motion = MOTION_CYCLE[sceneIndex % MOTION_CYCLE.length];
+  const last = Math.max(1, frames - 1);
+  const progress = `on/${last}`;
+  const centerX = "iw/2-(iw/zoom/2)";
+  const centerY = "ih/2-(ih/zoom/2)";
+
+  let z: string;
+  let x = centerX;
+  switch (motion) {
+    case "zoomIn":
+      z = `1+${ZOOM_AMOUNT}*${progress}`;
+      break;
+    case "zoomOut":
+      z = `1+${ZOOM_AMOUNT}*(1-${progress})`;
+      break;
+    case "panRight":
+      z = `1+${ZOOM_AMOUNT}`;
+      x = `(iw-iw/zoom)*${progress}`;
+      break;
+    case "panLeft":
+      z = `1+${ZOOM_AMOUNT}`;
+      x = `(iw-iw/zoom)*(1-${progress})`;
+      break;
+  }
+  return `zoompan=z='${z}':x='${x}':y='${centerY}':d=${frames}:s=${WIDTH}x${HEIGHT}:fps=${FPS}`;
+}
+
+// Transição curta (fade de ~0,12s) nas bordas de cada cena. Não muda a
+// duração da cena, então narração, legenda e o concat por cópia seguem
+// sincronizados. A primeira cena não "entra" e a última não "sai".
+const FADE_SECONDS = 0.12;
+function buildFadeFilter(durationSeconds: number, isFirst: boolean, isLast: boolean): string {
+  let fade = "";
+  if (!isFirst) fade += `,fade=t=in:st=0:d=${FADE_SECONDS}`;
+  if (!isLast) fade += `,fade=t=out:st=${Math.max(0, durationSeconds - FADE_SECONDS).toFixed(2)}:d=${FADE_SECONDS}`;
+  return fade;
+}
+
 export async function renderFinalVideo(
   scenes: RenderScene[],
   burnCaptions: boolean,
@@ -83,7 +130,11 @@ export async function renderFinalVideo(
       const durationSeconds = Math.max(0.5, scene.durationSeconds);
       const frames = Math.max(1, Math.round(durationSeconds * FPS));
 
-      let filter = `[0:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},zoompan=z='min(zoom+0.0015,1.2)':d=${frames}:s=${WIDTH}x${HEIGHT}:fps=${FPS}`;
+      // Movimento (zoompan) primeiro, depois a transição curta e só por
+      // último a legenda — assim o texto fica parado e nítido por cima da
+      // imagem em movimento, e não some junto com o fade.
+      let filter = `[0:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},${buildMotionFilter(i, frames)}`;
+      filter += buildFadeFilter(durationSeconds, i === 0, i === scenes.length - 1);
 
       // Legenda desta cena, com tempos relativos ao início dela.
       const cues = burnCaptions ? groupWordsIntoCues(scene.words) : [];

@@ -11,11 +11,13 @@ export type Script = {
   scenes: Scene[];
 };
 
+// Uma cena (= uma imagem) a cada ~3-4s de narração, pra o vídeo nunca ficar
+// parado numa imagem só: ~3s por cena em 15s, ~3,3s por cena nas demais.
 const SCENES_PER_DURATION: Record<string, number> = {
-  "15s": 3,
-  "30s": 5,
-  "60s": 8,
-  "90s": 12,
+  "15s": 5,
+  "30s": 9,
+  "60s": 18,
+  "90s": 27,
 };
 
 const LANGUAGE_LABELS = {
@@ -42,12 +44,12 @@ function buildReturnScriptTool(languageLabel: string) {
             properties: {
               narration: {
                 type: "string",
-                description: `Texto que o narrador vai falar nesta cena, em ${languageLabel}`,
+                description: `Texto que o narrador vai falar nesta cena, em ${languageLabel}: 1 ou 2 frases CURTAS, de 5 a 8 palavras no total (máximo 9; ~3 segundos falados)`,
               },
               imagePrompt: {
                 type: "string",
                 description:
-                  "Descrição visual da cena, em inglês, para um gerador de imagens de IA (sem mencionar texto/legendas)",
+                  "Descrição visual da cena, em inglês, para um gerador de imagens de IA (sem mencionar texto/legendas). Cada cena mostra um momento/ângulo DIFERENTE, no mesmo estilo visual das demais",
               },
             },
             required: ["narration", "imagePrompt"],
@@ -131,7 +133,7 @@ export async function generateScript(input: {
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-5",
-      max_tokens: 2048,
+      max_tokens: 4096,
       tools: [buildReturnScriptTool(languageLabel)],
       tool_choice: { type: "tool", name: "return_script" },
       messages: [
@@ -141,7 +143,7 @@ export async function generateScript(input: {
 O "estilo de conteúdo" e o "estilo visual" abaixo controlam APENAS o tom e a estética de como esse mesmo assunto é contado — eles nunca substituem nem alteram o assunto.
 Estilo de conteúdo (tom): ${input.contentStyle}.
 Estilo visual das imagens: ${input.visualStyle}.
-Divida em exatamente ${sceneCount} cenas. Cada cena tem 1-2 frases de narração em ${languageLabel}, e uma descrição visual em inglês para gerar uma imagem nesse estilo visual — sempre representando o mesmo assunto central, nunca um assunto diferente.`,
+Divida em exatamente ${sceneCount} cenas. Cada cena tem 1 ou 2 frases CURTAS de narração em ${languageLabel} — de 5 a 8 palavras no total (NUNCA mais de 9), para durar só uns 3 segundos falados — frases bem curtas e diretas, sem orações longas — e uma descrição visual em inglês para gerar uma imagem nesse estilo visual — sempre representando o mesmo assunto central, nunca um assunto diferente. Cada cena deve ter uma imagem DIFERENTE das outras (outro momento, ângulo ou detalhe da história), mas todas no mesmo estilo visual, com os mesmos personagens/ambiente quando houver, para o vídeo parecer coeso. A narração continua de uma cena para a outra como um texto único.`,
         },
       ],
     });

@@ -66,6 +66,14 @@ export async function buildRenderScenes(
     Promise.all(transcriptPromises),
   ]);
 
+  // Meta: cada imagem fica 3-4s na tela. Só avisa (não falha) se o modelo
+  // escreveu uma narração longa demais para a cena.
+  transcripts.forEach((t, i) => {
+    if (t.durationSeconds > 4.5) {
+      console.warn(`[video/scenes] cena ${i + 1} dura ${t.durationSeconds.toFixed(1)}s (meta: até 4s)`);
+    }
+  });
+
   return images.map((image, i) => ({
     image,
     audio: audios[i],

@@ -8,7 +8,7 @@ import {
   listCustomerOrders,
   type CaktoOrder,
 } from "@/lib/billing/caktoApi";
-import type { Supabase } from "@/lib/billing/caktoEvents";
+import { zeroLegacyCredits, type Supabase } from "@/lib/billing/caktoEvents";
 import { ENTITLED_SUBSCRIPTION_STATUSES } from "@/lib/billing/caktoSync";
 
 // Checagem periódica das assinaturas ATIVAS vindas da Cakto (o webhook não
@@ -193,6 +193,10 @@ async function applyDecision(supabase: Supabase, row: Row, decision: Decision): 
       p_subscription_key: row.subscription_key,
     });
     if (error) throw new Error(`deactivate_cakto_subscription falhou: ${error.message}`);
+    // Reembolso/chargeback: zera também os créditos (mesma regra do webhook).
+    if (decision.reason.includes("refunded") || decision.reason.includes("chargedback")) {
+      await zeroLegacyCredits(supabase, row.user_id);
+    }
   } else {
     // Mesma função de ativação do webhook e do Stripe — só atualiza a linha
     // existente (upsert por stripe_subscription_id).

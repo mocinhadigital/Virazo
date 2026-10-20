@@ -1,5 +1,6 @@
 import "server-only";
 import { findPlanKeyByCaktoProductId } from "@/lib/billing/cakto";
+import { CaktoApiError, getCaktoOrder, isCaktoApiConfigured, type CaktoOrder } from "@/lib/billing/caktoApi";
 import type { PlanKey } from "@/lib/billing/plans";
 import type { createServiceRoleClient } from "@/utils/supabase/service-role";
 
@@ -24,6 +25,21 @@ export type CaktoItem = Record<string, unknown>;
 // duplicata. Cada renovação chega com um data.id novo.
 const ACTIVATE_EVENTS = new Set(["purchase_approved", "subscription_created", "subscription_renewed"]);
 const DEACTIVATE_EVENTS = new Set(["subscription_canceled", "refund", "chargeback"]);
+// Dinheiro devolvido ao cliente: além do plano, zera profiles.credits.
+const REFUND_EVENTS = new Set(["refund", "chargeback"]);
+// Status de pedido da API da Cakto que confirmam dinheiro devolvido (os
+// mesmos que a checagem diária usa em caktoCron.ts).
+const REFUNDED_ORDER_STATUSES = new Set(["refunded", "chargedback"]);
+
+// profiles.credits é um resquício do modelo antigo de créditos (migration
+// 0019: nenhuma função nova lê esse campo; o acesso hoje é só a assinatura
+// ativa + limite diário). Zerar aqui garante que, num reembolso, nada
+// "sobre" para o cliente mesmo que esse campo volte a ser usado. Falhar
+// não desfaz a remoção do plano, que já foi aplicada.
+export async function zeroLegacyCredits(supabase: Supabase, userId: string): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ credits: 0 }).eq("id", userId);
+  if (error) console.error(`[billing/caktoEvents] falha ao zerar créditos de ${userId}:`, error.message);
+}
 
 // Sem assinatura a Cakto não manda próxima cobrança; o plano vale um ciclo
 // mensal a partir de agora. current_period_end só é exibido em
@@ -32,7 +48,13 @@ export const FALLBACK_PERIOD_MS = 31 * 24 * 60 * 60 * 1000;
 
 export type CaktoOutcomeStatus = "processed" | "pending_user" | "ignored" | "duplicate";
 
-type Outcome = { status: Exclude<CaktoOutcomeStatus, "duplicate">; message?: string };
+type Outcome = {
+  status: Exclude<CaktoOutcomeStatus, "duplicate">;
+  message?: string;
+  // Devolve a trava de idempotência (como no caso de erro): um reenvio do
+  // mesmo evento será reprocessado em vez de cair como duplicata.
+  release?: boolean;
+};
 
 export type ProcessOptions = {
   // Caminho da API: o pedido já foi filtrado como pago, então ativa mesmo
@@ -120,6 +142,9 @@ export async function processCaktoItem(
       ? await activate(supabase, logId, event, item, orderId, email, productId, options.userId)
       : await deactivate(supabase, logId, event, item, orderId, email);
     await finishLog(supabase, logId, outcome);
+    if (outcome.release) {
+      await supabase.from("cakto_events").update({ processed_at: null }).eq("id", logId);
+    }
     return outcome.status;
   } catch (err) {
     // Devolve a trava para uma nova tentativa (reenvio da Cakto ou próxima
@@ -195,6 +220,45 @@ async function deactivate(
 ): Promise<Outcome> {
   if (!email) return { status: "ignored", message: "payload sem data.customer.email" };
 
+  const isRefund = REFUND_EVENTS.has(event);
+
+  // Reembolso/chargeback só valem se a PRÓPRIA Cakto confirmar o pedido
+  // como devolvido e com o mesmo e-mail — o segredo do webhook prova a
+  // origem da requisição, mas não que aquele pedido foi de fato reembolsado.
+  // Sem credenciais da API (CAKTO_CLIENT_ID/SECRET) segue só pelo segredo,
+  // como antes. Erro de rede/Cakto: lança, a Cakto reenvia (e a checagem
+  // diária também cobre).
+  if (isRefund && isCaktoApiConfigured()) {
+    let order: CaktoOrder | null = null;
+    try {
+      order = await getCaktoOrder(orderId);
+    } catch (err) {
+      if (!(err instanceof CaktoApiError && err.status === 404)) throw err;
+    }
+    if (!order) {
+      return {
+        status: "ignored",
+        message: `pedido ${orderId} não encontrado na Cakto — nada foi alterado`,
+        release: true,
+      };
+    }
+    if (!REFUNDED_ORDER_STATUSES.has(order.status ?? "")) {
+      return {
+        status: "ignored",
+        message: `Cakto informa o pedido ${orderId} como "${order.status ?? "sem status"}", não reembolsado — nada foi alterado`,
+        release: true,
+      };
+    }
+    const orderEmail = order.customer?.email?.trim().toLowerCase();
+    if (orderEmail && orderEmail !== email) {
+      return {
+        status: "ignored",
+        message: "e-mail do pedido na Cakto difere do evento — nada foi alterado",
+        release: true,
+      };
+    }
+  }
+
   const subscriptionKey = caktoSubscriptionKey(item, orderId);
   const userId = await findUserId(supabase, email);
 
@@ -214,11 +278,37 @@ async function deactivate(
     return { status: "pending_user" };
   }
 
+  // A função do banco, quando a chave não casa com nenhuma linha, cancela
+  // TODAS as assinaturas Cakto ativas do usuário. Aqui só deixa chegar nesse
+  // caso quando existe exatamente UMA ativa (nenhuma ambiguidade); com mais
+  // de uma, não cancela nada — fica registrado para conferência manual.
+  const { data: rows, error: rowsError } = await supabase
+    .from("subscriptions")
+    .select("stripe_subscription_id, status")
+    .eq("user_id", userId)
+    .like("stripe_subscription_id", "cakto\\_%");
+  if (rowsError) throw new Error(`falha ao ler assinaturas Cakto: ${rowsError.message}`);
+
+  const hasExactRow = (rows ?? []).some((r) => r.stripe_subscription_id === subscriptionKey);
+  const activeRows = (rows ?? []).filter((r) => r.status === "active");
+  if (!hasExactRow) {
+    if (activeRows.length === 0) return { status: "processed", message: "nenhuma assinatura Cakto ativa" };
+    if (activeRows.length > 1) {
+      return {
+        status: "ignored",
+        message: `${event} do pedido ${orderId} não casa com nenhuma assinatura e há ${activeRows.length} ativas — nada foi alterado, conferir manualmente`,
+      };
+    }
+  }
+
   const { data: affected, error } = await supabase.rpc("deactivate_cakto_subscription", {
     p_user_id: userId,
     p_subscription_key: subscriptionKey,
   });
   if (error) throw new Error(`deactivate_cakto_subscription (${event}) falhou: ${error.message}`);
+
+  // Créditos só são zerados se a remoção do plano de fato aconteceu.
+  if (isRefund && affected) await zeroLegacyCredits(supabase, userId);
 
   return affected ? { status: "processed" } : { status: "processed", message: "nenhuma assinatura Cakto ativa" };
 }

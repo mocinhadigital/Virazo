@@ -593,7 +593,7 @@ export default function SeriesWizard() {
         )}
 
         {step === "visual" && (
-          <div className="no-scrollbar -mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-2">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             {VISUAL_STYLES.map(({ name, thumbnail }) => {
               const isSelected = form.visualStyle === name;
               return (
@@ -601,7 +601,7 @@ export default function SeriesWizard() {
                   key={name}
                   type="button"
                   onClick={() => update("visualStyle", name)}
-                  className="w-[180px] shrink-0 snap-start text-left"
+                  className="w-full text-left"
                 >
                   <div
                     className={`relative aspect-[9/16] overflow-hidden rounded-[20px] border bg-[#1c1c1f] transition-colors ${

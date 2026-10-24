@@ -29,7 +29,15 @@ export type CaktoCheckoutUrls = Record<PlanKey, string>;
 // logado já preenchido. Devolve null — e o modal segue no Stripe como hoje —
 // se PAYMENT_PROVIDER não for "cakto" ou se faltar o link de algum plano:
 // melhor continuar vendendo pelo Stripe do que exibir um botão quebrado.
-export function getCaktoCheckoutUrls(email: string | null | undefined): CaktoCheckoutUrls | null {
+// Parâmetros de pré-preenchimento aceitos pelo checkout da Cakto (central de
+// ajuda: "Como pré-preencher o checkout pela URL"): name, email, confirmEmail,
+// cpf e phone (este com 55 na frente). Aqui vão e-mail, confirmEmail (só
+// preenche a confirmação, se o checkout tiver esse campo) e o nome, quando a
+// conta tem. O comprador ainda pode editar o campo no checkout da Cakto.
+export function getCaktoCheckoutUrls(
+  email: string | null | undefined,
+  name?: string | null,
+): CaktoCheckoutUrls | null {
   if (process.env.PAYMENT_PROVIDER?.trim().toLowerCase() !== "cakto") return null;
 
   const urls = {} as CaktoCheckoutUrls;
@@ -44,8 +52,15 @@ export function getCaktoCheckoutUrls(email: string | null | undefined): CaktoChe
 
     try {
       const url = new URL(raw);
-      if (email) url.searchParams.set("email", email);
-      urls[key] = url.toString();
+      if (email) {
+        url.searchParams.set("email", email);
+        url.searchParams.set("confirmEmail", email);
+      }
+      const cleanName = name?.trim();
+      if (cleanName) url.searchParams.set("name", cleanName);
+      // URLSearchParams escreve espaço como "+"; o "+" literal já sai como
+      // %2B, então trocar "+" por "%20" é seguro e evita "Maria+Silva".
+      urls[key] = url.toString().replace(/\+/g, "%20");
     } catch {
       console.error(`[billing/cakto] ${CAKTO_CHECKOUT_ENV[key]} não é uma URL válida — usando o Stripe.`);
       return null;

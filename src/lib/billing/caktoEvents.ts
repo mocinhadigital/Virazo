@@ -2,6 +2,7 @@ import "server-only";
 import { findPlanKeyByCaktoProductId } from "@/lib/billing/cakto";
 import { CaktoApiError, getCaktoOrder, isCaktoApiConfigured, type CaktoOrder } from "@/lib/billing/caktoApi";
 import type { PlanKey } from "@/lib/billing/plans";
+import { recordUnmatchedPayment } from "@/lib/billing/unmatchedPayments";
 import type { createServiceRoleClient } from "@/utils/supabase/service-role";
 
 // Registro + idempotência + ativação/desativação de um pedido da Cakto.
@@ -192,6 +193,25 @@ async function activate(
       event,
       cakto_event_id: logId,
     });
+
+    // Além de guardar a compra pendente (acima, como sempre), registra o
+    // pagamento em "pagamentos sem conta" e avisa o administrador por e-mail
+    // para ativar manualmente. Nunca lança e não muda o resultado.
+    const buyer = item.customer as CaktoItem | undefined;
+    const amount = Number(item.amount);
+    await recordUnmatchedPayment(supabase, {
+      orderId,
+      event,
+      email: email!,
+      customerName: str(buyer?.name),
+      customerPhone: str(buyer?.phone),
+      plan,
+      productName: str((item.product as CaktoItem | undefined)?.name),
+      refId: str(item.refId),
+      amount: Number.isFinite(amount) ? amount : undefined,
+      caktoEventId: logId,
+    });
+
     return { status: "pending_user" };
   }
 

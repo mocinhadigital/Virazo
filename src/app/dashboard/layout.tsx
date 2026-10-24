@@ -75,7 +75,11 @@ export default async function DashboardLayout({
   const initialVideos = (videoRows ?? []).map(mapVideoRow);
   const initialPlan = activeSubscription?.plan ?? null;
   // null (o normal hoje) = o modal segue criando a Checkout Session do Stripe.
-  const caktoCheckoutUrls = getCaktoCheckoutUrls(user.email);
+  const metadata = user.user_metadata as { full_name?: string; name?: string } | undefined;
+  const caktoCheckoutUrls = getCaktoCheckoutUrls(
+    user.email,
+    profile?.full_name ?? metadata?.full_name ?? metadata?.name,
+  );
   const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (

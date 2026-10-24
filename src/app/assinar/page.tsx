@@ -48,7 +48,8 @@ export default async function AssinarPage({
 
   // null = Cakto não configurada (ex.: ambiente local) — o painel abre o
   // pop-up de planos, que segue pelo provedor configurado.
-  const checkoutUrls = getCaktoCheckoutUrls(user.email);
+  const metadata = user.user_metadata as { full_name?: string; name?: string } | undefined;
+  const checkoutUrls = getCaktoCheckoutUrls(user.email, metadata?.full_name ?? metadata?.name);
   if (!checkoutUrls) redirect("/dashboard");
 
   return <CheckoutRedirect plan={plan} checkoutUrl={checkoutUrls[plan]} />;

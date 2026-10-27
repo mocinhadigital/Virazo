@@ -62,6 +62,15 @@ type FunnelData = {
   };
 };
 
+// get_visit_stats (migration 0032): pessoas distintas que visitaram a página
+// inicial no período (1 visita por pessoa por dia) e quantas vieram do
+// Facebook/Instagram.
+type VisitStats = {
+  visitors: number;
+  from_meta: number;
+  first_visit_at: string | null;
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TZ = "America/Manaus";
 
@@ -106,9 +115,12 @@ export default async function FunilPage({
   const since = periodStart(period);
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_conversion_funnel", {
-    p_since: since.toISOString(),
-  });
+  const [{ data, error }, visitsResult] = await Promise.all([
+    supabase.rpc("get_conversion_funnel", { p_since: since.toISOString() }),
+    // Etapa "Visitaram a página" (migration 0032). Se a migration ainda não
+    // foi rodada ou der qualquer erro, o painel abre igual, só sem essa etapa.
+    supabase.rpc("get_visit_stats", { p_since: since.toISOString() }),
+  ]);
 
   if (error?.message.includes("Não autorizado")) notFound();
   if (error || !data) {
@@ -126,13 +138,26 @@ export default async function FunilPage({
   const funnel = data as FunnelData;
   const hasCohort = funnel.purchased_total !== undefined;
 
-  const steps = [
+  const visits = visitsResult.error ? null : (visitsResult.data as VisitStats | null);
+  if (visitsResult.error) {
+    console.error("[admin/funil] get_visit_stats falhou:", visitsResult.error.message);
+  }
+
+  const steps: { label: string; value: number; arrow?: string; note?: string }[] = [
     { label: "Cadastros", value: funnel.signups },
     { label: "Visualizaram planos", value: funnel.paywall },
     { label: "Selecionaram um plano", value: funnel.selected },
     { label: "Iniciaram checkout", value: funnel.checkout },
     { label: "Compraram", value: funnel.purchased },
   ];
+  if (visits) {
+    steps[0].arrow = "se cadastraram";
+    steps.unshift({
+      label: "Visitaram a página",
+      value: visits.visitors,
+      note: `${visits.from_meta} vieram do Facebook/Instagram (${formatPercent(visits.from_meta, visits.visitors)})`,
+    });
+  }
 
   const plans = [
     { label: "Diário", value: funnel.selected_by_plan.daily },
@@ -181,11 +206,14 @@ export default async function FunilPage({
           <div key={step.label}>
             {i > 0 && (
               <p className="py-1.5 text-center text-xs text-zinc-500">
-                ↓ {formatPercent(step.value, steps[i - 1].value)} da etapa anterior
+                ↓ {formatPercent(step.value, steps[i - 1].value)} {step.arrow ?? "da etapa anterior"}
               </p>
             )}
             <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4">
-              <span className="text-sm font-medium text-white">{step.label}</span>
+              <div>
+                <span className="text-sm font-medium text-white">{step.label}</span>
+                {step.note && <p className="mt-0.5 text-xs text-zinc-500">{step.note}</p>}
+              </div>
               <span className="text-xl font-bold text-white">{step.value}</span>
             </div>
           </div>

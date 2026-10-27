@@ -14,6 +14,8 @@ import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/
 import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import { isAdminUserId } from "@/lib/admin/requireAdmin";
+import VisitOptOut from "@/components/analytics/VisitOptOut";
+import { isOwnerEmail } from "@/lib/analytics/visitRules";
 
 export default async function DashboardLayout({
   children,
@@ -100,6 +102,9 @@ export default async function DashboardLayout({
         </div>
         <MobileNav />
       </div>
+      {/* Não renderiza nada: marca o navegador do dono para as visitas dele
+          à página inicial não contarem no funil ("Visitaram a página"). */}
+      {(isAdmin || isOwnerEmail(user.email)) && <VisitOptOut />}
       <CreateVideoWizard />
       <PlanPickerModalGate caktoCheckoutUrls={caktoCheckoutUrls} />
       {/* Não renderiza nada. É o destino do redirecionamento da Stripe —

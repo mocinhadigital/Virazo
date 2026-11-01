@@ -66,6 +66,7 @@ export default function Hero() {
                   src="/videos-exemplo/davi.mp4"
                   poster="/videos-exemplo/davi.jpg"
                   label="Exemplo de vídeo gerado pelo Virazo: Davi e Golias, em animação 3D"
+                  wrapperClassName="h-full w-full"
                   className="h-full w-full object-cover"
                 />
                 <div className="pointer-events-none absolute left-1/2 top-2.5 h-[18px] w-[76px] -translate-x-1/2 rounded-full bg-black/90" />

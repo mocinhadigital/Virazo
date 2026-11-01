@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { SUPPORT_EMAIL, WHATSAPP_DISPLAY, whatsappUrl } from "@/lib/contact";
 
 const COLUMNS = [
   {
@@ -62,7 +63,19 @@ export default function Footer() {
             © {new Date().getFullYear()} Virazo. Todos os direitos reservados.
           </p>
           <p className="text-xs text-zinc-500">
-            Pagamento seguro via Cakto · Garantia de 7 dias · mocinhadigital@gmail.com
+            Pagamento seguro via Cakto · Garantia de 7 dias ·{" "}
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-zinc-400 hover:text-white">
+              {SUPPORT_EMAIL}
+            </a>{" "}
+            ·{" "}
+            <a
+              href={whatsappUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-zinc-400 hover:text-white"
+            >
+              WhatsApp {WHATSAPP_DISPLAY}
+            </a>
           </p>
         </div>
       </div>

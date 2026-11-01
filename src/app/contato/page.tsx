@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Mail } from "lucide-react";
+import { Mail, MessageCircle } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
+import { SUPPORT_EMAIL, WHATSAPP_DISPLAY, whatsappUrl } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Contato — Virazo",
@@ -16,15 +17,26 @@ export default function ContatoPage() {
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Fale com a gente</h1>
           <p className="mt-4 text-sm leading-relaxed text-zinc-400 sm:text-base">
             Dúvidas sobre sua conta, cobrança ou algum problema com a geração de vídeos? Manda um
-            e-mail que a gente responde.
+            e-mail ou chama no WhatsApp que a gente responde.
           </p>
-          <a
-            href="mailto:mocinhadigital@gmail.com"
-            className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-medium text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 sm:hover:scale-[1.03]"
-          >
-            <Mail className="h-4 w-4" />
-            mocinhadigital@gmail.com
-          </a>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-medium text-white shadow-xl shadow-[#4C3BFF]/25 transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
+            >
+              <Mail className="h-4 w-4" />
+              {SUPPORT_EMAIL}
+            </a>
+            <a
+              href={whatsappUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 text-[15px] font-semibold text-[#052e16] transition-transform active:scale-95 sm:w-auto sm:hover:scale-[1.03]"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              WhatsApp {WHATSAPP_DISPLAY}
+            </a>
+          </div>
         </div>
       </main>
       <Footer />

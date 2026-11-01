@@ -1,18 +1,17 @@
-const FILES = [
-  "v-32m.webp",
-  "v-11-4m.webp",
-  "v-1-5m.webp",
-  "v-280-4k.webp",
-  "v-270-7k.webp",
-  "v-226-2k.webp",
-  "v-205-8k.webp",
-  "v-102k.webp",
-  "v-64-1k.webp",
+import LazyVideo from "./LazyVideo";
+
+// Vídeos reais gerados pelo Virazo (public/videos-exemplo): 720p, sem áudio,
+// com uma imagem de capa leve (.jpg) para a página não mostrar quadro preto.
+const EXAMPLES = [
+  { file: "brasil", name: "Quadrinho" },
+  { file: "davi", name: "Animação 3D" },
+  { file: "navio", name: "Xilogravura" },
+  { file: "lugares", name: "Polaroid" },
+  { file: "animal", name: "Terror" },
+  { file: "mente", name: "Storytime" },
 ];
 
 export default function ViralGallery() {
-  const looped = [...FILES, ...FILES];
-
   return (
     <section className="pt-0 pb-10 sm:pb-14">
       <div className="mx-auto flex max-w-[1100px] flex-col items-start px-5 md:px-6">
@@ -31,26 +30,23 @@ export default function ViralGallery() {
         </svg>
       </div>
 
-      <div className="relative mt-5 overflow-hidden">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#05050a] to-transparent sm:w-24" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#05050a] to-transparent sm:w-24" />
-
-        <div className="animate-marquee flex w-max gap-3 hover:[animation-play-state:paused]">
-          {looped.map((file, i) => (
-            <div
-              key={`${file}-${i}`}
-              className="w-44 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] sm:w-56 lg:w-64"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/assets/viral/${file}`}
-                alt="Exemplo de vídeo viral gerado"
-                className="aspect-[9/16] w-full object-cover"
-                loading="lazy"
-              />
-            </div>
+      {/* Celular: fileira que desliza para o lado. Telas maiores: grade. */}
+      <div className="mx-auto mt-5 max-w-[1100px] px-5 md:px-6">
+        <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-6">
+          {EXAMPLES.map(({ file, name }) => (
+            <li key={file} className="w-[44vw] max-w-[190px] shrink-0 snap-start md:w-auto md:max-w-none">
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                <LazyVideo
+                  src={`/videos-exemplo/${file}.mp4`}
+                  poster={`/videos-exemplo/${file}.jpg`}
+                  label={`Exemplo de vídeo no estilo ${name}`}
+                  className="aspect-[9/16] w-full object-cover"
+                />
+              </div>
+              <p className="mt-2 text-center text-[13px] font-medium text-white/70">{name}</p>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );

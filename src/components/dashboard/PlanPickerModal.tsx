@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, ShieldCheck, Check } from "lucide-react";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
+import { FEATURED_PLAN, FEATURED_TAGLINE } from "@/lib/billing/planHighlight";
+import FeaturedPlanFrame from "@/components/checkout/FeaturedPlanFrame";
 import { trackPixel } from "@/lib/meta/pixel";
 import { trackConversion } from "@/lib/analytics/conversion";
 import type { CaktoCheckoutUrls } from "@/lib/billing/cakto";
@@ -223,43 +225,66 @@ export default function PlanPickerModal({
         </div>
 
         <div className="mt-5 flex flex-col gap-3 sm:mt-8 sm:gap-5">
-          {Object.values(PLANS).map((plan) => (
-            <div
-              key={plan.key}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 sm:gap-5 sm:px-6 sm:py-6"
-            >
-              <div className="min-w-0">
-                <p className="text-lg font-bold text-white">{plan.name}</p>
-                {/* Quebra de linha em vez de "..." — no celular o preço
-                    não pode sumir. */}
-                <p className="text-sm text-zinc-400">
-                  {plan.description} ·{" "}
-                  <span className="whitespace-nowrap">
-                    R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
-                  </span>
-                </p>
+          {Object.values(PLANS).map((plan) => {
+            const featured = plan.key === FEATURED_PLAN;
+            const row = (
+              <div
+                className={
+                  featured
+                    ? "flex h-full items-center justify-between gap-3 rounded-[14px] bg-[#0b0b14] px-4 py-5 sm:gap-5 sm:px-6 sm:py-8"
+                    : "flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 sm:gap-5 sm:px-6 sm:py-6"
+                }
+              >
+                <div className="min-w-0">
+                  <p className="text-lg font-bold text-white">{plan.name}</p>
+                  {/* Quebra de linha em vez de "..." — no celular o preço
+                      não pode sumir. */}
+                  <p className="text-sm text-zinc-400">
+                    {plan.description} ·{" "}
+                    <span className="whitespace-nowrap">
+                      R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
+                    </span>
+                  </p>
+                  {featured && <p className="mt-1 text-[13px] font-medium text-pink-300">{FEATURED_TAGLINE}</p>}
+                </div>
+                {/* Trava SÓ o botão que está carregando. Antes um loadingPlan
+                    preso desabilitava os três de uma vez, então qualquer estado
+                    travado levava o modal inteiro junto — agora os outros
+                    planos continuam clicáveis e servem de saída mesmo se um
+                    botão ficar preso. */}
+                <div className="flex shrink-0 flex-col items-center gap-1.5 self-center">
+                  <button
+                    type="button"
+                    disabled={loadingPlan === plan.key}
+                    onClick={() => handleSubscribe(plan.key)}
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:px-7 sm:py-3.5"
+                  >
+                    {loadingPlan === plan.key && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Assinar
+                  </button>
+                  <p className="max-w-[7.5rem] text-center text-[10px] leading-tight text-zinc-400">
+                    Garantia de 7 dias • Cancele quando quiser
+                  </p>
+                </div>
               </div>
-              {/* Trava SÓ o botão que está carregando. Antes um loadingPlan
-                  preso desabilitava os três de uma vez, então qualquer estado
-                  travado levava o modal inteiro junto — agora os outros
-                  planos continuam clicáveis e servem de saída mesmo se um
-                  botão ficar preso. */}
-              <div className="flex shrink-0 flex-col items-center gap-1.5 self-center">
-                <button
-                  type="button"
-                  disabled={loadingPlan === plan.key}
-                  onClick={() => handleSubscribe(plan.key)}
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:px-7 sm:py-3.5"
-                >
-                  {loadingPlan === plan.key && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Assinar
-                </button>
-                <p className="max-w-[7.5rem] text-center text-[10px] leading-tight text-zinc-400">
-                  Garantia de 7 dias • Cancele quando quiser
-                </p>
+            );
+
+            // O recomendado sobe para o topo no celular; no computador a ordem
+            // continua Diário, Pro, Ultra.
+            return featured ? (
+              <FeaturedPlanFrame
+                key={plan.key}
+                radiusClass="rounded-2xl"
+                className="order-first mt-3 sm:order-none sm:mt-0"
+              >
+                {row}
+              </FeaturedPlanFrame>
+            ) : (
+              <div key={plan.key} className="contents">
+                {row}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 sm:mt-5 sm:px-5">

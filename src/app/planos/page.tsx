@@ -3,7 +3,9 @@ import { Check, ShieldCheck } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import PlanChoiceLink from "@/components/checkout/PlanChoiceLink";
+import FeaturedPlanFrame from "@/components/checkout/FeaturedPlanFrame";
 import { PLANS } from "@/lib/billing/plans";
+import { FEATURED_PLAN, FEATURED_TAGLINE } from "@/lib/billing/planHighlight";
 
 export const metadata: Metadata = {
   title: "Planos — Virazo",
@@ -49,31 +51,50 @@ export default function PlanosPage() {
           </ol>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3 md:gap-5">
-            {Object.values(PLANS).map((plan) => (
-              <div
-                key={plan.key}
-                className="flex flex-col rounded-[20px] border border-white/10 bg-white/[0.03] p-6 sm:p-7"
-              >
-                <h2 className="text-xl font-bold text-white">{plan.name}</h2>
-                <p className="mt-1 text-sm text-zinc-400">{plan.description}</p>
-
-                <p className="mt-6 text-white">
-                  <span className="text-sm text-zinc-400">R$ </span>
-                  <span className="text-4xl font-bold tracking-tight">{formatPrice(plan.monthlyPriceCents)}</span>
-                  <span className="text-sm text-zinc-400">/mês</span>
-                </p>
-
-                <PlanChoiceLink
-                  plan={plan.key}
-                  className="mt-7 inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-[15px] font-semibold text-white shadow-xl shadow-purple-600/20 transition-transform active:scale-95 sm:hover:scale-[1.02]"
+            {Object.values(PLANS).map((plan) => {
+              const featured = plan.key === FEATURED_PLAN;
+              const card = (
+                <div
+                  className={
+                    featured
+                      ? "flex h-full flex-col rounded-[20px] bg-[#0b0b14] p-6 sm:p-8"
+                      : "flex flex-col rounded-[20px] border border-white/10 bg-white/[0.03] p-6 sm:p-7"
+                  }
                 >
-                  Escolher {plan.name}
-                </PlanChoiceLink>
-                <p className="mt-2.5 text-center text-[11px] text-zinc-400">
-                  Garantia de 7 dias • Cancele quando quiser
-                </p>
-              </div>
-            ))}
+                  <h2 className="text-xl font-bold text-white">{plan.name}</h2>
+                  <p className="mt-1 text-sm text-zinc-400">{plan.description}</p>
+                  {featured && <p className="mt-1.5 text-[13px] font-medium text-pink-300">{FEATURED_TAGLINE}</p>}
+
+                  <p className="mt-6 text-white">
+                    <span className="text-sm text-zinc-400">R$ </span>
+                    <span className="text-4xl font-bold tracking-tight">{formatPrice(plan.monthlyPriceCents)}</span>
+                    <span className="text-sm text-zinc-400">/mês</span>
+                  </p>
+
+                  <PlanChoiceLink
+                    plan={plan.key}
+                    className="mt-7 inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-[15px] font-semibold text-white shadow-xl shadow-purple-600/20 transition-transform active:scale-95 sm:hover:scale-[1.02]"
+                  >
+                    Escolher {plan.name}
+                  </PlanChoiceLink>
+                  <p className="mt-2.5 text-center text-[11px] text-zinc-400">
+                    Garantia de 7 dias • Cancele quando quiser
+                  </p>
+                </div>
+              );
+
+              // O recomendado sobe para o topo no celular (order-first) e fica
+              // um pouco maior no computador (scale), sem mudar a ordem lá.
+              return featured ? (
+                <FeaturedPlanFrame key={plan.key} className="order-first mt-3 md:order-none md:mt-0 md:scale-105">
+                  {card}
+                </FeaturedPlanFrame>
+              ) : (
+                <div key={plan.key} className="contents">
+                  {card}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-5">

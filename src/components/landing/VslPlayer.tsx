@@ -3,9 +3,10 @@
 import { useRef, useState } from "react";
 import { Play } from "lucide-react";
 
-// Player da VSL. preload="none": o vídeo (~10 MB) só começa a baixar quando
-// a pessoa aperta o play — até lá a página carrega só a capa. O arquivo foi
-// gravado com "faststart", então toca enquanto baixa.
+// Player da VSL. preload="metadata": a página baixa só o índice do vídeo
+// (~250 KB, que fica no começo do arquivo por causa do "faststart") e mostra a
+// capa; o vídeo em si (~8 MB) só baixa quando a pessoa aperta o play, e toca
+// enquanto baixa. Como o índice já está pronto, o play responde bem mais rápido.
 export default function VslPlayer({ src, poster }: { src: string; poster: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [started, setStarted] = useState(false);
@@ -23,7 +24,7 @@ export default function VslPlayer({ src, poster }: { src: string; poster: string
         ref={videoRef}
         className="h-full w-full"
         controls={started}
-        preload="none"
+        preload="metadata"
         playsInline
         poster={poster}
         onPlay={() => setStarted(true)}

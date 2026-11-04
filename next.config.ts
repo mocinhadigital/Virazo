@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
     "/api/*": ["public/audio/music-library/**/*"],
   },
 
+  // Vídeo de vendas (VSL) e a capa: cache longo no navegador, para quem volta
+  // à página não baixar de novo. O nome do arquivo muda quando o conteúdo muda
+  // (virazo-vsl-v2.mp4): ao trocar o vídeo ou a capa, use um nome novo (v3...).
+  async headers() {
+    return [
+      {
+        source: "/assets/vsl/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
+  },
+
   // NÃO adicionar aqui um redirect www->apex enquanto a Vercel (Project
   // Settings -> Domains) ainda redirecionar apex->www: as duas regras juntas
   // criam um loop infinito de redirecionamento entre os dois domínios (fora

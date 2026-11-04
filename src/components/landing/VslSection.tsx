@@ -17,7 +17,7 @@ export default function VslSection() {
             className="pointer-events-none absolute -inset-3 rounded-[28px] bg-gradient-to-r from-blue-600/25 to-purple-600/25 blur-2xl sm:-inset-5"
           />
           <div className="relative">
-            <VslPlayer src="/assets/vsl/virazo-vsl.mp4" poster="/assets/vsl/virazo-vsl-poster.jpg" />
+            <VslPlayer src="/assets/vsl/virazo-vsl-v2.mp4" poster="/assets/vsl/virazo-vsl-poster.jpg" />
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import {
   createProgressReporter,
   generateVideoAssets,
@@ -121,7 +122,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // num vídeo de 30s.
     const duration = effectiveDuration(retried.duration, areLongVideosEnabled());
     if (duration !== retried.duration) {
-      await supabase.from("videos").update({ duration }).eq("id", retried.id).eq("user_id", user.id);
+      // Chave de serviço: o cliente não escreve mais direto em videos (migration
+      // 0034). A posse do vídeo já foi conferida acima (existing.user_id === user.id).
+      await createServiceRoleClient().from("videos").update({ duration }).eq("id", retried.id).eq("user_id", user.id);
     }
 
     const report = createProgressReporter(supabase, retried.id);
@@ -204,15 +207,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     console.error("[/api/videos/[id]/retry] falhou:", err);
     const message = extractErrorMessage(err);
 
-    // Só marca 'Erro' com a mensagem — sem RPC nenhuma, já que não há
-    // crédito ou vaga pra devolver (retry nunca consumiu uma vaga nova, ver
+    // Marca 'Erro' com a mensagem pela função do banco (a mesma da geração
+    // normal): o cliente não escreve mais direto em videos (migration 0034). Não
+    // há crédito ou vaga pra devolver (retry nunca consumiu uma vaga nova, ver
     // comentário no topo do arquivo).
     const { data: errored, error: markErrorError } = await supabase
-      .from("videos")
-      .update({ status: "Erro", error_message: message })
-      .eq("id", retried.id)
-      .eq("user_id", user.id)
-      .select("*")
+      .rpc("mark_video_failed", { p_video_id: retried.id, p_message: message })
       .single()
       .returns<VideoRow>();
 

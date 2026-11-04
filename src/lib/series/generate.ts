@@ -8,6 +8,7 @@ import {
 } from "@/lib/video/generateAssets";
 import { effectiveDuration } from "@/lib/video/durations";
 import { loadBackgroundMusic } from "@/lib/video/music";
+import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
@@ -63,7 +64,10 @@ export async function checkConcurrencyLimit(
       DEFAULT_MAX_CONCURRENT_GENERATIONS)
     : DEFAULT_MAX_CONCURRENT_GENERATIONS;
 
-  const { count: inProgressCount } = await supabase
+  // Chave de serviço: quem "excluiu" um vídeo ainda em geração (ele só fica
+  // escondido, migration 0034) continua contando aqui — senão dava para burlar a
+  // trava de gerações simultâneas excluindo o vídeo em andamento.
+  const { count: inProgressCount } = await createServiceRoleClient()
     .from("videos")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)

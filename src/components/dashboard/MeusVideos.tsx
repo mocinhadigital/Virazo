@@ -107,16 +107,33 @@ export default function MeusVideos() {
     try {
       const supabase = createClient();
 
-      // `.select("id")` depois do delete é o único jeito confiável de saber
-      // se alguma linha foi REALMENTE apagada: sem isso, o Postgrest retorna
-      // sucesso (sem `error`) mesmo quando o RLS bloqueia silenciosamente e
-      // 0 linhas são afetadas — o que faria o card sumir da tela sem o
-      // registro ter sido excluído de fato no banco.
-      const { data: deletedRows, error: deleteError } = await withTimeout(
-        supabase.from("videos").delete().eq("id", video.id).select("id"),
+      // "Excluir" esconde o vídeo pela função delete_my_video (migration
+      // 0034): o cliente não escreve mais direto na tabela, e a linha continua
+      // no banco contando no limite do dia. Devolve true se o vídeo é dele.
+      const { data: hidden, error: rpcError } = await withTimeout(
+        supabase.rpc("delete_my_video", { p_video_id: video.id }),
         15000,
         "Exclusão do vídeo",
       );
+
+      let deletedRows: { id: string }[] | null = hidden === true ? [{ id: video.id }] : [];
+      let deleteError: { message: string } | null = rpcError;
+
+      // Enquanto a migration 0034 não tiver sido rodada, a função não existe:
+      // cai no apagar de antes (deixa de ser usado depois da 0034, quando o
+      // banco passa a recusar a escrita direta).
+      if (rpcError && /delete_my_video|schema cache|PGRST202/.test(rpcError.message + (rpcError.code ?? ""))) {
+        // `.select("id")` depois do delete é o único jeito confiável de saber
+        // se alguma linha foi REALMENTE apagada: sem isso, o Postgrest retorna
+        // sucesso (sem `error`) mesmo quando o RLS bloqueia silenciosamente.
+        const legacy = await withTimeout(
+          supabase.from("videos").delete().eq("id", video.id).select("id"),
+          15000,
+          "Exclusão do vídeo",
+        );
+        deletedRows = legacy.data;
+        deleteError = legacy.error;
+      }
 
       if (deleteError) {
         console.error("[MeusVideos] falha ao excluir vídeo:", video.id, deleteError);

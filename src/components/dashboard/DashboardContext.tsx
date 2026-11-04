@@ -62,6 +62,8 @@ type DashboardContextValue = {
   // Conta de administrador (admin_users): sem limite diário de vídeos.
   isAdmin: boolean;
   dailyVideoLimit: number;
+  // Vídeos de bônus (plano Pro): usados quando o limite do dia já acabou.
+  bonusVideos: number;
   videosUsedToday: number;
   videosRemainingToday: number;
   isWizardOpen: boolean;
@@ -96,6 +98,7 @@ export function DashboardProvider({
   caktoVerifyEnabled = false,
   longVideosEnabled = false,
   isAdmin = false,
+  initialBonusVideos = 0,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
@@ -103,10 +106,12 @@ export function DashboardProvider({
   caktoVerifyEnabled?: boolean;
   longVideosEnabled?: boolean;
   isAdmin?: boolean;
+  initialBonusVideos?: number;
 }) {
   const router = useRouter();
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [plan, setPlan] = useState<PlanKey | null>(initialPlan);
+  const [bonusVideos, setBonusVideos] = useState(initialBonusVideos);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardInitial, setWizardInitial] = useState<WizardInitial>({});
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -167,6 +172,26 @@ export function DashboardProvider({
   const openPlanModal = useCallback(() => setIsPlanModalOpen(true), []);
   const closePlanModal = useCallback(() => setIsPlanModalOpen(false), []);
 
+  // Saldo de vídeos de bônus direto do Supabase. Qualquer falha (inclusive a
+  // coluna ainda não existir) é ignorada: o saldo só deixa de aparecer.
+  const refreshBonus = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("bonus_videos")
+        .eq("id", user.id)
+        .maybeSingle<{ bonus_videos: number }>();
+      if (!error && data) setBonusVideos(data.bonus_videos ?? 0);
+    } catch {
+      // sem saldo na tela; o servidor continua sendo quem decide
+    }
+  }, []);
+
   // `videos` só é carregado do Supabase UMA vez, no primeiro carregamento do
   // layout (server-side); depois disso fica só em memória, mantido por
   // `addVideo`/`removeVideo`. Isso busca de novo direto no Supabase (a
@@ -196,7 +221,9 @@ export function DashboardProvider({
       return;
     }
     setVideos((data ?? []).map(mapVideoRow));
-  }, []);
+    // Falha de um vídeo de bônus devolve o saldo; vídeo novo gasta.
+    void refreshBonus();
+  }, [refreshBonus]);
 
   // Enquanto houver vídeo "Gerando", relê a lista a cada poucos segundos —
   // é o que faz a etapa/tempo estimado andarem na tela e o card virar
@@ -277,6 +304,7 @@ export function DashboardProvider({
       return result ? [mapVideoRow(result), ...rest] : rest;
     });
     if (connectionLost) void refetchVideos();
+    else void refreshBonus();
 
     if (errorMessage) {
       if (reason === "no_subscription") {
@@ -285,7 +313,7 @@ export function DashboardProvider({
       }
       throw new VideoGenerationError(errorMessage, result?.status === "Erro" ? result.id : undefined);
     }
-  }, [openPlanModal, refetchVideos]);
+  }, [openPlanModal, refetchVideos, refreshBonus]);
 
   // "Tentar de novo": reprocessa o MESMO registro (mesmo id), sem gastar
   // vaga nova do limite diário. Marca o card como "Gerando" na hora para o
@@ -362,8 +390,9 @@ export function DashboardProvider({
         .maybeSingle<{ plan: PlanKey }>();
 
       setPlan(data?.plan ?? null);
+      void refreshBonus();
     })();
-  }, [plan, openPlanModal]);
+  }, [plan, openPlanModal, refreshBonus]);
 
   const closeWizard = useCallback(() => setIsWizardOpen(false), []);
 
@@ -379,6 +408,7 @@ export function DashboardProvider({
         plan,
         isAdmin,
         dailyVideoLimit,
+        bonusVideos,
         videosUsedToday,
         videosRemainingToday,
         isWizardOpen,

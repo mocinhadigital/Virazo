@@ -85,6 +85,7 @@ function WizardPanel() {
     videosRemainingToday,
     isAdmin,
     dailyVideoLimit,
+    bonusVideos,
   } = useDashboard();
 
   const [step, setStep] = useState<StepKey>("tema");
@@ -175,7 +176,7 @@ function WizardPanel() {
       case "voz":
         return voice !== null;
       case "revisao":
-        return videosRemainingToday > 0;
+        return videosRemainingToday > 0 || bonusVideos > 0;
       default:
         return true;
     }
@@ -510,6 +511,12 @@ function WizardPanel() {
                   Este vídeo vai contar como 1 dos seus vídeos de hoje. Você tem{" "}
                   {videosRemainingToday} de {dailyVideoLimit}{" "}
                   {dailyVideoLimit === 1 ? "vídeo" : "vídeos"} restante(s) hoje.
+                  {bonusVideos > 0 && ` Você também tem ${bonusVideos} ${bonusVideos === 1 ? "vídeo" : "vídeos"} de bônus.`}
+                </p>
+              ) : bonusVideos > 0 ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Você já usou os vídeos de hoje. Este vídeo vai usar 1 dos seus {bonusVideos}{" "}
+                  {bonusVideos === 1 ? "vídeo" : "vídeos"} de bônus.
                 </p>
               ) : (
                 <p className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-400">

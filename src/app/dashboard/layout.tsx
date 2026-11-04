@@ -46,6 +46,7 @@ export default async function DashboardLayout({
     { data: profile, error: profileError },
     { data: videoRows, error: videosError },
     { data: activeSubscription, error: subscriptionError },
+    bonusResult,
   ] = await Promise.all([
     isAdminUserId(user.id),
     supabase
@@ -68,6 +69,9 @@ export default async function DashboardLayout({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ plan: PlanKey }>(),
+    // Saldo de vídeos de bônus do Pro (migration 0033). Se a coluna ainda não
+    // existir, o erro é ignorado e o saldo vale 0 — o painel abre igual.
+    supabase.from("profiles").select("bonus_videos").eq("id", user.id).maybeSingle<{ bonus_videos: number }>(),
   ]);
 
   if (profileError) console.error("Falha ao carregar perfil:", profileError.message);
@@ -91,6 +95,7 @@ export default async function DashboardLayout({
       caktoVerifyEnabled={isCaktoApiConfigured()}
       longVideosEnabled={areLongVideosEnabled()}
       isAdmin={isAdmin}
+      initialBonusVideos={bonusResult.error ? 0 : (bonusResult.data?.bonus_videos ?? 0)}
     >
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} isAdmin={isAdmin} />

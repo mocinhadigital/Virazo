@@ -40,6 +40,14 @@ const REFUNDED_ORDER_STATUSES = new Set(["refunded", "chargedback"]);
 export async function zeroLegacyCredits(supabase: Supabase, userId: string): Promise<void> {
   const { error } = await supabase.from("profiles").update({ credits: 0 }).eq("id", userId);
   if (error) console.error(`[billing/caktoEvents] falha ao zerar créditos de ${userId}:`, error.message);
+
+  // Reembolsou: o saldo de vídeos de bônus do Pro (migration 0033) que sobrou
+  // também zera. Em chamada separada de propósito — se a migration ainda não
+  // foi rodada, só esta linha falha e os créditos acima já foram zerados.
+  const { error: bonusError } = await supabase.from("profiles").update({ bonus_videos: 0 }).eq("id", userId);
+  if (bonusError && !/bonus_videos/.test(bonusError.message)) {
+    console.error(`[billing/caktoEvents] falha ao zerar bônus de ${userId}:`, bonusError.message);
+  }
 }
 
 // Sem assinatura a Cakto não manda próxima cobrança; o plano vale um ciclo

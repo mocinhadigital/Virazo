@@ -5,7 +5,7 @@ import Footer from "@/components/landing/Footer";
 import PlanChoiceLink from "@/components/checkout/PlanChoiceLink";
 import FeaturedPlanFrame from "@/components/checkout/FeaturedPlanFrame";
 import { PLANS } from "@/lib/billing/plans";
-import { FEATURED_PLAN, FEATURED_TAGLINE } from "@/lib/billing/planHighlight";
+import { FEATURED_BONUS, FEATURED_PLAN, FEATURED_TAGLINE } from "@/lib/billing/planHighlight";
 
 export const metadata: Metadata = {
   title: "Planos — Virazo",
@@ -70,6 +70,11 @@ export default function PlanosPage() {
                     <span className="text-4xl font-bold tracking-tight">{formatPrice(plan.monthlyPriceCents)}</span>
                     <span className="text-sm text-zinc-400">/mês</span>
                   </p>
+                  {featured && (
+                    <p className="mt-3 rounded-lg border border-pink-400/30 bg-gradient-to-r from-[#A855F7]/20 via-[#EC4899]/20 to-[#F97316]/20 px-3 py-2 text-center text-[13px] font-semibold text-amber-100">
+                      {FEATURED_BONUS}
+                    </p>
+                  )}
 
                   <PlanChoiceLink
                     plan={plan.key}

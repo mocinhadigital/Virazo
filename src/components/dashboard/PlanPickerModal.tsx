@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, ShieldCheck, Check } from "lucide-react";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
-import { FEATURED_PLAN, FEATURED_TAGLINE } from "@/lib/billing/planHighlight";
+import { FEATURED_BONUS, FEATURED_PLAN, FEATURED_TAGLINE } from "@/lib/billing/planHighlight";
 import FeaturedPlanFrame from "@/components/checkout/FeaturedPlanFrame";
 import { trackPixel } from "@/lib/meta/pixel";
 import { trackConversion } from "@/lib/analytics/conversion";
@@ -245,7 +245,12 @@ export default function PlanPickerModal({
                       R$ {(plan.monthlyPriceCents / 100).toFixed(2).replace(".", ",")}/mês
                     </span>
                   </p>
-                  {featured && <p className="mt-1 text-[13px] font-medium text-pink-300">{FEATURED_TAGLINE}</p>}
+                  {featured && (
+                    <p className="mt-2 inline-block rounded-lg border border-pink-400/30 bg-gradient-to-r from-[#A855F7]/20 via-[#EC4899]/20 to-[#F97316]/20 px-2.5 py-1 text-[12px] font-semibold text-amber-100">
+                      {FEATURED_BONUS}
+                    </p>
+                  )}
+                  {featured && <p className="mt-1.5 text-[13px] font-medium text-pink-300">{FEATURED_TAGLINE}</p>}
                 </div>
                 {/* Trava SÓ o botão que está carregando. Antes um loadingPlan
                     preso desabilitava os três de uma vez, então qualquer estado

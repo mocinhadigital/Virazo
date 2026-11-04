@@ -5,3 +5,4 @@ import type { PlanKey } from "@/lib/billing/plans";
 export const FEATURED_PLAN: PlanKey = "pro";
 export const FEATURED_BADGE = "MAIS RECOMENDADO";
 export const FEATURED_TAGLINE = "Ideal para ter 2 canais ou postar 2x por dia";
+export const FEATURED_BONUS = "🎁 +10 vídeos de bônus ao assinar";

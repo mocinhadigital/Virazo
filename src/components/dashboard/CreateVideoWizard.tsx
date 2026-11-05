@@ -10,6 +10,7 @@ import {
   Wand2,
   AlertTriangle,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { useDashboard, VideoGenerationError } from "./DashboardContext";
 import VideoProgress from "./VideoProgress";
@@ -86,6 +87,7 @@ function WizardPanel() {
     isAdmin,
     dailyVideoLimit,
     bonusVideos,
+    openRealisticWizard,
   } = useDashboard();
 
   const [step, setStep] = useState<StepKey>("tema");
@@ -272,6 +274,19 @@ function WizardPanel() {
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {step === "tema" && (
             <div className="flex flex-col gap-2.5">
+              {/* Vídeo Realista ✨ é um produto à parte: troca para o assistente dele. */}
+              <div className="mb-1 grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1 text-sm font-medium">
+                <span className="rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-2 text-center text-white">
+                  Vídeo normal
+                </span>
+                <button
+                  type="button"
+                  onClick={openRealisticWizard}
+                  className="rounded-full px-3 py-2 text-zinc-400 transition-colors hover:text-white"
+                >
+                  Vídeo Realista ✨
+                </button>
+              </div>
               <textarea
                 autoFocus
                 rows={4}
@@ -616,7 +631,20 @@ function WizardPanel() {
                 {topic || "Seu vídeo"} já está disponível no seu painel.
               </p>
 
-              <div className="mt-6 flex w-full flex-col gap-2.5">
+              {/* Aviso discreto: apresenta o produto avulso logo que o vídeo normal fica pronto. */}
+              <button
+                type="button"
+                onClick={openRealisticWizard}
+                className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-left transition-colors hover:bg-amber-300/10"
+              >
+                <Sparkles className="h-4 w-4 shrink-0 text-amber-300" />
+                <span className="text-xs leading-snug text-zinc-300">
+                  Quer esse vídeo com cenas em movimento real?{" "}
+                  <strong className="font-semibold text-amber-200">Conheça o Vídeo Realista ✨</strong>
+                </span>
+              </button>
+
+              <div className="mt-4 flex w-full flex-col gap-2.5">
                 <button
                   type="button"
                   onClick={closeWizard}

@@ -16,9 +16,9 @@ export type RenderScene = {
   words: WordTiming[]; // timestamps relativos ao início desta cena
 };
 
-const WIDTH = 1080;
-const HEIGHT = 1920;
-const FPS = 25;
+export const WIDTH = 1080;
+export const HEIGHT = 1920;
+export const FPS = 25;
 
 // Fontes empacotadas em public/ (a Vercel sempre inclui esta pasta,
 // verbatim, em todo deploy — diferente de um arquivo binário solto em
@@ -28,12 +28,12 @@ const FPS = 25;
 // que sempre acha "Arial" — mas não existe equivalente no runtime Linux
 // da Vercel, então a legenda falhava silenciosamente: vídeo gerado e
 // baixável normalmente, só que sem nenhum texto visível).
-const FONTS_DIR = path.join(process.cwd(), "public", "fonts");
+export const FONTS_DIR = path.join(process.cwd(), "public", "fonts");
 
 // Volume da música de fundo em relação à narração — baixo o bastante pra
 // não brigar com a voz, mas audível. Mesma ideia do "sorteio de uma faixa
 // por vídeo" do AutoShortz: aqui a faixa já vem escolhida (generate.ts).
-const BACKGROUND_MUSIC_VOLUME = 0.18;
+export const BACKGROUND_MUSIC_VOLUME = 0.18;
 
 // Codificação de cada cena. Antes: preset padrão do x264 ("medium") e um
 // SEGUNDO passe de codificação do vídeo inteiro só para gravar a legenda —
@@ -53,7 +53,7 @@ const X264_ARGS = ["-preset", "veryfast", "-tune", "stillimage", "-crf", "23"];
 // pro "fontsdir" — que aponta a fonte empacotada no projeto pro libass, em
 // vez de depender da fonte "Arial" do sistema operacional (inexistente no
 // runtime Linux da Vercel).
-const escapePathForFilter = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
+export const escapePathForFilter = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
 
 // Movimento de cada cena, do primeiro ao último quadro: alterna zoom entrando,
 // deslocamento lateral (direita), zoom saindo e deslocamento lateral
@@ -94,7 +94,7 @@ function buildMotionFilter(sceneIndex: number, frames: number): string {
 // Transição curta (fade de ~0,12s) nas bordas de cada cena. Não muda a
 // duração da cena, então narração, legenda e o concat por cópia seguem
 // sincronizados. A primeira cena não "entra" e a última não "sai".
-const FADE_SECONDS = 0.12;
+export const FADE_SECONDS = 0.12;
 function buildFadeFilter(durationSeconds: number, isFirst: boolean, isLast: boolean): string {
   let fade = "";
   if (!isFirst) fade += `,fade=t=in:st=0:d=${FADE_SECONDS}`;
@@ -235,7 +235,7 @@ export async function renderFinalVideo(
   }
 }
 
-function groupWordsIntoCues(words: WordTiming[], groupSize = 4) {
+export function groupWordsIntoCues(words: WordTiming[], groupSize = 4) {
   const cues: { start: number; end: number; text: string }[] = [];
   for (let i = 0; i < words.length; i += groupSize) {
     const group = words.slice(i, i + groupSize);
@@ -363,11 +363,32 @@ function hexToAssColor(hex: string, alpha = "00"): string {
 // real do vídeo (1080x1920). Fontname aponta pra "Roboto", empacotada em
 // public/fonts (ver FONTS_DIR) — nunca "Arial", que não existe no runtime
 // Linux da Vercel.
-function buildAss(
+export type AssLayout = {
+  fontScale?: number; // multiplica o tamanho da fonte do estilo
+  outlineScale?: number; // multiplica a espessura do contorno
+  minOutline?: number; // contorno mínimo (só em estilos que têm contorno)
+  forceBold?: boolean;
+  marginV?: number; // distância do rodapé
+};
+
+export function buildAss(
   cues: { start: number; end: number; text: string }[],
   styleName: string | null,
+  layout: AssLayout = {},
 ): string {
-  const preset = (styleName && CAPTION_PRESETS[styleName]) || DEFAULT_PRESET;
+  const base = (styleName && CAPTION_PRESETS[styleName]) || DEFAULT_PRESET;
+  // Sem layout, nada muda (vídeo normal). O Vídeo Realista passa um layout
+  // maior, no padrão TikTok/Reels, mantendo cor/caixa/maiúsculas do estilo.
+  const preset: CaptionPreset = {
+    ...base,
+    fontSize: Math.round(base.fontSize * (layout.fontScale ?? 1)),
+    outlineWidth:
+      base.outlineWidth > 0 || base.boxed
+        ? Math.max(Math.round(base.outlineWidth * (layout.outlineScale ?? 1)), layout.minOutline ?? 0)
+        : 0,
+    bold: layout.forceBold ? true : base.bold,
+  };
+  const marginV = layout.marginV ?? 180;
 
   const primaryColor = hexToAssColor(preset.primaryColor);
   const outlineColor = hexToAssColor(preset.outlineColor);
@@ -382,7 +403,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Roboto,${preset.fontSize},${primaryColor},&H000000FF,${outlineColor},${backColor},${preset.bold ? 1 : 0},0,0,0,100,100,0,0,${borderStyle},${preset.outlineWidth},1,2,60,60,180,1
+Style: Default,Roboto,${preset.fontSize},${primaryColor},&H000000FF,${outlineColor},${backColor},${preset.bold ? 1 : 0},0,0,0,100,100,0,0,${borderStyle},${preset.outlineWidth},1,2,60,60,${marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

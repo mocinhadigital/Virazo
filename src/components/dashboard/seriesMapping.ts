@@ -19,6 +19,8 @@ export type SeriesRow = {
   next_generation_at: string | null;
   last_generated_at: string | null;
   total_videos_gerados: number;
+  // Série de Vídeo Realista ✨ (migration 0035). Ausente em respostas antigas.
+  realistic?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -42,6 +44,7 @@ export function mapSeriesRow(row: SeriesRow): SeriesRecord {
     nextGenerationAt: row.next_generation_at,
     lastGeneratedAt: row.last_generated_at,
     totalVideosGerados: row.total_videos_gerados,
+    realistic: row.realistic === true,
     createdAt: row.created_at,
   };
 }

@@ -19,6 +19,7 @@ import { VISUAL_STYLES } from "../visualStyles";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import { isLongDuration } from "@/lib/video/durations";
+import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import {
@@ -129,7 +130,8 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function SeriesManager({ initialSeries }: { initialSeries: SeriesRecord[] }) {
-  const { plan, openPlanModal, longVideosEnabled } = useDashboard();
+  const { plan, openPlanModal, longVideosEnabled, realisticCredits, openRealisticBuy, refreshRealisticCredits } =
+    useDashboard();
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -138,6 +140,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const editingRealistic = editingId ? series.find((s) => s.id === editingId)?.realistic === true : false;
 
   function openCreateModal() {
     // Sem assinatura ativa, nem abre o formulário — vai direto pro paywall,
@@ -239,9 +242,21 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         if (parsed.reason === "no_subscription") {
           openPlanModal();
         }
+        if (parsed.message.startsWith("no_realistic_credits:")) {
+          openRealisticBuy();
+          void refreshRealisticCredits();
+          // A série foi pausada pelo servidor: reflete na lista.
+          setSeries((prev) => prev.map((x) => (x.id === id ? { ...x, status: "pausada" } : x)));
+          throw new Error(parsed.message.replace("no_realistic_credits:", "").trim());
+        }
         throw new Error(parsed.message);
       }
-      setNotice(`Vídeo gerado com sucesso a partir desta série — confira em "Meus vídeos" no painel.`);
+      void refreshRealisticCredits();
+      setNotice(
+        data?.status === "Processando"
+          ? 'Episódio realista começou a ser gerado — leva alguns minutos e aparece em "Meus vídeos" quando ficar pronto.'
+          : `Vídeo gerado com sucesso a partir desta série — confira em "Meus vídeos" no painel.`,
+      );
       // Reflete o novo total/agendamento sem precisar recarregar a página.
       // GET idempotente — pode tentar de novo em falha de rede sem risco.
       try {
@@ -309,6 +324,11 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
               </div>
 
               <div className="flex flex-wrap gap-1.5 text-[11px] text-zinc-400">
+                {s.realistic && (
+                  <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-amber-200">
+                    Realista ✨
+                  </span>
+                )}
                 <span className="rounded-full border border-white/10 px-2 py-0.5">{s.visualStyle}</span>
                 <span className="rounded-full border border-white/10 px-2 py-0.5">{s.tomDeVoz}</span>
                 <span className="rounded-full border border-white/10 px-2 py-0.5">
@@ -327,6 +347,16 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   {s.status === "ativa" ? `Próxima: ${formatDateTime(s.nextGenerationAt)}` : "—"}
                 </span>
               </div>
+
+              {s.realistic && s.status === "pausada" && realisticCredits < 1 && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200">
+                  Série pausada: seus créditos de Vídeo Realista acabaram.{" "}
+                  <button type="button" onClick={openRealisticBuy} className="font-semibold underline">
+                    Comprar mais
+                  </button>{" "}
+                  e depois toque em Retomar.
+                </div>
+              )}
 
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <button
@@ -457,12 +487,19 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                       // valor atual da série — que segue editável e gera em
                       // 30s até a chave ser ligada.
                       options={SERIES_DURATIONS.filter(
-                        (d) => longVideosEnabled || !isLongDuration(d.value) || d.value === form.duration,
+                        (d) =>
+                          editingRealistic ||
+                          longVideosEnabled ||
+                          !isLongDuration(d.value) ||
+                          d.value === form.duration,
                       ).map((d) => ({
                         value: d.value,
                         label: d.value,
-                        description:
-                          !longVideosEnabled && isLongDuration(d.value)
+                        description: editingRealistic
+                          ? d.value === "60s"
+                            ? "60 segundos (2 créditos por episódio)"
+                            : "30 segundos (1 crédito por episódio)"
+                          : !longVideosEnabled && isLongDuration(d.value)
                             ? "Temporariamente gerado em 30s"
                             : d.label,
                       }))}
@@ -475,7 +512,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   <Select
                     value={form.visualStyle}
                     onChange={(v) => setForm((f) => ({ ...f, visualStyle: v }))}
-                    options={VISUAL_STYLES.map((v) => ({ value: v.name, label: v.name }))}
+                    options={(editingRealistic ? REALISTIC_STYLES : VISUAL_STYLES).map((v) => ({ value: v.name, label: v.name }))}
                     aria-label="Estilo visual"
                   />
                 </Field>

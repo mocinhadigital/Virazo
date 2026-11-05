@@ -73,6 +73,16 @@ type DashboardContextValue = {
   isPlanModalOpen: boolean;
   openPlanModal: () => void;
   closePlanModal: () => void;
+  // Vídeo Realista ✨ (produto avulso): saldo de créditos, assistente de
+  // criação e pop-up de compra de pacotes.
+  realisticCredits: number;
+  refreshRealisticCredits: () => Promise<void>;
+  isRealisticWizardOpen: boolean;
+  openRealisticWizard: () => void;
+  closeRealisticWizard: () => void;
+  isRealisticBuyOpen: boolean;
+  openRealisticBuy: () => void;
+  closeRealisticBuy: () => void;
   // Verificação ativa de pagamento na Cakto (POST /api/billing/cakto/verify).
   // caktoVerifyEnabled = CAKTO_CLIENT_ID/SECRET configurados no servidor.
   caktoVerifyEnabled: boolean;
@@ -84,6 +94,7 @@ type DashboardContextValue = {
 
 export type PaymentVerification =
   | { status: "activated"; plan: PlanKey }
+  | { status: "credits_added"; credits: number }
   | { status: "not_found" }
   | { status: "rate_limited"; retryAfterSeconds: number }
   | { status: "not_configured" }
@@ -99,6 +110,7 @@ export function DashboardProvider({
   longVideosEnabled = false,
   isAdmin = false,
   initialBonusVideos = 0,
+  initialRealisticCredits = 0,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
@@ -107,6 +119,7 @@ export function DashboardProvider({
   longVideosEnabled?: boolean;
   isAdmin?: boolean;
   initialBonusVideos?: number;
+  initialRealisticCredits?: number;
 }) {
   const router = useRouter();
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
@@ -115,9 +128,32 @@ export function DashboardProvider({
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardInitial, setWizardInitial] = useState<WizardInitial>({});
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [realisticCredits, setRealisticCredits] = useState(initialRealisticCredits);
+  const [isRealisticWizardOpen, setIsRealisticWizardOpen] = useState(false);
+  const [isRealisticBuyOpen, setIsRealisticBuyOpen] = useState(false);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const verifyInFlight = useRef<Promise<PaymentVerification> | null>(null);
+
+  // Saldo de créditos realistas direto do Supabase (a leitura do próprio perfil
+  // é permitida; a escrita só o servidor faz). Falha = mantém o saldo da tela.
+  const refreshRealisticCredits = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("realistic_credits")
+        .eq("id", user.id)
+        .maybeSingle<{ realistic_credits: number }>();
+      if (!error && data) setRealisticCredits(data.realistic_credits ?? 0);
+    } catch {
+      // sem atualização do saldo; o servidor continua sendo quem decide
+    }
+  }, []);
 
   // Quem chamar enquanto já existe uma verificação no ar recebe a MESMA
   // promessa — o botão do pop-up e a verificação automática nunca disparam
@@ -146,6 +182,13 @@ export function DashboardProvider({
           setPaymentNotice(`Pagamento confirmado! Plano ${PLANS[result.plan].name} ativado.`);
           // Atualiza o que foi renderizado no servidor (ex.: Configurações).
           router.refresh();
+        } else if (result.status === "credits_added") {
+          setPaymentNotice(
+            `Pagamento confirmado! +${result.credits} créditos do Vídeo Realista ✨ na sua conta.`,
+          );
+          setIsRealisticBuyOpen(false);
+          void refreshRealisticCredits();
+          router.refresh();
         }
         return result;
       } catch {
@@ -158,7 +201,7 @@ export function DashboardProvider({
 
     verifyInFlight.current = run;
     return run;
-  }, [router]);
+  }, [router, refreshRealisticCredits]);
 
   const dismissPaymentNotice = useCallback(() => setPaymentNotice(null), []);
 
@@ -396,6 +439,19 @@ export function DashboardProvider({
 
   const closeWizard = useCallback(() => setIsWizardOpen(false), []);
 
+  // O Vídeo Realista não depende de plano: só de créditos comprados.
+  const openRealisticWizard = useCallback(() => {
+    setIsWizardOpen(false);
+    setIsRealisticWizardOpen(true);
+    void refreshRealisticCredits();
+  }, [refreshRealisticCredits]);
+  const closeRealisticWizard = useCallback(() => {
+    setIsRealisticWizardOpen(false);
+    void refreshRealisticCredits();
+  }, [refreshRealisticCredits]);
+  const openRealisticBuy = useCallback(() => setIsRealisticBuyOpen(true), []);
+  const closeRealisticBuy = useCallback(() => setIsRealisticBuyOpen(false), []);
+
   return (
     <DashboardContext.Provider
       value={{
@@ -418,6 +474,14 @@ export function DashboardProvider({
         isPlanModalOpen,
         openPlanModal,
         closePlanModal,
+        realisticCredits,
+        refreshRealisticCredits,
+        isRealisticWizardOpen,
+        openRealisticWizard,
+        closeRealisticWizard,
+        isRealisticBuyOpen,
+        openRealisticBuy,
+        closeRealisticBuy,
         caktoVerifyEnabled,
         isVerifyingPayment,
         verifyPayment,

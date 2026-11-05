@@ -5,6 +5,7 @@ import { computeNextGenerationAt, HORARIO_PATTERN } from "@/lib/series/schedule"
 import { isAdminUserId } from "@/lib/admin/requireAdmin";
 import { isLongDuration } from "@/lib/video/durations";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
+import { isRealisticStyle } from "@/lib/realistic/constants";
 
 type CreateSeriesBody = {
   title: string;
@@ -19,6 +20,8 @@ type CreateSeriesBody = {
   backgroundMusicIds: string[];
   frequenciaDias: number;
   horario: string;
+  // Série de Vídeo Realista ✨: cada episódio gasta 1 crédito realista.
+  realistic?: boolean;
 };
 
 export async function GET() {
@@ -86,7 +89,11 @@ export async function POST(request: Request) {
   if (!["pt", "en", "es"].includes(body.idioma)) {
     return NextResponse.json({ error: "Idioma inválido." }, { status: 400 });
   }
-  if (isLongDuration(body.duration) && !areLongVideosEnabled()) {
+  const realistic = body.realistic === true;
+  if (realistic && !isRealisticStyle(body.visualStyle)) {
+    return NextResponse.json({ error: "Escolha um estilo realista para a série." }, { status: 400 });
+  }
+  if (!realistic && isLongDuration(body.duration) && !areLongVideosEnabled()) {
     return NextResponse.json(
       { error: "Vídeos de 60 segundos estão temporariamente indisponíveis. Escolha 30 segundos." },
       { status: 400 },
@@ -122,7 +129,9 @@ export async function POST(request: Request) {
       idioma: body.idioma,
       visual_style: body.visualStyle,
       voice: body.voice,
-      duration: body.duration,
+      // Episódio realista: 30s (6 cenas, 1 crédito) ou 60s (12 cenas, 2 créditos).
+      duration: realistic ? (body.duration === "60s" ? "60s" : "30s") : body.duration,
+      realistic,
       captions_enabled: body.captionsEnabled,
       caption_style: body.captionStyle,
       background_music_ids: body.backgroundMusicIds ?? [],

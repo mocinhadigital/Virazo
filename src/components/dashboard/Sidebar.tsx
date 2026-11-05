@@ -9,7 +9,7 @@ import { useDashboard } from "./DashboardContext";
 
 export default function Sidebar({ userName, isAdmin = false }: { userName: string; isAdmin?: boolean }) {
   const pathname = usePathname();
-  const { openPlanModal } = useDashboard();
+  const { openPlanModal, realisticCredits, openRealisticWizard, openRealisticBuy } = useDashboard();
 
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-white/[0.06] lg:bg-[#05050a]">
@@ -68,6 +68,33 @@ export default function Sidebar({ userName, isAdmin = false }: { userName: strin
       </nav>
 
       <div className="flex flex-col gap-4 border-t border-white/[0.06] p-4">
+        {/* Vídeo Realista ✨: saldo + atalhos (produto avulso, separado dos planos). */}
+        <div className="rounded-xl border border-white/10 bg-gradient-to-br from-[#4C3BFF]/15 to-[#A855F7]/15 p-3">
+          <p className="text-[13px] font-semibold text-white">Vídeo Realista ✨</p>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            {realisticCredits} {realisticCredits === 1 ? "crédito" : "créditos"}
+          </p>
+          <p className="mt-0.5 text-[10px] leading-tight text-zinc-500">
+            1 crédito = vídeo de 30s • 2 créditos = vídeo de 60s
+          </p>
+          <div className="mt-2.5 flex gap-2">
+            <button
+              type="button"
+              onClick={openRealisticWizard}
+              className="flex-1 rounded-lg bg-white px-2 py-1.5 text-xs font-semibold text-zinc-900"
+            >
+              Criar
+            </button>
+            <button
+              type="button"
+              onClick={openRealisticBuy}
+              className="flex-1 rounded-lg border border-white/20 px-2 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+            >
+              Comprar
+            </button>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={openPlanModal}

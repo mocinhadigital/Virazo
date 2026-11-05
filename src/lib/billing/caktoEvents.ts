@@ -1,5 +1,6 @@
 import "server-only";
 import { findPlanKeyByCaktoProductId } from "@/lib/billing/cakto";
+import { findRealisticPackageByCaktoProductId } from "@/lib/billing/realisticPackages";
 import { CaktoApiError, getCaktoOrder, isCaktoApiConfigured, type CaktoOrder } from "@/lib/billing/caktoApi";
 import type { PlanKey } from "@/lib/billing/plans";
 import { recordUnmatchedPayment } from "@/lib/billing/unmatchedPayments";
@@ -180,6 +181,12 @@ async function activate(
   productId: string | undefined,
   knownUserId: string | undefined,
 ): Promise<Outcome> {
+  // Pacote de Vídeo Realista (pagamento único): soma créditos, não mexe em plano.
+  const realisticPackage = productId ? findRealisticPackageByCaktoProductId(productId) : undefined;
+  if (realisticPackage) {
+    return activateRealisticCredits(supabase, logId, event, item, orderId, email, realisticPackage, knownUserId);
+  }
+
   const plan: PlanKey | undefined = productId ? findPlanKeyByCaktoProductId(productId) : undefined;
   if (!plan) {
     return { status: "ignored", message: `produto ${productId ?? "(vazio)"} não corresponde a nenhum plano` };
@@ -238,6 +245,55 @@ async function activate(
   return { status: "processed" };
 }
 
+async function activateRealisticCredits(
+  supabase: Supabase,
+  logId: number,
+  event: string,
+  item: CaktoItem,
+  orderId: string,
+  email: string | undefined,
+  pkg: { credits: number; label: string },
+  knownUserId: string | undefined,
+): Promise<Outcome> {
+  if (!email && !knownUserId) return { status: "ignored", message: "payload sem data.customer.email" };
+
+  const userId = knownUserId ?? (await findUserId(supabase, email!));
+
+  if (!userId) {
+    await savePending(supabase, {
+      email,
+      action: "credits",
+      plan: null,
+      credits: pkg.credits,
+      subscription_key: `cakto_credits_${orderId}`,
+      current_period_end: null,
+      order_id: orderId,
+      event,
+      cakto_event_id: logId,
+    });
+
+    const buyer = item.customer as CaktoItem | undefined;
+    const amount = Number(item.amount);
+    await recordUnmatchedPayment(supabase, {
+      orderId,
+      event,
+      email: email!,
+      customerName: str(buyer?.name),
+      customerPhone: str(buyer?.phone),
+      plan: pkg.label,
+      productName: str((item.product as CaktoItem | undefined)?.name),
+      refId: str(item.refId),
+      amount: Number.isFinite(amount) ? amount : undefined,
+      caktoEventId: logId,
+    });
+    return { status: "pending_user" };
+  }
+
+  const { error } = await supabase.rpc("add_realistic_credits", { p_user_id: userId, p_amount: pkg.credits });
+  if (error) throw new Error(`add_realistic_credits (${event}) falhou: ${error.message}`);
+  return { status: "processed", message: `+${pkg.credits} créditos realistas` };
+}
+
 async function deactivate(
   supabase: Supabase,
   logId: number,
@@ -285,6 +341,31 @@ async function deactivate(
         release: true,
       };
     }
+  }
+
+  // Reembolso de um pacote de Vídeo Realista: tira os créditos do pacote (nunca
+  // abaixo de zero) e NUNCA mexe na assinatura do cliente.
+  const refundedProductId = str((item.product as CaktoItem | undefined)?.id) ?? str((item.product as CaktoItem | undefined)?.short_id);
+  const refundedPackage = refundedProductId ? findRealisticPackageByCaktoProductId(refundedProductId) : undefined;
+  if (refundedPackage) {
+    if (!isRefund) return { status: "ignored", message: "evento sem efeito em pacote de créditos realistas" };
+    const buyerId = await findUserId(supabase, email);
+    if (!buyerId) {
+      // Compra ainda pendente (conta não criada): cancela a pendência.
+      await supabase
+        .from("cakto_pending_purchases")
+        .update({ applied_at: new Date().toISOString() })
+        .eq("order_id", orderId)
+        .eq("action", "credits")
+        .is("applied_at", null);
+      return { status: "processed", message: "reembolso de pacote realista sem conta — pendência cancelada" };
+    }
+    const { error: removeError } = await supabase.rpc("remove_realistic_credits", {
+      p_user_id: buyerId,
+      p_amount: refundedPackage.credits,
+    });
+    if (removeError) throw new Error(`remove_realistic_credits (${event}) falhou: ${removeError.message}`);
+    return { status: "processed", message: `-${refundedPackage.credits} créditos realistas (reembolso)` };
   }
 
   const subscriptionKey = caktoSubscriptionKey(item, orderId);

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
 import { checkConcurrencyLimit, runSeriesGeneration } from "@/lib/series/generate";
+import { runRealisticSeriesGeneration } from "@/lib/realistic/pipeline";
+import { createServiceRoleClient } from "@/utils/supabase/service-role";
 
 // Disparo manual ("Gerar agora") de um vídeo a partir de uma série já
 // cadastrada. A lógica de geração em si vive em src/lib/series/generate.ts
@@ -11,7 +13,7 @@ import { checkConcurrencyLimit, runSeriesGeneration } from "@/lib/series/generat
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: seriesId } = await params;
   const supabase = await createClient();
 
@@ -42,6 +44,25 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const concurrency = await checkConcurrencyLimit(supabase, user.id);
   if (!concurrency.ok) {
     return NextResponse.json({ error: concurrency.error }, { status: 429 });
+  }
+
+  // Série de Vídeo Realista ✨: episódio feito pelo pipeline realista (gasta
+  // 1 crédito realista; sem saldo, a série pausa).
+  if (series.realistic) {
+    const realistic = await runRealisticSeriesGeneration(
+      createServiceRoleClient(),
+      user.id,
+      series,
+      new URL(request.url).origin,
+    );
+    if (!realistic.ok) {
+      const status = realistic.alreadyInProgress ? 409 : realistic.outOfCredits ? 402 : 500;
+      const error = realistic.outOfCredits
+        ? "no_realistic_credits: seus créditos realistas acabaram — a série foi pausada. Compre mais para continuar."
+        : realistic.error;
+      return NextResponse.json({ error }, { status });
+    }
+    return NextResponse.json(realistic.video);
   }
 
   const result = await runSeriesGeneration(supabase, user.id, series);

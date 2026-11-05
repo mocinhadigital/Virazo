@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceRoleClient } from "@/utils/supabase/service-role";
+import { retryDb } from "@/lib/realistic/common";
 
 // Semáforo GLOBAL (todas as instâncias da Vercel, todos os fluxos: geração
 // por série, manual, retry E preview de voz) para nunca ultrapassar o limite
@@ -27,10 +28,13 @@ async function acquireSlot(owner: string): Promise<number> {
   let attempt = 0;
 
   for (;;) {
-    const { data, error } = await supabase.rpc("acquire_elevenlabs_tts_slot", {
-      p_owner: owner,
-      p_ttl_seconds: SLOT_TTL_SECONDS,
-    });
+    // Nova tentativa só para queda passageira de rede (fetch failed etc.).
+    const { data, error } = await retryDb(() =>
+      supabase.rpc("acquire_elevenlabs_tts_slot", {
+        p_owner: owner,
+        p_ttl_seconds: SLOT_TTL_SECONDS,
+      }),
+    );
 
     if (error) {
       throw new Error(`Falha ao reservar vaga de concorrência da ElevenLabs: ${error.message}`);
@@ -52,10 +56,12 @@ async function acquireSlot(owner: string): Promise<number> {
 
 async function releaseSlot(slotNumber: number, owner: string): Promise<void> {
   const supabase = createServiceRoleClient();
-  const { error } = await supabase.rpc("release_elevenlabs_tts_slot", {
-    p_slot_number: slotNumber,
-    p_owner: owner,
-  });
+  const { error } = await retryDb(() =>
+    supabase.rpc("release_elevenlabs_tts_slot", {
+      p_slot_number: slotNumber,
+      p_owner: owner,
+    }),
+  );
   if (error) {
     console.error("[elevenlabsGate] falha ao liberar vaga:", error);
   }

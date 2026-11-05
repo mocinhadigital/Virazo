@@ -1,5 +1,6 @@
 import "server-only";
 import { findPlanKeyByCaktoProductId } from "@/lib/billing/cakto";
+import { findRealisticPackageByCaktoProductId } from "@/lib/billing/realisticPackages";
 import {
   getCaktoSubscription,
   isCaktoApiConfigured,
@@ -36,6 +37,8 @@ export const ENTITLED_SUBSCRIPTION_STATUSES = new Set(["active", "trial", "late"
 
 export type CaktoSyncResult =
   | { status: "activated"; plan: PlanKey }
+  // Pacote de Vídeo Realista pago: créditos somados.
+  | { status: "credits_added"; credits: number }
   | { status: "not_found" }
   | { status: "rate_limited"; retryAfterSeconds: number }
   | { status: "not_configured" };
@@ -74,7 +77,7 @@ export async function syncCaktoPaymentsForUser(user: {
       !!order.id &&
       order.customer?.email?.trim().toLowerCase() === email &&
       !!order.product?.id &&
-      !!findPlanKeyByCaktoProductId(order.product.id),
+      (!!findPlanKeyByCaktoProductId(order.product.id) || !!findRealisticPackageByCaktoProductId(order.product.id)),
   );
   const latestBySubscription = latestOrderBySubscription(orders);
 
@@ -101,11 +104,16 @@ export async function syncCaktoPaymentsForUser(user: {
 
   const subscriptions = new Map<string, CaktoSubscription>();
   let activatedPlan: PlanKey | undefined;
+  let addedCredits = 0;
 
   for (const order of pending) {
     const item: CaktoItem = { ...order };
+    const realisticPackage = findRealisticPackageByCaktoProductId(order.product!.id!);
 
-    if (order.subscription) {
+    if (realisticPackage) {
+      // Pacote de créditos: pagamento único, sem validade — a idempotência por
+      // pedido (activate:<id>) garante que cada pedido soma uma única vez.
+    } else if (order.subscription) {
       let subscription = subscriptions.get(order.subscription);
       if (!subscription) {
         subscription = await getCaktoSubscription(order.subscription);
@@ -126,8 +134,12 @@ export async function syncCaktoPaymentsForUser(user: {
       forceActivate: true,
       userId: user.id,
     });
-    if (outcome === "processed") activatedPlan = findPlanKeyByCaktoProductId(order.product!.id!);
+    if (outcome === "processed") {
+      if (realisticPackage) addedCredits += realisticPackage.credits;
+      else activatedPlan = findPlanKeyByCaktoProductId(order.product!.id!);
+    }
   }
 
+  if (!activatedPlan && addedCredits > 0) return { status: "credits_added", credits: addedCredits };
   return activatedPlan ? { status: "activated", plan: activatedPlan } : { status: "not_found" };
 }

@@ -84,7 +84,13 @@ export default function CaktoPaymentVerifier() {
         for (let attempt = 0; attempt < RETURN_POLL_ATTEMPTS && !cancelled; attempt++) {
           const result = await verifyPayment();
           if (cancelled) return;
-          if (result.status === "activated" || result.status === "not_configured") break;
+          if (
+            result.status === "activated" ||
+            result.status === "credits_added" ||
+            result.status === "not_configured"
+          ) {
+            break;
+          }
           await sleep(
             result.status === "rate_limited" ? result.retryAfterSeconds * 1000 + 500 : RETURN_POLL_INTERVAL_MS,
           );

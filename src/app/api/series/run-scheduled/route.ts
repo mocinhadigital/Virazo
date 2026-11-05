@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
 import { checkConcurrencyLimit, runSeriesGeneration } from "@/lib/series/generate";
 import { GENERATION_TIME_BUDGET_MS } from "@/lib/video/generateAssets";
+import { runRealisticSeriesGeneration } from "@/lib/realistic/pipeline";
 
 // Endpoint interno pra um agendador externo (Vercel Cron, Supabase Cron,
 // etc.) disparar todas as séries ativas com `next_generation_at` vencido.
@@ -20,6 +21,9 @@ export const maxDuration = 300;
 
 // Tempo mínimo restante para começar a gerar mais uma série nesta invocação.
 const MIN_TIME_TO_START_SERIES_MS = 150_000;
+// Episódio de série realista leva mais (animação das 6 cenas): precisa de mais folga.
+// (só roteiro e imagens; a animação segue em etapas, fora desta chamada).
+const MIN_TIME_TO_START_REALISTIC_SERIES_MS = 90_000;
 
 export async function POST(request: Request) {
   const startedAt = Date.now();
@@ -45,6 +49,11 @@ export async function POST(request: Request) {
   // minutos vira "Falhou" (ver migration 0025).
   const { error: expireError } = await supabase.rpc("expire_stale_videos");
   if (expireError) console.error("[run-scheduled] expire_stale_videos falhou:", expireError.message);
+  // Idem para vídeos realistas travados (o crédito volta).
+  const { error: expireRealisticError } = await supabase.rpc("expire_stale_realistic_videos");
+  if (expireRealisticError) {
+    console.error("[run-scheduled] expire_stale_realistic_videos falhou:", expireRealisticError.message);
+  }
 
   const { data: dueSeriesData, error: dueError } = await supabase
     .from("series")
@@ -69,7 +78,7 @@ export async function POST(request: Request) {
     // Sem tempo para mais um vídeo inteiro: não começa. A série continua
     // vencida (next_generation_at não muda) e entra na próxima execução —
     // começar agora só produziria um vídeo cortado pelo limite da função.
-    if (deadline - Date.now() < MIN_TIME_TO_START_SERIES_MS) {
+    if (deadline - Date.now() < (series.realistic ? MIN_TIME_TO_START_REALISTIC_SERIES_MS : MIN_TIME_TO_START_SERIES_MS)) {
       results.push({ seriesId: series.id, ok: false, deferred: true, error: "Adiada para a próxima execução." });
       continue;
     }
@@ -80,7 +89,9 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const result = await runSeriesGeneration(supabase, series.user_id, series, deadline);
+    const result = series.realistic
+      ? await runRealisticSeriesGeneration(supabase, series.user_id, series, new URL(request.url).origin)
+      : await runSeriesGeneration(supabase, series.user_id, series, deadline);
     results.push(
       result.ok
         ? { seriesId: series.id, ok: true }

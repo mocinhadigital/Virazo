@@ -4,6 +4,7 @@ import { mapSeriesRow, type SeriesRow } from "@/components/dashboard/seriesMappi
 import { computeNextGenerationAt, HORARIO_PATTERN } from "@/lib/series/schedule";
 import { isLongDuration } from "@/lib/video/durations";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
+import { isRealisticStyle } from "@/lib/realistic/constants";
 
 type UpdateSeriesBody = Partial<{
   title: string;
@@ -46,6 +47,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Série não encontrada." }, { status: 404 });
   }
 
+  if (existing.realistic && body.visualStyle !== undefined && !isRealisticStyle(body.visualStyle)) {
+    return NextResponse.json({ error: "Escolha um estilo realista para a série." }, { status: 400 });
+  }
   if (body.idioma !== undefined && !["pt", "en", "es"].includes(body.idioma)) {
     return NextResponse.json({ error: "Idioma inválido." }, { status: 400 });
   }
@@ -55,6 +59,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (
     body.duration !== undefined &&
     body.duration !== existing.duration &&
+    !existing.realistic &&
     isLongDuration(body.duration) &&
     !areLongVideosEnabled()
   ) {
@@ -86,7 +91,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.idioma !== undefined) update.idioma = body.idioma;
   if (body.visualStyle !== undefined) update.visual_style = body.visualStyle;
   if (body.voice !== undefined) update.voice = body.voice;
-  if (body.duration !== undefined) update.duration = body.duration;
+  // Série realista: só 30s ou 60s (60s não depende da chave de vídeos longos).
+  if (body.duration !== undefined) {
+    update.duration = existing.realistic ? (body.duration === "60s" ? "60s" : "30s") : body.duration;
+  }
   if (body.captionsEnabled !== undefined) update.captions_enabled = body.captionsEnabled;
   if (body.captionStyle !== undefined) update.caption_style = body.captionStyle;
   if (body.backgroundMusicIds !== undefined) update.background_music_ids = body.backgroundMusicIds;

@@ -47,5 +47,7 @@ export type SeriesRecord = {
   nextGenerationAt: string | null;
   lastGeneratedAt: string | null;
   totalVideosGerados: number;
+  // Cada episódio é um Vídeo Realista ✨ (gasta 1 crédito realista).
+  realistic: boolean;
   createdAt: string;
 };

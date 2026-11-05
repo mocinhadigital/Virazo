@@ -51,6 +51,7 @@ export default function PlanPickerModal({
     const result = await verifyPayment();
     switch (result.status) {
       case "activated":
+      case "credits_added":
         onClose();
         return;
       case "not_found":

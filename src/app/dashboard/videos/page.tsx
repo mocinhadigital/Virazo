@@ -1,4 +1,5 @@
 import MeusVideos from "@/components/dashboard/MeusVideos";
+import RealisticVideosSection from "@/components/dashboard/realistic/RealisticVideosSection";
 
 export default function VideosPage() {
   return (
@@ -9,6 +10,8 @@ export default function VideosPage() {
           Todos os seus vídeos — criados manualmente ou gerados automaticamente pelas suas séries.
         </p>
       </div>
+
+      <RealisticVideosSection />
 
       <MeusVideos />
     </div>

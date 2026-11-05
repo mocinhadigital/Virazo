@@ -26,7 +26,8 @@ export type UnmatchedPayment = {
   email: string;
   customerName?: string;
   customerPhone?: string;
-  plan: PlanKey;
+  // Chave de um plano OU o nome de um pacote (ex.: "10 vídeos realistas").
+  plan: PlanKey | string;
   productName?: string;
   refId?: string;
   amount?: number;
@@ -79,19 +80,24 @@ export async function recordUnmatchedPayment(supabase: Supabase, payment: Unmatc
 }
 
 export function buildAlertEmail(payment: UnmatchedPayment): { subject: string; text: string } {
-  const planName = PLANS[payment.plan]?.name ?? payment.plan;
+  const isPlan = payment.plan in PLANS;
+  const planName = PLANS[payment.plan as PlanKey]?.name ?? payment.plan;
   const lines = [
     "Entrou um pagamento aprovado na Cakto, mas o e-mail do comprador não tem conta no Virazo.",
     "",
     `E-mail:   ${payment.email}`,
     `Nome:     ${payment.customerName || "(não informado)"}`,
     `Telefone: ${payment.customerPhone || "(não informado)"}`,
-    `Plano:    ${planName}${payment.amount != null ? ` (R$ ${payment.amount})` : ""}`,
+    `${isPlan ? "Plano:   " : "Pacote:  "} ${planName}${payment.amount != null ? ` (R$ ${payment.amount})` : ""}`,
     `Pedido:   ${payment.refId ? `${payment.refId} — ` : ""}${payment.orderId}`,
     "",
     "O que fazer:",
-    "- Se a pessoa criar a conta com ESTE e-mail, o plano é liberado sozinho.",
-    "- Se ela criou a conta com OUTRO e-mail (o mais comum), ative o plano manualmente na conta certa.",
+    isPlan
+      ? "- Se a pessoa criar a conta com ESTE e-mail, o plano é liberado sozinho."
+      : "- Se a pessoa criar a conta com ESTE e-mail, os créditos realistas são liberados sozinhos.",
+    isPlan
+      ? "- Se ela criou a conta com OUTRO e-mail (o mais comum), ative o plano manualmente na conta certa."
+      : "- Se ela criou a conta com OUTRO e-mail (o mais comum), some os créditos manualmente em profiles.realistic_credits da conta certa.",
     "- A lista completa fica na tabela cakto_unmatched_payments do Supabase.",
   ];
   return {

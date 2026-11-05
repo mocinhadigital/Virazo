@@ -18,6 +18,7 @@ import type { MusicTrackRecord } from "../musicMapping";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import { isLongDuration } from "@/lib/video/durations";
+import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import {
   SERIES_DURATIONS,
   SERIES_VOICES,
@@ -106,6 +107,8 @@ type FormState = {
   backgroundMusicIds: string[];
   frequenciaDias: number;
   horario: string;
+  // Série de Vídeo Realista ✨: cada episódio gasta 1 crédito realista.
+  realistic: boolean;
 };
 
 const EMPTY_FORM: FormState = {
@@ -124,11 +127,12 @@ const EMPTY_FORM: FormState = {
   backgroundMusicIds: [],
   frequenciaDias: 1,
   horario: "09:00",
+  realistic: false,
 };
 
 export default function SeriesWizard() {
   const router = useRouter();
-  const { plan, openPlanModal, longVideosEnabled } = useDashboard();
+  const { plan, openPlanModal, longVideosEnabled, realisticCredits, openRealisticBuy } = useDashboard();
   const [step, setStep] = useState<StepKey>("nicho");
   const [nichoTab, setNichoTab] = useState<"presets" | "personalizado">("presets");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -339,6 +343,49 @@ export default function SeriesWizard() {
       <div className="mt-8">
         {step === "nicho" && (
           <>
+            {/* Tipo de vídeo da série: normal (como sempre) ou Vídeo Realista ✨. */}
+            <div className="mb-6 grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1 text-[14px] font-medium">
+              {[
+                { realistic: false, label: "Vídeo normal" },
+                { realistic: true, label: "Vídeo Realista ✨" },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) =>
+                      f.realistic === option.realistic
+                        ? f
+                        : {
+                            ...f,
+                            realistic: option.realistic,
+                            // Os estilos de um tipo não existem no outro.
+                            visualStyle: "",
+                            duration: "30s",
+                          },
+                    )
+                  }
+                  className={`rounded-full px-3 py-2.5 transition-colors ${
+                    form.realistic === option.realistic
+                      ? "bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] text-white"
+                      : "text-white/55 hover:text-white"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {form.realistic && (
+              <div className="mb-6 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-[13px] leading-relaxed text-zinc-300">
+                Cada episódio realista (cenas em movimento real) gasta{" "}
+                <strong className="text-white">1 crédito (30s) ou 2 créditos (60s)</strong>. Você tem{" "}
+                <strong className="text-white">{realisticCredits}</strong>. Quando os créditos acabarem, a série
+                pausa e avisa você.{" "}
+                <button type="button" onClick={openRealisticBuy} className="font-semibold text-amber-200 underline">
+                  Comprar vídeos realistas
+                </button>
+              </div>
+            )}
             <div className="flex gap-6 border-b border-white/10">
               <button
                 type="button"
@@ -592,7 +639,30 @@ export default function SeriesWizard() {
           </div>
         )}
 
-        {step === "visual" && (
+        {step === "visual" && form.realistic && (
+          <div className="flex flex-col gap-3">
+            {REALISTIC_STYLES.map((s) => {
+              const isSelected = form.visualStyle === s.name;
+              return (
+                <button
+                  key={s.name}
+                  type="button"
+                  onClick={() => update("visualStyle", s.name)}
+                  className={`rounded-[20px] border bg-[#141416] px-5 py-4 text-left transition-colors ${
+                    isSelected
+                      ? "border-[#4C3BFF]/60 shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                      : "border-white/[0.08] hover:border-white/20"
+                  }`}
+                >
+                  <span className="block text-[15px] font-semibold text-white/92">{s.name}</span>
+                  <span className="block text-[13px] text-white/55">{s.description}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {step === "visual" && !form.realistic && (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             {VISUAL_STYLES.map(({ name, thumbnail }) => {
               const isSelected = form.visualStyle === name;
@@ -709,6 +779,33 @@ export default function SeriesWizard() {
               />
             </label>
 
+            {form.realistic && (
+              <div>
+                <span className="mb-2 block text-[14px] font-medium text-white/92">Duração dos vídeos</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: "30s", title: "30 segundos", credits: "1 crédito por episódio" },
+                    { value: "60s", title: "60 segundos", credits: "2 créditos por episódio" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => update("duration", option.value)}
+                      className={`rounded-[20px] border bg-[#141416] px-4 py-3 text-left transition-colors ${
+                        form.duration === option.value
+                          ? "border-[#4C3BFF]/60 shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                          : "border-white/[0.08] hover:border-white/20"
+                      }`}
+                    >
+                      <span className="block text-[15px] font-semibold text-white/92">{option.title}</span>
+                      <span className="block text-[13px] text-white/55">{option.credits}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!form.realistic && (
             <label className="block">
               <span className="mb-2 flex items-center gap-1.5 text-[14px] font-medium text-white/92">
                 Duração dos vídeos
@@ -731,6 +828,7 @@ export default function SeriesWizard() {
                 })}
               </select>
             </label>
+            )}
 
             <div className="rounded-xl bg-surface px-4 py-3 text-[13px] leading-relaxed text-white/55">
               Sua série vai gerar novos vídeos automaticamente, no ritmo que você configurar. Você

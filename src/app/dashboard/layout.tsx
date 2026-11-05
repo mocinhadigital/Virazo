@@ -3,6 +3,8 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import TopBar from "@/components/dashboard/TopBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import CreateVideoWizard from "@/components/dashboard/CreateVideoWizard";
+import RealisticWizard from "@/components/dashboard/realistic/RealisticWizard";
+import RealisticBuyModal from "@/components/dashboard/realistic/RealisticBuyModal";
 import PlanPickerModalGate from "@/components/dashboard/PlanPickerModalGate";
 import PurchaseTracker from "@/components/analytics/PurchaseTracker";
 import CaktoPaymentVerifier from "@/components/dashboard/CaktoPaymentVerifier";
@@ -12,6 +14,7 @@ import { createClient } from "@/utils/supabase/server";
 import type { PlanKey } from "@/lib/billing/plans";
 import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/cakto";
 import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
+import { getRealisticCheckoutUrls } from "@/lib/billing/realisticPackages";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import { isAdminUserId } from "@/lib/admin/requireAdmin";
 import VisitOptOut from "@/components/analytics/VisitOptOut";
@@ -47,6 +50,7 @@ export default async function DashboardLayout({
     { data: videoRows, error: videosError },
     { data: activeSubscription, error: subscriptionError },
     bonusResult,
+    realisticResult,
   ] = await Promise.all([
     isAdminUserId(user.id),
     supabase
@@ -72,6 +76,12 @@ export default async function DashboardLayout({
     // Saldo de vídeos de bônus do Pro (migration 0033). Se a coluna ainda não
     // existir, o erro é ignorado e o saldo vale 0 — o painel abre igual.
     supabase.from("profiles").select("bonus_videos").eq("id", user.id).maybeSingle<{ bonus_videos: number }>(),
+    // Saldo de créditos do Vídeo Realista (migration 0035). Sem a coluna, vale 0.
+    supabase
+      .from("profiles")
+      .select("realistic_credits")
+      .eq("id", user.id)
+      .maybeSingle<{ realistic_credits: number }>(),
   ]);
 
   if (profileError) console.error("Falha ao carregar perfil:", profileError.message);
@@ -86,6 +96,10 @@ export default async function DashboardLayout({
     user.email,
     profile?.full_name ?? metadata?.full_name ?? metadata?.name,
   );
+  const realisticCheckoutUrls = getRealisticCheckoutUrls(
+    user.email,
+    profile?.full_name ?? metadata?.full_name ?? metadata?.name,
+  );
   const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (
@@ -96,6 +110,7 @@ export default async function DashboardLayout({
       longVideosEnabled={areLongVideosEnabled()}
       isAdmin={isAdmin}
       initialBonusVideos={bonusResult.error ? 0 : (bonusResult.data?.bonus_videos ?? 0)}
+      initialRealisticCredits={realisticResult.error ? 0 : (realisticResult.data?.realistic_credits ?? 0)}
     >
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} isAdmin={isAdmin} />
@@ -111,6 +126,9 @@ export default async function DashboardLayout({
           à página inicial não contarem no funil ("Visitaram a página"). */}
       {(isAdmin || isOwnerEmail(user.email)) && <VisitOptOut />}
       <CreateVideoWizard />
+      {/* Vídeo Realista ✨ (produto avulso): assistente e pop-up de compra. */}
+      <RealisticWizard />
+      <RealisticBuyModal checkoutUrls={realisticCheckoutUrls} />
       <PlanPickerModalGate caktoCheckoutUrls={caktoCheckoutUrls} />
       {/* Não renderiza nada. É o destino do redirecionamento da Stripe —
           só age quando a URL traz session_id. */}

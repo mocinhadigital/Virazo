@@ -34,6 +34,11 @@ export function realisticDurationFromLabel(label: string | null | undefined): Re
 }
 // Trocas de imagem gratuitas na prévia das cenas.
 export const REALISTIC_MAX_IMAGE_SWAPS = 3;
+// Imagens refeitas de graça quando o cliente edita o texto de uma cena (além
+// das trocas): 6 por vídeo de 30s, 12 por vídeo de 60s.
+export function realisticMaxImageEdits(seconds: number): number {
+  return seconds === 60 ? 12 : 6;
+}
 // Roteiros gratuitos por rascunho (escrever de novo / outro roteiro). Limite
 // só para o custo de IA não ficar aberto; o cliente raramente chega perto.
 export const REALISTIC_MAX_SCRIPT_GENERATIONS = 6;
@@ -101,9 +106,25 @@ export function formatBRL(cents: number): string {
 }
 
 // Estado do vídeo realista como a tela enxerga.
+export type RealisticScene = {
+  narration: string;
+  // O que acontece na cena, SEM repetir a aparência do personagem (ela vem de
+  // `character` e é juntada na hora de gerar a imagem).
+  imagePrompt: string;
+  motionPrompt: string;
+  // false = cena sem o personagem principal (paisagem, detalhe, animal…).
+  // Ausente em roteiros antigos: vale "mostra", se houver personagem.
+  showsCharacter?: boolean;
+};
+
 export type RealisticScript = {
   title: string;
-  scenes: { narration: string; imagePrompt: string; motionPrompt: string }[];
+  // Descrição única (em inglês) do personagem principal; vazia/ausente quando
+  // o vídeo não tem uma pessoa recorrente.
+  character?: string;
+  // Imagens refeitas de graça por edição de texto neste vídeo.
+  imageEditsUsed?: number;
+  scenes: RealisticScene[];
 };
 
 export type RealisticVideoStatus = "Rascunho" | "Processando" | "Pronto" | "Erro";

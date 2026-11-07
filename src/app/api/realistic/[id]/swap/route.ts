@@ -1,21 +1,25 @@
 import { NextResponse } from "next/server";
 import { authenticate, loadOwnedVideo, NOT_FOUND } from "@/lib/realistic/api";
-import { extractErrorMessage, regenerateSceneImage } from "@/lib/realistic/pipeline";
+import { extractErrorMessage, regenerateSceneImages } from "@/lib/realistic/pipeline";
+import { rewriteSceneVisuals } from "@/lib/realistic/script";
 import { mapRealisticRow } from "@/lib/realistic/row";
-import { REALISTIC_MAX_IMAGE_SWAPS } from "@/lib/realistic/constants";
+import { REALISTIC_MAX_IMAGE_SWAPS, type RealisticScript } from "@/lib/realistic/constants";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
-// Passo 6: troca UMA das 6 imagens por outra (de graça, até 3 trocas).
+// Passo 6: troca UMA das imagens por outra (de graça, até 3 trocas). A nova
+// imagem parte do TEXTO ATUAL da cena e, se o cliente escreveu o que quer
+// mudar, esse pedido entra na descrição. O personagem continua o mesmo.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const auth = await authenticate();
   if ("response" in auth) return auth.response;
   const { user, service } = auth;
 
-  const body = (await request.json().catch(() => ({}))) as { scene?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { scene?: unknown; change?: unknown };
   const scene = body.scene;
+  const change = typeof body.change === "string" ? body.change.trim().slice(0, 240) : "";
 
   const video = await loadOwnedVideo(service, user.id, id);
   if (!video || !video.script || !video.scene_images) return NOT_FOUND();
@@ -47,12 +51,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    const path = await regenerateSceneImage(service, video, video.script, scene);
-    const images = [...video.scene_images];
-    images[scene] = path;
+    let script: RealisticScript = video.script;
+    // Com pedido do cliente, a descrição da cena é reescrita (texto atual +
+    // pedido). Sem pedido, vale a descrição da cena, que já acompanha o texto.
+    if (change) {
+      const visuals = await rewriteSceneVisuals({
+        script,
+        index: scene,
+        narration: script.scenes[scene].narration,
+        styleName: video.realistic_style,
+        instruction: change,
+      });
+      script = {
+        ...script,
+        scenes: script.scenes.map((s, i) => (i === scene ? { ...s, ...visuals } : s)),
+      };
+    }
+
+    const images = await regenerateSceneImages(service, video, script, [scene], video.scene_images);
     const { data, error } = await service
       .from("realistic_videos")
-      .update({ scene_images: images })
+      .update({ scene_images: images, script })
       .eq("id", id)
       .eq("user_id", user.id)
       .select("*")

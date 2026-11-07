@@ -25,6 +25,7 @@ import {
   REALISTIC_MAX_IMAGE_SWAPS,
   REALISTIC_MAX_SCRIPT_GENERATIONS,
   REALISTIC_DURATIONS,
+  realisticMaxImageEdits,
   REALISTIC_STYLES,
   type RealisticDuration,
   type RealisticLanguage,
@@ -102,6 +103,10 @@ function WizardPanel() {
   const [narrations, setNarrations] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null); // texto do que está carregando
   const [swappingScene, setSwappingScene] = useState<number | null>(null);
+  // Cena com o campo "O que você quer mudar nessa imagem?" aberto + o texto.
+  const [swapOpen, setSwapOpen] = useState<number | null>(null);
+  const [swapNote, setSwapNote] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsCredits, setNeedsCredits] = useState(false);
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
@@ -226,16 +231,26 @@ function WizardPanel() {
   async function approveScriptAndPreview() {
     if (!video?.script) return;
     setError(null);
+    setNotice(null);
     setBusy("Criando as imagens das cenas… (leva uns 20 segundos)");
     try {
       let current = video;
       const original = video.script.scenes.map((s) => s.narration);
       if (narrations.some((n, i) => n.trim() !== original[i])) {
-        current = await api<RealisticVideoRecord>(`/api/realistic/${video.id}`, {
+        // A IA atualiza a descrição das cenas editadas e, se as imagens já
+        // existem, refaz a imagem delas.
+        const patched = await api<RealisticVideoRecord & { imageEditsSkipped?: number }>(`/api/realistic/${video.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ narrations }),
         });
+        current = patched;
+        setVideo(patched);
+        if (patched.imageEditsSkipped) {
+          setNotice(
+            `Você chegou ao limite de imagens refeitas de graça: ${patched.imageEditsSkipped} cena(s) mantiveram a imagem antiga. Use "Trocar" ou peça outro roteiro.`,
+          );
+        }
       }
       const withImages = await api<RealisticVideoRecord>(`/api/realistic/${current.id}/images`, { method: "POST" });
       setVideo(withImages);
@@ -250,14 +265,17 @@ function WizardPanel() {
   async function swapImage(scene: number) {
     if (!video) return;
     setError(null);
+    setNotice(null);
     setSwappingScene(scene);
     try {
       const updated = await api<RealisticVideoRecord>(`/api/realistic/${video.id}/swap`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scene }),
+        body: JSON.stringify({ scene, change: swapNote.trim() }),
       });
       setVideo(updated);
+      setSwapOpen(null);
+      setSwapNote("");
     } catch (err) {
       handleFailure(err);
     } finally {
@@ -371,6 +389,9 @@ function WizardPanel() {
   const sceneTotal = video?.script?.scenes.length ?? (duration === 60 ? 12 : 6);
   const scriptsLeft = video ? REALISTIC_MAX_SCRIPT_GENERATIONS - video.scriptGenerations : 0;
   const swapsLeft = video ? REALISTIC_MAX_IMAGE_SWAPS - video.swapsUsed : 0;
+  const editsLeft = video
+    ? Math.max(0, realisticMaxImageEdits(video.durationSeconds) - (video.script?.imageEditsUsed ?? 0))
+    : 0;
 
   return (
     <div
@@ -738,6 +759,12 @@ function WizardPanel() {
                 A IA escreveu este roteiro de {sceneTotal} cenas (5 segundos cada). Edite o que quiser ou peça outro — é de
                 graça e não gasta crédito.
               </p>
+              {video.sceneImageUrls.length > 0 && (
+                <p className="rounded-lg border border-[#4C3BFF]/20 bg-[#4C3BFF]/10 px-3 py-2 text-[11px] text-zinc-300">
+                  Se você mudar o texto de uma cena, a imagem dela é refeita de graça ({editsLeft} restantes), sempre com o
+                  mesmo personagem.
+                </p>
+              )}
               <p className="text-sm font-semibold text-white">{video.script.title}</p>
               {narrations.map((text, i) => (
                 <label key={i} className="block">
@@ -791,7 +818,10 @@ function WizardPanel() {
                     <button
                       type="button"
                       disabled={swapsLeft <= 0 || swappingScene !== null || !!busy}
-                      onClick={() => void swapImage(i)}
+                      onClick={() => {
+                        setSwapOpen(swapOpen === i ? null : i);
+                        setSwapNote("");
+                      }}
                       className="rounded-lg border border-white/10 px-2 py-1.5 text-[11px] font-medium text-zinc-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       Trocar
@@ -799,6 +829,48 @@ function WizardPanel() {
                   </div>
                 ))}
               </div>
+              {swapOpen !== null && video.sceneImageUrls[swapOpen] && (
+                <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-xs font-semibold text-white">Trocar a imagem da cena {swapOpen + 1}</p>
+                  <p className="text-[11px] text-zinc-400">&ldquo;{video.script?.scenes[swapOpen]?.narration}&rdquo;</p>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-zinc-400">
+                      O que você quer mudar nessa imagem? (opcional)
+                    </span>
+                    <input
+                      type="text"
+                      value={swapNote}
+                      maxLength={240}
+                      onChange={(e) => setSwapNote(e.target.value)}
+                      placeholder="Ex.: ele de chapéu, no barco, ao entardecer"
+                      className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white focus:border-[#4C3BFF]/50 focus:outline-none"
+                    />
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={swappingScene !== null || !!busy}
+                      onClick={() => void swapImage(swapOpen)}
+                      className="flex-1 rounded-lg bg-[#4C3BFF] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+                    >
+                      {swappingScene === swapOpen ? "Gerando…" : "Gerar outra imagem"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={swappingScene !== null}
+                      onClick={() => setSwapOpen(null)}
+                      className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300 disabled:opacity-40"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {notice && (
+                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                  {notice}
+                </p>
+              )}
               <p className="text-[11px] text-zinc-500">
                 A legenda e a narração entram só no final. Estas imagens ficam sem texto.
               </p>

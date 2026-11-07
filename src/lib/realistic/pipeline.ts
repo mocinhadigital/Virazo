@@ -11,7 +11,7 @@ import {
   realisticSceneCount,
   type RealisticScript,
 } from "./constants";
-import { REALISTIC_BUCKET, type RealisticVideoRow } from "./row";
+import { publicStorageUrl, REALISTIC_BUCKET, type RealisticVideoRow } from "./row";
 import { extractErrorMessage, parseRealisticDbError, type ServiceClient } from "./common";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
 
@@ -30,36 +30,82 @@ async function uploadImage(supabase: ServiceClient, path: string, image: Buffer)
   if (error) throw new Error(`Falha ao salvar a imagem: ${error.message}`);
 }
 
-// Gera (e salva) as imagens da prévia (6 ou 12), em paralelo. Grava os
-// caminhos em scene_images. Não gasta crédito.
+type ImageRow = Pick<RealisticVideoRow, "id" | "user_id" | "realistic_style">;
+
+// Gera e salva as imagens das cenas `indices`. `existing` são as imagens atuais
+// (por cena). Personagem fixo: a descrição dele entra igual em toda cena em que
+// aparece e, quando há uma imagem dele já pronta (de uma cena que NÃO está sendo
+// refeita), ela vai como referência — assim o rosto não muda. Sem imagem pronta,
+// a primeira cena com o personagem é criada antes e vira a referência das outras.
+async function renderScenes(
+  supabase: ServiceClient,
+  row: ImageRow,
+  script: RealisticScript,
+  indices: number[],
+  existing: (string | null)[],
+): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  const character = script.character?.trim() || null;
+  const hasCharacter = (i: number) => !!character && script.scenes[i].showsCharacter !== false;
+
+  const generate = async (i: number, referencePath: string | null): Promise<string> => {
+    const image = await generateRealisticImage({
+      imagePrompt: script.scenes[i].imagePrompt,
+      styleName: row.realistic_style,
+      character: hasCharacter(i) ? character : null,
+      referenceUrl: hasCharacter(i) && referencePath ? publicStorageUrl(referencePath) : null,
+    });
+    const path = imagePath(row.user_id, row.id, i);
+    await uploadImage(supabase, path, image);
+    out.set(i, path);
+    return path;
+  };
+
+  let referencePath: string | null = null;
+  if (character) {
+    const keep = existing.findIndex((path, i) => !!path && hasCharacter(i) && !indices.includes(i));
+    if (keep >= 0) referencePath = existing[keep];
+  }
+
+  let rest = indices;
+  if (character && !referencePath) {
+    const anchor = indices.find(hasCharacter);
+    if (anchor !== undefined) {
+      referencePath = await generate(anchor, null);
+      rest = indices.filter((i) => i !== anchor);
+    }
+  }
+  await Promise.all(rest.map((i) => generate(i, referencePath)));
+  return out;
+}
+
+// Gera (e salva) as imagens da prévia (6 ou 12). Grava os caminhos em
+// scene_images. Não gasta crédito.
 export async function generateSceneImages(
   supabase: ServiceClient,
-  row: Pick<RealisticVideoRow, "id" | "user_id" | "realistic_style">,
+  row: ImageRow,
   script: RealisticScript,
 ): Promise<string[]> {
-  const paths = await Promise.all(
-    script.scenes.map(async (scene, i) => {
-      const image = await generateRealisticImage(scene.imagePrompt, row.realistic_style);
-      const path = imagePath(row.user_id, row.id, i);
-      await uploadImage(supabase, path, image);
-      return path;
-    }),
-  );
+  const all = script.scenes.map((_, i) => i);
+  const made = await renderScenes(supabase, row, script, all, []);
+  const paths = all.map((i) => made.get(i) as string);
   const { error } = await supabase.from("realistic_videos").update({ scene_images: paths }).eq("id", row.id);
   if (error) throw new Error(`Falha ao guardar as imagens: ${error.message}`);
   return paths;
 }
 
-export async function regenerateSceneImage(
+// Refaz as imagens de algumas cenas (edição de texto ou "Trocar"), mantendo o
+// mesmo personagem. Devolve a lista completa de caminhos; NÃO grava no banco
+// (quem chama grava junto com o roteiro, tudo ou nada).
+export async function regenerateSceneImages(
   supabase: ServiceClient,
-  row: Pick<RealisticVideoRow, "id" | "user_id" | "realistic_style">,
+  row: ImageRow,
   script: RealisticScript,
-  index: number,
-): Promise<string> {
-  const image = await generateRealisticImage(script.scenes[index].imagePrompt, row.realistic_style);
-  const path = imagePath(row.user_id, row.id, index);
-  await uploadImage(supabase, path, image);
-  return path;
+  indices: number[],
+  existing: string[],
+): Promise<string[]> {
+  const made = await renderScenes(supabase, row, script, indices, existing);
+  return existing.map((path, i) => made.get(i) ?? path);
 }
 
 // Começa (em segundo plano, depois da resposta) a geração em etapas de um

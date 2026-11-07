@@ -1,6 +1,9 @@
 import { after, NextResponse } from "next/server";
 import { authenticate, loadOwnedVideo, NOT_FOUND } from "@/lib/realistic/api";
 import { mapRealisticRow } from "@/lib/realistic/row";
+import { extractErrorMessage, regenerateSceneImages } from "@/lib/realistic/pipeline";
+import { rewriteSceneVisuals } from "@/lib/realistic/script";
+import { realisticMaxImageEdits } from "@/lib/realistic/constants";
 import { advanceRealisticVideo, isStalled } from "@/lib/realistic/advance";
 
 export const runtime = "nodejs";
@@ -32,8 +35,11 @@ export async function GET(request: Request, { params }: Params) {
   return NextResponse.json(mapRealisticRow(video));
 }
 
-// Passo 5: o cliente edita o texto do roteiro (de graça). Só as narrações
-// mudam; as descrições das imagens e dos movimentos continuam as mesmas.
+// Passo 5: o cliente edita o texto do roteiro (de graça). Para cada cena cujo
+// texto mudou, a descrição da imagem/movimento é reescrita para combinar com o
+// novo texto; se as imagens já existem, a imagem dessa cena é refeita (grátis,
+// até 6 por vídeo de 30s e 12 por vídeo de 60s, separado das 3 trocas). Tudo ou
+// nada: se algo falha, nada é salvo e nenhuma tentativa é gasta.
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
   const auth = await authenticate();
@@ -59,23 +65,56 @@ export async function PATCH(request: Request, { params }: Params) {
     );
   }
 
-  const script = {
-    ...video.script,
-    title: typeof body.title === "string" && body.title.trim() ? body.title.trim().slice(0, 120) : video.script.title,
-    scenes: video.script.scenes.map((scene, i) => ({ ...scene, narration: (narrations[i] as string).trim() })),
-  };
+  const texts = (narrations as string[]).map((n) => n.trim());
+  const changed = texts.map((t, i) => i).filter((i) => texts[i] !== video.script!.scenes[i].narration);
 
-  const { data, error } = await service
-    .from("realistic_videos")
-    .update({ script, title: script.title })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("*")
-    .single();
-  if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? "Não foi possível salvar o roteiro." }, { status: 500 });
+  try {
+    let scenes = video.script.scenes.map((scene, i) => ({ ...scene, narration: texts[i] }));
+    const base = { ...video.script, scenes };
+
+    // Descrição visual nova só das cenas cujo texto mudou.
+    const rewritten = await Promise.all(
+      changed.map((i) =>
+        rewriteSceneVisuals({ script: base, index: i, narration: texts[i], styleName: video.realistic_style }),
+      ),
+    );
+    scenes = scenes.map((scene, i) => {
+      const k = changed.indexOf(i);
+      return k >= 0 ? { ...scene, ...rewritten[k] } : scene;
+    });
+    let script = {
+      ...video.script,
+      title: typeof body.title === "string" && body.title.trim() ? body.title.trim().slice(0, 120) : video.script.title,
+      scenes,
+    };
+
+    // Imagens já criadas: refaz as das cenas editadas, dentro do limite.
+    let images = video.scene_images;
+    let skipped = 0;
+    if (images && images.length === scenes.length && changed.length > 0) {
+      const used = script.imageEditsUsed ?? 0;
+      const left = Math.max(0, realisticMaxImageEdits(video.duration_seconds) - used);
+      const toRedo = changed.slice(0, left);
+      skipped = changed.length - toRedo.length;
+      if (toRedo.length > 0) {
+        images = await regenerateSceneImages(service, video, script, toRedo, images);
+        script = { ...script, imageEditsUsed: used + toRedo.length };
+      }
+    }
+
+    const { data, error } = await service
+      .from("realistic_videos")
+      .update({ script, title: script.title, ...(images !== video.scene_images ? { scene_images: images } : {}) })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("*")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "Não foi possível salvar o roteiro.");
+    return NextResponse.json({ ...mapRealisticRow(data), imageEditsSkipped: skipped });
+  } catch (err) {
+    console.error("[/api/realistic PATCH] falhou:", err);
+    return NextResponse.json({ error: extractErrorMessage(err) }, { status: 500 });
   }
-  return NextResponse.json(mapRealisticRow(data));
 }
 
 // "Excluir" só esconde o vídeo da tela (não se exclui vídeo gerando).

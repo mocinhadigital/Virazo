@@ -44,6 +44,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: extractErrorMessage(err) }, { status: 500 });
   }
 
+  // As imagens refeitas por edição de texto continuam contando ao pedir outro
+  // roteiro (senão o limite voltaria a zero a cada roteiro novo).
+  script = { ...script, imageEditsUsed: video.script?.imageEditsUsed ?? 0 };
+
   const { data, error } = await service
     .from("realistic_videos")
     .update({

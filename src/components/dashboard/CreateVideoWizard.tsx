@@ -88,6 +88,7 @@ function WizardPanel() {
     dailyVideoLimit,
     bonusVideos,
     openRealisticWizard,
+    openRealisticBuy,
   } = useDashboard();
 
   const [step, setStep] = useState<StepKey>("tema");
@@ -634,13 +635,13 @@ function WizardPanel() {
               {/* Aviso discreto: apresenta o produto avulso logo que o vídeo normal fica pronto. */}
               <button
                 type="button"
-                onClick={openRealisticWizard}
+                onClick={openRealisticBuy}
                 className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-left transition-colors hover:bg-amber-300/10"
               >
                 <Sparkles className="h-4 w-4 shrink-0 text-amber-300" />
                 <span className="text-xs leading-snug text-zinc-300">
-                  Quer esse vídeo com cenas em movimento real?{" "}
-                  <strong className="font-semibold text-amber-200">Conheça o Vídeo Realista ✨</strong>
+                  Quer esse vídeo com pessoas e cenas de verdade se movendo?{" "}
+                  <strong className="font-semibold text-amber-200">Ver exemplos e comprar o Vídeo Realista ✨</strong>
                 </span>
               </button>
 

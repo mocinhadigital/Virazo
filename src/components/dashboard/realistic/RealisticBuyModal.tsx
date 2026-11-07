@@ -5,6 +5,7 @@ import { Check, Loader2, Sparkles, X } from "lucide-react";
 import { REALISTIC_PACKAGES, formatBRL, type RealisticPackageKey } from "@/lib/realistic/constants";
 import type { RealisticCheckoutUrls } from "@/lib/billing/realisticPackages";
 import { useDashboard } from "../DashboardContext";
+import { REALISTIC_EXAMPLES } from "./realisticExamples";
 import { markCaktoCheckoutStarted } from "../CaktoPaymentVerifier";
 
 // Pop-up "Comprar vídeos realistas": 2 pacotes de pagamento único na Cakto.
@@ -21,6 +22,9 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState<RealisticPackageKey | null>(null);
+  // Exemplo cujo arquivo não carregou (some da faixa em vez de mostrar quebrado).
+  const [brokenExamples, setBrokenExamples] = useState<string[]>([]);
+  const examples = REALISTIC_EXAMPLES.filter((e) => !brokenExamples.includes(e.src));
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -118,6 +122,32 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {examples.length > 0 && (
+          <div className="mt-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Veja o que o Vídeo Realista faz
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {examples.map((example) => (
+                <div key={example.src} className="relative aspect-[9/16] overflow-hidden rounded-xl bg-[#1c1c1f]">
+                  <video
+                    src={example.src}
+                    poster={example.poster}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    aria-label={example.title}
+                    onError={() => setBrokenExamples((prev) => [...prev, example.src])}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {REALISTIC_PACKAGES.map((pkg) => (

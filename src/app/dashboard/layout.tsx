@@ -5,6 +5,7 @@ import MobileNav from "@/components/dashboard/MobileNav";
 import CreateVideoWizard from "@/components/dashboard/CreateVideoWizard";
 import RealisticWizard from "@/components/dashboard/realistic/RealisticWizard";
 import RealisticBuyModal from "@/components/dashboard/realistic/RealisticBuyModal";
+import RealisticPostVideoNotice from "@/components/dashboard/realistic/RealisticPostVideoNotice";
 import PlanPickerModalGate from "@/components/dashboard/PlanPickerModalGate";
 import PurchaseTracker from "@/components/analytics/PurchaseTracker";
 import CaktoPaymentVerifier from "@/components/dashboard/CaktoPaymentVerifier";
@@ -129,6 +130,7 @@ export default async function DashboardLayout({
       {/* Vídeo Realista ✨ (produto avulso): assistente e pop-up de compra. */}
       <RealisticWizard />
       <RealisticBuyModal checkoutUrls={realisticCheckoutUrls} />
+      <RealisticPostVideoNotice />
       <PlanPickerModalGate caktoCheckoutUrls={caktoCheckoutUrls} />
       {/* Não renderiza nada. É o destino do redirecionamento da Stripe —
           só age quando a URL traz session_id. */}

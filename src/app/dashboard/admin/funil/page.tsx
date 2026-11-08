@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { startOfDayInManaus } from "@/lib/billing/dailyLimit";
+import { getRealisticSales, type RealisticSales } from "@/lib/billing/realisticSales";
+import { formatBRL } from "@/lib/realistic/constants";
 
 // Painel "Funil de Conversão" — só para quem está em admin_users (migration
 // 0026). Sem link no menu: acesso pelo endereço /dashboard/admin/funil.
@@ -135,6 +137,15 @@ export default async function FunilPage({
     );
   }
 
+  // Vendas do Vídeo Realista ✨ (card à parte). Só chega aqui quem é admin; se
+  // falhar, o resto do painel abre igual.
+  let realisticSales: RealisticSales | null = null;
+  try {
+    realisticSales = await getRealisticSales(since);
+  } catch (err) {
+    console.error("[admin/funil] vendas do Vídeo Realista falharam:", err);
+  }
+
   const funnel = data as FunnelData;
   const hasCohort = funnel.purchased_total !== undefined;
 
@@ -218,6 +229,26 @@ export default async function FunilPage({
             </div>
           </div>
         ))}
+      </div>
+
+      <div className={card}>
+        <p className="text-sm font-medium text-white">Compraram Vídeo Realista ✨</p>
+        {realisticSales ? (
+          <>
+            <div className="mt-2 flex items-end justify-between gap-3">
+              <p className="text-2xl font-bold text-white">
+                {realisticSales.count} {realisticSales.count === 1 ? "compra" : "compras"}
+              </p>
+              <p className="text-lg font-semibold text-emerald-400">{formatBRL(realisticSales.totalCents)}</p>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              Pacote de 10: {realisticSales.byPackage["10"]} · Pacote de 20: {realisticSales.byPackage["20"]}. Valor
+              total vendido no período; reembolsos, avisos de teste e contas de administrador ficam de fora.
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-xs text-zinc-500">Não foi possível carregar as vendas agora.</p>
+        )}
       </div>
 
       <div className={card}>

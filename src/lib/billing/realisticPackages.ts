@@ -53,3 +53,11 @@ export function getRealisticCheckoutUrls(
   }
   return urls;
 }
+
+// Ids dos produtos dos pacotes configurados (para consultar as vendas).
+export function getRealisticProductIds(): { id: string; key: RealisticPackageKey }[] {
+  return REALISTIC_PACKAGES.flatMap((p) => {
+    const id = process.env[PRODUCT_ENV[p.key]]?.trim();
+    return id ? [{ id, key: p.key }] : [];
+  });
+}

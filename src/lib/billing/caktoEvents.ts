@@ -4,6 +4,7 @@ import { findRealisticPackageByCaktoProductId } from "@/lib/billing/realisticPac
 import { CaktoApiError, getCaktoOrder, isCaktoApiConfigured, type CaktoOrder } from "@/lib/billing/caktoApi";
 import type { PlanKey } from "@/lib/billing/plans";
 import { recordUnmatchedPayment } from "@/lib/billing/unmatchedPayments";
+import { cancelRecoveryEmails, scheduleRecoveryEmail } from "@/lib/billing/pixRecovery";
 import type { createServiceRoleClient } from "@/utils/supabase/service-role";
 
 // Registro + idempotência + ativação/desativação de um pedido da Cakto.
@@ -126,6 +127,8 @@ export async function processCaktoItem(
 
   if (!isActivate && !isDeactivate) {
     await finishLog(supabase, logId, { status: "ignored" });
+    // Pix gerado: agenda o e-mail de recuperação (15 min). Nunca lança.
+    if (event === "pix_gerado") await scheduleRecoveryEmail(supabase, item);
     return "ignored";
   }
 
@@ -152,6 +155,8 @@ export async function processCaktoItem(
       ? await activate(supabase, logId, event, item, orderId, email, productId, options.userId)
       : await deactivate(supabase, logId, event, item, orderId, email);
     await finishLog(supabase, logId, outcome);
+    // Pagou: cancela o e-mail de recuperação que ainda não saiu. Nunca lança.
+    if (isActivate) await cancelRecoveryEmails(supabase, email);
     if (outcome.release) {
       await supabase.from("cakto_events").update({ processed_at: null }).eq("id", logId);
     }

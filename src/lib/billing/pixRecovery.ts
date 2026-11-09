@@ -58,40 +58,17 @@ function checkoutLink(raw: string | undefined, email: string, name?: string): st
   }
 }
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-export function buildRecoveryEmail(firstName: string | null, product: string, link: string) {
-  const greeting = firstName ? `Oi, ${firstName}!` : "Oi!";
-  const intro = "Aqui é a Andreia, do Virazo.";
-  const body1 = `Vi que você gerou o Pix ${product}, mas o pagamento ainda não chegou por aqui. Às vezes o app do banco trava ou a gente se distrai no meio, acontece!`;
-  const body2 = "Se ainda quiser, é só concluir por este link (ele gera um Pix novo):";
-  const cta = "Concluir meu pagamento";
-  const body3 = "E sem risco nenhum: você tem 7 dias de garantia. Se não gostar, devolvemos o valor.";
-  const body4 = "Se travou em alguma coisa ou ficou com dúvida, responda este e-mail que eu te ajudo.";
-  const sign = ["Um abraço,", "Andreia / Equipe Virazo"];
-
-  const text = [
-    `${greeting} ${intro}`,
-    body1,
-    `${body2}\n${link}`,
-    body3,
-    body4,
-    sign.join("\n"),
+// Só texto, como se tivesse sido digitado: sem HTML, botão ou imagem, para
+// ter mais chance de cair na aba Principal do Gmail (e não em Promoções).
+export function buildRecoveryEmail(firstName: string | null, product: string, link: string): string {
+  const greeting = firstName ? `Oi, ${firstName}! Tudo bem?` : "Oi! Tudo bem?";
+  return [
+    greeting,
+    `Vi que você gerou o Pix ${product}, mas o pagamento não chegou a ser concluído. Deu algum problema?`,
+    `Se quiser terminar, é só usar este link: ${link}`,
+    "Qualquer dúvida, é só responder este e-mail.",
+    "Andreia / Equipe Virazo",
   ].join("\n\n");
-
-  const p = (t: string) => `<p style="margin:0 0 16px">${t}</p>`;
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#222">${[
-    p(`${escapeHtml(greeting)} ${intro}`),
-    p(escapeHtml(body1)),
-    p(`${body2}<br><a href="${escapeHtml(link)}" style="color:#4C3BFF;font-weight:bold">${cta}</a>`),
-    p(body3),
-    p(body4),
-    `<p style="margin:0">${sign[0]}<br>${sign[1]}</p>`,
-  ].join("")}</div>`;
-
-  return { text, html };
 }
 
 // Chamado quando chega um "pix_gerado".
@@ -168,7 +145,7 @@ export async function scheduleRecoveryEmail(supabase: Supabase, item: Obj): Prom
       return;
     }
 
-    const { text, html } = buildRecoveryEmail(firstName, productText, link);
+    const text = buildRecoveryEmail(firstName, productText, link);
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -180,9 +157,8 @@ export async function scheduleRecoveryEmail(supabase: Supabase, item: Obj): Prom
         from: cfg.from,
         to: [email],
         ...(cfg.replyTo ? { reply_to: cfg.replyTo } : {}),
-        subject: "Sobre o seu pagamento no Virazo",
+        subject: "Seu Pix do Virazo",
         text,
-        html,
         scheduled_at: scheduledFor.toISOString(),
       }),
       signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),

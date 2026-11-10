@@ -1,8 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateScript } from "@/lib/ai/script";
+import { generateExtraScenes, generateScript } from "@/lib/ai/script";
 import { buildRenderScenes } from "@/lib/video/scenePipeline";
-import { renderFinalVideo } from "@/lib/video/render";
+import { probeVideoDuration, renderFinalVideo, totalSceneSeconds, type RenderScene } from "@/lib/video/render";
+import { durationRule, LAST_RESORT_MIN_TEMPO, planFit, SAFETY_MARGIN, SECONDS_PER_SCENE } from "@/lib/video/durationTarget";
 
 // Etapas gravadas em videos.progress_stage (migration 0025) e mostradas na
 // tela. "salvando" é o upload final, exibido junto com a montagem.
@@ -83,15 +84,72 @@ export async function generateVideoAssets(input: {
   await input.report("roteiro");
   const script = await generateScript(input.script);
 
-  const scenes = await buildRenderScenes(script, input.voice, input.visualStyle, input.language, input.report);
+  let scenes = await buildRenderScenes(script, input.voice, input.visualStyle, input.language, input.report);
 
-  const finalVideo = await renderFinalVideo(
-    scenes,
-    input.captionsEnabled,
-    input.captionStyle,
-    input.backgroundMusic,
-    (current, total) => input.report("montagem", current, total),
-  );
+  const rule = durationRule(input.script.duration);
+  if (rule) {
+    // Até 3 rodadas de cenas de reforço se a narração sair curta (a 2ª só
+    // roda se a 1ª ainda não bastou); depois, ajuste fino da velocidade.
+    for (let round = 0; round < 3; round++) {
+      const plan = planFit(totalSceneSeconds(scenes), rule);
+      if (plan.kind !== "extend") break;
+      const count = Math.min(3, Math.max(1, Math.ceil(plan.missingSeconds / SECONDS_PER_SCENE)));
+      const extra = await generateExtraScenes({
+        script,
+        count,
+        visualStyle: input.visualStyle,
+        language: input.language,
+      });
+      if (extra.length === 0) break;
+      const extraScenes = await buildRenderScenes(
+        { title: script.title, scenes: extra },
+        input.voice,
+        input.visualStyle,
+        input.language,
+        input.report,
+      );
+      scenes = [...scenes, ...extraScenes];
+    }
+    scenes = fitTempo(scenes, rule);
+    const slow = scenes.some((s) => (s.tempo ?? 1) < 1);
+    console.log(`[video/duration] voz desacelerada=${slow ? "sim" : "nao"} cenas=${scenes.length}`);
+  }
+
+  const render = () =>
+    renderFinalVideo(
+      scenes,
+      input.captionsEnabled,
+      input.captionStyle,
+      input.backgroundMusic,
+      (current, total) => input.report("montagem", current, total),
+    );
+
+  let finalVideo = await render();
+
+  if (rule) {
+    // Passar do máximo é aceito. Abaixo do mínimo nunca é entregue: se o
+    // MP4 medido sair curto (não deveria), alonga a voz o necessário e
+    // monta de novo. Duração nunca vira erro para o cliente.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const seconds = await probeVideoDuration(finalVideo);
+      console.log(`[video/duration] escolhida=${input.script.duration} final=${seconds.toFixed(2)}s mínimo=${rule.min}s`);
+      if (seconds >= rule.min) break;
+      const factor = Math.max(LAST_RESORT_MIN_TEMPO, seconds / (rule.min + 2 * SAFETY_MARGIN));
+      scenes = scenes.map((s) => ({ ...s, tempo: (s.tempo ?? 1) * factor }));
+      finalVideo = await render();
+    }
+  }
 
   return { finalVideo, thumbnail: scenes[0]?.image };
+}
+
+// Garante o mínimo da faixa alongando a voz de leve (cenas de reforço já
+// foram tentadas antes). Acima do máximo não mexe: entrega como está.
+function fitTempo(scenes: RenderScene[], rule: { min: number; max: number }): RenderScene[] {
+  const total = totalSceneSeconds(scenes);
+  const plan = planFit(total, rule);
+  if (plan.kind === "ok") return scenes;
+  const tempo =
+    plan.kind === "tempo" ? plan.tempo : Math.max(LAST_RESORT_MIN_TEMPO, total / (rule.min + 2 * SAFETY_MARGIN));
+  return scenes.map((s) => ({ ...s, tempo: (s.tempo ?? 1) * tempo }));
 }

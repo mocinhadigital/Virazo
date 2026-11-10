@@ -14,6 +14,8 @@ export type RenderScene = {
   audio: Buffer;
   durationSeconds: number;
   words: WordTiming[]; // timestamps relativos ao início desta cena
+  // Velocidade da voz (<1 desacelera, >1 acelera) para encaixar na duração.
+  tempo?: number;
 };
 
 export const WIDTH = 1080;
@@ -102,6 +104,41 @@ function buildFadeFilter(durationSeconds: number, isFirst: boolean, isLast: bool
   return fade;
 }
 
+// Duração/legendas da cena já considerando a mudança de velocidade da voz.
+function applyTempo(scene: RenderScene): RenderScene {
+  const t = scene.tempo ?? 1;
+  if (t === 1) return scene;
+  return {
+    ...scene,
+    durationSeconds: scene.durationSeconds / t,
+    words: scene.words.map((w) => ({ ...w, start: w.start / t, end: w.end / t })),
+  };
+}
+
+export function totalSceneSeconds(scenes: RenderScene[]): number {
+  return scenes.reduce((sum, s) => sum + Math.max(0.5, applyTempo(s).durationSeconds), 0);
+}
+
+// Duração real do MP4 pronto (lida do próprio arquivo, não do cálculo).
+export async function probeVideoDuration(video: Buffer): Promise<number> {
+  const dir = await mkdtemp(path.join(tmpdir(), "virazo-probe-"));
+  try {
+    const file = path.join(dir, "v.mp4");
+    await writeFile(file, video);
+    let stderr = "";
+    try {
+      await execFileAsync(ffmpeg.path, ["-i", file]);
+    } catch (err) {
+      stderr = String((err as { stderr?: string }).stderr ?? "");
+    }
+    const m = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(stderr);
+    if (!m) throw new Error("Não foi possível medir a duração do vídeo final.");
+    return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 export async function renderFinalVideo(
   scenes: RenderScene[],
   burnCaptions: boolean,
@@ -120,7 +157,7 @@ export async function renderFinalVideo(
     for (let i = 0; i < scenes.length; i++) {
       await onSceneStart?.(i + 1, scenes.length);
 
-      const scene = scenes[i];
+      const scene = applyTempo(scenes[i]);
       const imagePath = path.join(workDir, `scene_${i}.jpg`);
       const audioPath = path.join(workDir, `scene_${i}.mp3`);
       const clipPath = path.join(workDir, `scene_${i}.mp4`);
@@ -158,6 +195,7 @@ export async function renderFinalVideo(
         "[v]",
         "-map",
         "1:a",
+        ...(scenes[i].tempo && scenes[i].tempo !== 1 ? ["-af", `atempo=${scenes[i].tempo}`] : []),
         "-c:v",
         "libx264",
         ...X264_ARGS,

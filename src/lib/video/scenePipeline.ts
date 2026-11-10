@@ -2,7 +2,8 @@ import "server-only";
 import type { Script } from "@/lib/ai/script";
 import { synthesizeNarration } from "@/lib/ai/narration";
 import { generateSceneImage } from "@/lib/ai/image";
-import { transcribeForCaptions, type Transcript } from "@/lib/ai/captions";
+import type { Transcript } from "@/lib/ai/captions";
+import { CAPTION_BATCH_SIZE, measureAudioSeconds, transcribeScenesBatch } from "@/lib/video/audioBatch";
 import type { RenderScene } from "@/lib/video/render";
 import type { ReportProgress } from "@/lib/video/generateAssets";
 
@@ -51,19 +52,32 @@ export async function buildRenderScenes(
   );
 
   const audios: Buffer[] = [];
-  const transcriptPromises: Promise<Transcript>[] = [];
+  const durations: number[] = [];
+  // Legendas: 1 transcrição por lote de 6 cenas (e não por cena), disparada assim
+  // que o lote fica pronto — roda enquanto a narração do próximo lote é gerada.
+  const batchPromises: Promise<Transcript[]>[] = [];
+  let batchStart = 0;
+  const flushBatch = (end: number) => {
+    const from = batchStart;
+    batchStart = end;
+    batchPromises.push(
+      track(transcribeScenesBatch(audios.slice(from, end), durations.slice(from, end), language)),
+    );
+  };
   for (let i = 0; i < total; i++) {
     if (firstError) throw firstError;
     await report?.("voz", i + 1, total);
     const audio = await synthesizeNarration(script.scenes[i].narration, voice);
     audios.push(audio);
-    transcriptPromises.push(track(transcribeForCaptions(audio, "narration.mp3", language)));
+    durations.push(await measureAudioSeconds(audio));
+    if (audios.length - batchStart >= CAPTION_BATCH_SIZE) flushBatch(audios.length);
   }
+  if (audios.length > batchStart) flushBatch(audios.length);
 
   if (imagesDone < total) await report?.("imagens", imagesDone, total);
   const [images, transcripts] = await Promise.all([
     Promise.all(imagePromises),
-    Promise.all(transcriptPromises),
+    Promise.all(batchPromises).then((b) => b.flat()),
   ]);
 
   // Meta: cada imagem fica 3-4s na tela. Só avisa (não falha) se o modelo
@@ -73,6 +87,8 @@ export async function buildRenderScenes(
       console.warn(`[video/scenes] cena ${i + 1} dura ${t.durationSeconds.toFixed(1)}s (meta: até 4s)`);
     }
   });
+
+  console.log(`[video/scenes] palavras/seg: ${transcripts.map((t, i) => `${script.scenes[i].narration.split(/\s+/).length}p=${t.durationSeconds.toFixed(1)}s`).join(" ")}`);
 
   return images.map((image, i) => ({
     image,

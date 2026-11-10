@@ -1,5 +1,6 @@
 import "server-only";
 import { anthropic } from "./anthropic";
+import { WORDS_PER_SCENE } from "@/lib/video/durationTarget";
 
 export type Scene = {
   narration: string;
@@ -27,6 +28,7 @@ const LANGUAGE_LABELS = {
 } as const;
 
 function buildReturnScriptTool(languageLabel: string) {
+  const { min, max } = WORDS_PER_SCENE;
   return {
     name: "return_script",
     description: "Retorna o roteiro do vídeo dividido em cenas.",
@@ -44,7 +46,7 @@ function buildReturnScriptTool(languageLabel: string) {
             properties: {
               narration: {
                 type: "string",
-                description: `Texto que o narrador vai falar nesta cena, em ${languageLabel}: 1 ou 2 frases CURTAS, de 5 a 8 palavras no total (máximo 9; ~3 segundos falados)`,
+                description: `Texto que o narrador vai falar nesta cena, em ${languageLabel}: 1 ou 2 frases CURTAS, de ${min} a ${max} palavras no total (nunca menos de ${min}; ~3,5 segundos falados)`,
               },
               imagePrompt: {
                 type: "string",
@@ -109,6 +111,27 @@ function scriptMatchesTheme(theme: string, script: Script): boolean {
   return keywords.some((kw) => haystack.includes(kw));
 }
 
+// O modelo às vezes devolve "scenes" como texto JSON em vez de lista.
+function normalizeScript(input: unknown): Script {
+  const raw = input as { title?: string; scenes?: unknown };
+  let scenes = raw.scenes;
+  if (typeof scenes === "string") {
+    try {
+      scenes = JSON.parse(scenes);
+      // Às vezes o objeto inteiro ({title, scenes}) vem como texto no campo.
+      if (scenes && !Array.isArray(scenes) && typeof scenes === "object") {
+        const inner = scenes as { title?: string; scenes?: unknown };
+        raw.title ||= inner.title;
+        scenes = inner.scenes;
+      }
+    } catch {
+      scenes = undefined;
+    }
+  }
+  if (!Array.isArray(scenes) || scenes.length === 0) throw new Error("Claude retornou cenas em formato inválido.");
+  return { title: raw.title ?? "", scenes: scenes as Scene[] };
+}
+
 export async function generateScript(input: {
   // Instrução completa enviada ao modelo — pode incluir orientação extra
   // (ex.: "explore um ângulo ainda não coberto"), não só o assunto puro.
@@ -143,7 +166,7 @@ export async function generateScript(input: {
 O "estilo de conteúdo" e o "estilo visual" abaixo controlam APENAS o tom e a estética de como esse mesmo assunto é contado — eles nunca substituem nem alteram o assunto.
 Estilo de conteúdo (tom): ${input.contentStyle}.
 Estilo visual das imagens: ${input.visualStyle}.
-Divida em exatamente ${sceneCount} cenas. Cada cena tem 1 ou 2 frases CURTAS de narração em ${languageLabel} — de 5 a 8 palavras no total (NUNCA mais de 9), para durar só uns 3 segundos falados — frases bem curtas e diretas, sem orações longas — e uma descrição visual em inglês para gerar uma imagem nesse estilo visual — sempre representando o mesmo assunto central, nunca um assunto diferente. Cada cena deve ter uma imagem DIFERENTE das outras (outro momento, ângulo ou detalhe da história), mas todas no mesmo estilo visual, com os mesmos personagens/ambiente quando houver, para o vídeo parecer coeso. A narração continua de uma cena para a outra como um texto único.`,
+Divida em exatamente ${sceneCount} cenas. Cada cena tem 1 ou 2 frases CURTAS de narração em ${languageLabel} — de ${WORDS_PER_SCENE.min} a ${WORDS_PER_SCENE.max} palavras no total (NUNCA menos de ${WORDS_PER_SCENE.min} nem mais de ${WORDS_PER_SCENE.max}), para durar uns 3,5 segundos falados — frases diretas, sem orações longas — e uma descrição visual em inglês para gerar uma imagem nesse estilo visual — sempre representando o mesmo assunto central, nunca um assunto diferente. Cada cena deve ter uma imagem DIFERENTE das outras (outro momento, ângulo ou detalhe da história), mas todas no mesmo estilo visual, com os mesmos personagens/ambiente quando houver, para o vídeo parecer coeso. A narração continua de uma cena para a outra como um texto único.`,
         },
       ],
     });
@@ -153,17 +176,28 @@ Divida em exatamente ${sceneCount} cenas. Cada cena tem 1 ou 2 frases CURTAS de 
       throw new Error("Claude não retornou o roteiro no formato esperado.");
     }
 
-    return toolUse.input as Script;
+    return normalizeScript(toolUse.input);
   }
 
-  const firstAttempt = await callModel(false);
+  // Resposta com cenas em formato inválido: tenta de novo (até 3x) antes de falhar.
+  async function callModelWithRetry(reinforce: boolean): Promise<Script> {
+    for (let i = 0; ; i++) {
+      try {
+        return await callModel(reinforce);
+      } catch (err) {
+        if (i >= 2 || !/formato/.test(String((err as Error).message))) throw err;
+      }
+    }
+  }
+
+  const firstAttempt = await callModelWithRetry(false);
   if (scriptMatchesTheme(theme, firstAttempt)) {
     return firstAttempt;
   }
 
   // Só 1 nova tentativa, com o mesmo tema reforçado — barato (mais 1
   // chamada, não um loop) e cobre o caso real de drift observado.
-  const secondAttempt = await callModel(true);
+  const secondAttempt = await callModelWithRetry(true);
   if (scriptMatchesTheme(theme, secondAttempt)) {
     return secondAttempt;
   }
@@ -171,4 +205,34 @@ Divida em exatamente ${sceneCount} cenas. Cada cena tem 1 ou 2 frases CURTAS de 
   throw new Error(
     `topic_adherence_failed: não foi possível gerar um roteiro aderente ao tema "${theme}" após nova tentativa.`,
   );
+}
+
+// Cenas de reforço quando a narração sai curta: continuam o roteiro e fecham
+// o vídeo (a última termina com chamada para seguir o canal).
+export async function generateExtraScenes(input: {
+  script: Script;
+  count: number;
+  visualStyle: string;
+  language?: "pt" | "en" | "es";
+}): Promise<Scene[]> {
+  const languageLabel = LANGUAGE_LABELS[input.language ?? "pt"];
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: 2048,
+    tools: [buildReturnScriptTool(languageLabel)],
+    tool_choice: { type: "tool", name: "return_script" },
+    messages: [
+      {
+        role: "user",
+        content: `Este é o roteiro de um vídeo curto vertical, que ficou curto demais:
+Título: ${input.script.title}
+${input.script.scenes.map((s, i) => `${i + 1}. ${s.narration}`).join("\n")}
+
+Escreva exatamente ${input.count} cena(s) FINAIS que continuam a narração acima sem repetir nada, no mesmo assunto e tom, em ${languageLabel}. Cada cena: de ${WORDS_PER_SCENE.min} a ${WORDS_PER_SCENE.max} palavras. A ÚLTIMA cena fecha o vídeo com uma chamada curta para seguir o canal. Descrição visual de cada cena em inglês, no estilo: ${input.visualStyle}, sem texto na imagem. Devolva o campo title igual ao título acima.`,
+      },
+    ],
+  });
+  const toolUse = message.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") throw new Error("Claude não retornou as cenas extras.");
+  return normalizeScript(toolUse.input).scenes.slice(0, input.count);
 }

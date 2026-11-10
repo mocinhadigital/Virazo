@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { useDashboard, VideoGenerationError } from "./DashboardContext";
 import VideoProgress from "./VideoProgress";
-import { isLongDuration } from "@/lib/video/durations";
 import { styleOptions } from "./styleOptions";
 import { VISUAL_STYLES } from "./visualStyles";
 
@@ -82,7 +81,6 @@ function WizardPanel() {
     addVideo,
     retryVideo,
     videos,
-    longVideosEnabled,
     videosRemainingToday,
     isAdmin,
     dailyVideoLimit,
@@ -366,28 +364,19 @@ function WizardPanel() {
             <div className="grid grid-cols-2 gap-3">
               {DURATIONS.map(({ value, label }) => {
                 const isSelected = duration === value;
-                // 60s/90s desligados até LONG_VIDEOS_ENABLED=true (ver
-                // src/lib/video/durations.ts). Ficam visíveis, mas
-                // desabilitados, para o usuário entender que é temporário.
-                const isUnavailable = !longVideosEnabled && isLongDuration(value);
                 return (
                   <button
                     key={value}
                     type="button"
-                    disabled={isUnavailable}
                     onClick={() => setDuration(value)}
                     className={`flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition-colors ${
-                      isUnavailable
-                        ? "cursor-not-allowed border-white/5 bg-white/[0.01] opacity-50"
-                        : isSelected
-                          ? "border-[#4C3BFF]/60 bg-white/[0.08]"
-                          : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
+                      isSelected
+                        ? "border-[#4C3BFF]/60 bg-white/[0.08]"
+                        : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                     }`}
                   >
                     <span className="text-lg font-bold text-white">{value}</span>
-                    <span className="text-xs text-zinc-400">
-                      {isUnavailable ? "Temporariamente indisponível" : label}
-                    </span>
+                    <span className="text-xs text-zinc-400">{label}</span>
                   </button>
                 );
               })}

@@ -5,6 +5,10 @@
 // cenas gerar; só o texto exibido mudou pra bater com a referência. "15s" e
 // "90s" saem da lista de seleção, mas continuam suportados no backend pra
 // não quebrar séries antigas que já usam esses valores.
+// Planos normais (Diário/Pro/Ultra): só 30s. O 60s existe apenas na série de
+// Vídeo Realista, que usa SERIES_DURATIONS abaixo.
+export const NORMAL_SERIES_DURATIONS = [{ value: "30s", label: "30 a 40 segundos" }];
+
 export const SERIES_DURATIONS = [
   { value: "30s", label: "30 a 40 segundos" },
   { value: "60s", label: "60 a 70 segundos" },

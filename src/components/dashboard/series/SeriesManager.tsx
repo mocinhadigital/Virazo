@@ -23,6 +23,7 @@ import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import {
+  NORMAL_SERIES_DURATIONS,
   SERIES_DURATIONS,
   SERIES_VOICES,
   SERIES_CAPTION_STYLES,
@@ -67,7 +68,8 @@ function formStateFromSeries(series: SeriesRecord): FormState {
     idioma: series.idioma,
     visualStyle: series.visualStyle,
     voice: series.voice ?? SERIES_VOICES[0]?.name ?? "Ana",
-    duration: series.duration,
+    // Série normal antiga em 60s/90s: exibe (e gera) em 30s.
+    duration: !series.realistic && isLongDuration(series.duration) ? "30s" : series.duration,
     captionsEnabled: series.captionsEnabled,
     captionStyle: series.captionStyle,
     frequenciaDias: series.frequenciaDias,
@@ -130,7 +132,7 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function SeriesManager({ initialSeries }: { initialSeries: SeriesRecord[] }) {
-  const { plan, openPlanModal, longVideosEnabled, realisticCredits, openRealisticBuy, refreshRealisticCredits } =
+  const { plan, openPlanModal, realisticCredits, openRealisticBuy, refreshRealisticCredits } =
     useDashboard();
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
   const [modalOpen, setModalOpen] = useState(false);
@@ -482,26 +484,16 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     <Select
                       value={form.duration}
                       onChange={(v) => setForm((f) => ({ ...f, duration: v }))}
-                      // 60s fica de fora com LONG_VIDEOS_ENABLED desligado
-                      // (ver src/lib/video/durations.ts), exceto se for o
-                      // valor atual da série — que segue editável e gera em
-                      // 30s até a chave ser ligada.
-                      options={SERIES_DURATIONS.filter(
-                        (d) =>
-                          editingRealistic ||
-                          longVideosEnabled ||
-                          !isLongDuration(d.value) ||
-                          d.value === form.duration,
-                      ).map((d) => ({
+                      // 60s só existe na série de Vídeo Realista; nos planos
+                      // normais a duração é sempre 30s.
+                      options={(editingRealistic ? SERIES_DURATIONS : NORMAL_SERIES_DURATIONS).map((d) => ({
                         value: d.value,
                         label: d.value,
                         description: editingRealistic
                           ? d.value === "60s"
                             ? "60 segundos (2 créditos por episódio)"
                             : "30 segundos (1 crédito por episódio)"
-                          : !longVideosEnabled && isLongDuration(d.value)
-                            ? "Temporariamente gerado em 30s"
-                            : d.label,
+                          : d.label,
                       }))}
                       aria-label="Duração"
                     />

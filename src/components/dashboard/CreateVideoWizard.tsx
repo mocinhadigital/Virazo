@@ -51,8 +51,6 @@ const STEP_TITLES: Record<StepKey, string> = {
 const DURATIONS = [
   { value: "15s", label: "Rápido e direto" },
   { value: "30s", label: "Ideal para Reels/TikTok" },
-  { value: "60s", label: "Mais contexto" },
-  { value: "90s", label: "Storytelling completo" },
 ];
 
 const VOICES = [

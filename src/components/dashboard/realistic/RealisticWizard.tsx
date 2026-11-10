@@ -1,5 +1,6 @@
 "use client";
 
+import RealisticNotice from "./RealisticNotice";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -436,6 +437,8 @@ function WizardPanel() {
             </div>
           )}
         </div>
+
+        <RealisticNotice className="mx-5 mt-3 sm:mx-6" />
 
         {/* Corpo */}
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">

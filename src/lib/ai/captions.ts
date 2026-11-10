@@ -68,7 +68,7 @@ async function waitForSlot() {
 
 function retryDelayMs(err: unknown): number | null {
   const e = err as { status?: number; message?: string; headers?: Record<string, string> };
-  if (e?.status !== 429 && !/429/.test(e?.message ?? "")) return null;
+  if (e?.status !== 429 && !/\b429\b/.test(e?.message ?? "")) return null;
   const header = Number(e.headers?.["retry-after"]);
   const m = /try again in ([\d.]+)s/i.exec(e.message ?? "");
   const hinted = Number.isFinite(header) && header > 0 ? header : m ? Number(m[1]) : 0;

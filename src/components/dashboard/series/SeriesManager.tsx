@@ -18,6 +18,7 @@ import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
+import RealisticNotice from "../realistic/RealisticNotice";
 import { isLongDuration } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import Select from "@/components/ui/Select";
@@ -439,6 +440,8 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {editingRealistic && <RealisticNotice className="mx-5 mt-3 sm:mx-6" />}
 
             <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
               <div className="flex flex-col gap-4">

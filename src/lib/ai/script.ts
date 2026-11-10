@@ -129,7 +129,18 @@ function normalizeScript(input: unknown): Script {
     }
   }
   if (!Array.isArray(scenes) || scenes.length === 0) throw new Error("Claude retornou cenas em formato inválido.");
-  return { title: raw.title ?? "", scenes: scenes as Scene[] };
+  // Cena sem narração é descartada; sem descrição de imagem, usa a narração.
+  const fixed = (scenes as Partial<Scene>[])
+    .filter((sc) => typeof sc?.narration === "string" && sc.narration.trim().length > 0)
+    .map((sc) => ({
+      narration: sc.narration as string,
+      imagePrompt:
+        typeof sc.imagePrompt === "string" && sc.imagePrompt.trim().length > 0
+          ? sc.imagePrompt
+          : `Cinematic scene illustrating: ${sc.narration}`,
+    }));
+  if (fixed.length === 0) throw new Error("Claude retornou cenas em formato inválido.");
+  return { title: raw.title ?? "", scenes: fixed };
 }
 
 export async function generateScript(input: {

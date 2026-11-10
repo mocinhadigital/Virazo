@@ -13,7 +13,7 @@ type ZImageTurboOutput = {
 export const CINEMATIC_STYLE_NAME = "Cinematográfico";
 const STYLE_PROMPTS: Record<string, string> = {
   [CINEMATIC_STYLE_NAME]:
-    "ultra photorealistic cinematic film still, shot on 35mm anamorphic lens, epic landscape and real-world scene, dramatic natural lighting, golden hour or moody atmosphere, rich color grading, shallow depth of field, subtle film grain, high detail, full-bleed vertical 9:16 composition filling the entire frame edge to edge, no border, no white frame, no margin, no letterbox, no text, no watermark",
+    "ultra photorealistic cinematic film still, shot on 35mm anamorphic lens, epic landscape and real-world scene, dramatic natural lighting, golden hour or moody atmosphere, rich color grading, shallow depth of field, subtle film grain, high detail, full-bleed vertical 9:16 composition filling the entire frame edge to edge, single continuous photograph, not a collage, no split screen, no panels, no border, no white frame, no margin, no letterbox, no text, no watermark",
 };
 
 export async function generateSceneImage(imagePrompt: string, visualStyle: string): Promise<Buffer> {
@@ -27,7 +27,19 @@ export async function generateSceneImage(imagePrompt: string, visualStyle: strin
   return second.removedFraction < first.removedFraction ? second.image : first.image;
 }
 
+// Palavras de enquadramento horizontal ("wide", "panoramic"...) num quadro
+// vertical fazem o gerador empilhar várias faixas da mesma cena (colagem).
+// No estilo Cinematográfico elas são trocadas por composição vertical.
+function toVerticalPrompt(imagePrompt: string): string {
+  const cleaned = imagePrompt
+    .replace(/\b(ultra[- ]wide|wide[- ]angle|wide|panoramic|panorama|sweeping|establishing|expansive|endless|horizontal|landscape[- ]orientation|triptych|collage|split[- ]screen|multiple panels?)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return `Tall vertical portrait-orientation composition, ONE single photograph filling the whole frame: ${cleaned}`;
+}
+
 async function requestSceneImage(imagePrompt: string, visualStyle: string): Promise<Buffer> {
+  if (visualStyle === CINEMATIC_STYLE_NAME) imagePrompt = toVerticalPrompt(imagePrompt);
   // LOG TEMPORÁRIO — remover depois de descobrir o problema do saldo do fal.ai.
   const rawKey = process.env.FAL_KEY ?? "";
   console.log(

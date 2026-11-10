@@ -13,6 +13,7 @@ import {
   Info,
 } from "lucide-react";
 import { styleOptions } from "../styleOptions";
+import RealisticNotice from "../realistic/RealisticNotice";
 import { VISUAL_STYLES } from "../visualStyles";
 import type { MusicTrackRecord } from "../musicMapping";
 import { useDashboard } from "../DashboardContext";
@@ -339,14 +340,24 @@ export default function SeriesWizard() {
         </p>
       </div>
 
+      {form.realistic && <RealisticNotice className="mt-6" />}
+
       <div className="mt-8">
         {step === "nicho" && (
           <>
             {/* Tipo de vídeo da série: normal (como sempre) ou Vídeo Realista ✨. */}
-            <div className="mb-6 grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1 text-[14px] font-medium">
+            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {[
-                { realistic: false, label: "Vídeo normal" },
-                { realistic: true, label: "Vídeo Realista ✨" },
+                {
+                  realistic: false,
+                  label: "Vídeo normal",
+                  description: "Imagens criadas por IA, de 30 a 40 segundos. Usa o limite diário do seu plano.",
+                },
+                {
+                  realistic: true,
+                  label: "Vídeo Realista ✨",
+                  description: "Cenas em movimento real, com mais qualidade. Usa créditos realistas, não o limite diário.",
+                },
               ].map((option) => (
                 <button
                   key={option.label}
@@ -364,22 +375,22 @@ export default function SeriesWizard() {
                           },
                     )
                   }
-                  className={`rounded-full px-3 py-2.5 transition-colors ${
+                  className={`rounded-2xl border px-4 py-3.5 text-left transition-colors ${
                     form.realistic === option.realistic
-                      ? "bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] text-white"
-                      : "text-white/55 hover:text-white"
+                      ? "border-[#4C3BFF]/60 bg-[#4C3BFF]/10 shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
                   }`}
                 >
-                  {option.label}
+                  <span className="block text-[15px] font-semibold text-white">{option.label}</span>
+                  <span className="mt-1 block text-[12.5px] leading-snug text-white/55">{option.description}</span>
                 </button>
               ))}
             </div>
             {form.realistic && (
               <div className="mb-6 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-[13px] leading-relaxed text-zinc-300">
-                Cada episódio realista (cenas em movimento real) gasta{" "}
-                <strong className="text-white">1 crédito (30s) ou 2 créditos (60s)</strong>. Você tem{" "}
-                <strong className="text-white">{realisticCredits}</strong>. Quando os créditos acabarem, a série
-                pausa e avisa você.{" "}
+                Você tem <strong className="text-white">{realisticCredits}</strong>{" "}
+                {realisticCredits === 1 ? "crédito realista" : "créditos realistas"}. Quando acabarem, a série pausa
+                e avisa você.{" "}
                 <button type="button" onClick={openRealisticBuy} className="font-semibold text-amber-200 underline">
                   Comprar vídeos realistas
                 </button>

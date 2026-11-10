@@ -401,6 +401,10 @@ function hexToAssColor(hex: string, alpha = "00"): string {
 // real do vídeo (1080x1920). Fontname aponta pra "Roboto", empacotada em
 // public/fonts (ver FONTS_DIR) — nunca "Arial", que não existe no runtime
 // Linux da Vercel.
+// Legenda dos vídeos normais ~30% maior que o tamanho base dos estilos; o
+// Vídeo Realista passa o próprio layout. Continua no rodapé (marginV).
+export const CAPTION_SCALE = 1.3;
+
 export type AssLayout = {
   fontScale?: number; // multiplica o tamanho da fonte do estilo
   outlineScale?: number; // multiplica a espessura do contorno
@@ -419,10 +423,10 @@ export function buildAss(
   // maior, no padrão TikTok/Reels, mantendo cor/caixa/maiúsculas do estilo.
   const preset: CaptionPreset = {
     ...base,
-    fontSize: Math.round(base.fontSize * (layout.fontScale ?? 1)),
+    fontSize: Math.round(base.fontSize * (layout.fontScale ?? CAPTION_SCALE)),
     outlineWidth:
       base.outlineWidth > 0 || base.boxed
-        ? Math.max(Math.round(base.outlineWidth * (layout.outlineScale ?? 1)), layout.minOutline ?? 0)
+        ? Math.max(Math.round(base.outlineWidth * (layout.outlineScale ?? CAPTION_SCALE)), layout.minOutline ?? 0)
         : 0,
     bold: layout.forceBold ? true : base.bold,
   };

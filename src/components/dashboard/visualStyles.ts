@@ -14,4 +14,5 @@ export const VISUAL_STYLES = [
   { name: "Animação 3D", thumbnail: "/images/visual-styles/animacao_3d.jpg" },
   { name: "Polaroid", thumbnail: "/images/visual-styles/polaroid.jpg" },
   { name: "Astrofotografia", thumbnail: "/images/visual-styles/astrofotografia.jpg" },
+  { name: "Cinematográfico", thumbnail: "/images/visual-styles/cinematografico.jpg" },
 ];

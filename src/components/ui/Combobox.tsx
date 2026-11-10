@@ -2,7 +2,14 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { DROPDOWN_MENU_CLASSNAME, DropdownOption, NO_BROWSER_AUTOFILL_PROPS, useDropdownListNav } from "./dropdown-shared";
+import {
+  computeMenuPlacement,
+  DROPDOWN_MENU_CLASSNAME,
+  DropdownOption,
+  type MenuPlacement,
+  NO_BROWSER_AUTOFILL_PROPS,
+  useDropdownListNav,
+} from "./dropdown-shared";
 
 type ComboboxProps = {
   value: string;
@@ -18,9 +25,7 @@ type ComboboxProps = {
 // Select (ver dropdown-shared.tsx) — nada de <select>/<datalist> nativo.
 export default function Combobox({ value, onChange, options, placeholder, ...aria }: ComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [menuStyle, setMenuStyle] = useState<{ top: number; left: number; width: number } | null>(
-    null,
-  );
+  const [menuStyle, setMenuStyle] = useState<MenuPlacement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
@@ -32,7 +37,7 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
   function openMenu() {
     const rect = inputRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setMenuStyle({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+    setMenuStyle(computeMenuPlacement(rect));
     setOpen(true);
     setActiveIndex(-1);
   }
@@ -71,8 +76,11 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
       if (menuRef.current?.contains(target)) return;
       setOpen(false);
     }
+    // Celular: a barra de endereço dispara "resize" só de altura ao rolar;
+    // fecha só se a largura mudar.
+    const openWidth = window.innerWidth;
     function handleResize() {
-      setOpen(false);
+      if (window.innerWidth !== openWidth) setOpen(false);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -114,7 +122,14 @@ export default function Combobox({ value, onChange, options, placeholder, ...ari
             ref={menuRef}
             id={listboxId}
             role="listbox"
-            style={{ position: "fixed", top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
+            style={{
+              position: "fixed",
+              top: menuStyle.top,
+              bottom: menuStyle.bottom,
+              left: menuStyle.left,
+              width: menuStyle.width,
+              maxHeight: menuStyle.maxHeight,
+            }}
             className={DROPDOWN_MENU_CLASSNAME}
           >
             {filtered.length === 0 && (

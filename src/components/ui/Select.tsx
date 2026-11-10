@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
-import { DROPDOWN_MENU_CLASSNAME, DropdownOption, useDropdownListNav } from "./dropdown-shared";
+import {
+  computeMenuPlacement,
+  DROPDOWN_MENU_CLASSNAME,
+  DropdownOption,
+  type MenuPlacement,
+  useDropdownListNav,
+} from "./dropdown-shared";
 
 export type SelectOption = {
   value: string;
@@ -25,9 +31,7 @@ type SelectProps = {
 // ilegível). Este componente resolve isso desenhando o menu nós mesmos.
 export default function Select({ value, onChange, options, placeholder, ...aria }: SelectProps) {
   const [open, setOpen] = useState(false);
-  const [menuStyle, setMenuStyle] = useState<{ top: number; left: number; width: number } | null>(
-    null,
-  );
+  const [menuStyle, setMenuStyle] = useState<MenuPlacement | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +40,7 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
   function openMenu() {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setMenuStyle({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+    setMenuStyle(computeMenuPlacement(rect));
     setOpen(true);
     setActiveIndex(-1);
   }
@@ -65,17 +69,28 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
       if (menuRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function handleScrollOrResize() {
+    // "scroll" não borbulha, mas passa pela fase de captura em `window`: sem
+    // este filtro, rolar a PRÓPRIA lista (roda, toque, scrollbar) fechava o
+    // menu e impedia chegar nas últimas opções. Só fecha se a página/modal
+    // rolar por trás.
+    function handleScroll(e: Event) {
+      if (menuRef.current?.contains(e.target as Node)) return;
       setOpen(false);
+    }
+    // No celular a barra de endereço some/volta ao rolar e dispara "resize"
+    // só de altura; fechar só se a LARGURA mudar (girar a tela, redimensionar).
+    const openWidth = window.innerWidth;
+    function handleResize() {
+      if (window.innerWidth !== openWidth) setOpen(false);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("scroll", handleScrollOrResize, true);
-    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("scroll", handleScrollOrResize, true);
-      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
     };
   }, [open]);
 
@@ -103,7 +118,14 @@ export default function Select({ value, onChange, options, placeholder, ...aria 
           <div
             ref={menuRef}
             role="listbox"
-            style={{ position: "fixed", top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
+            style={{
+              position: "fixed",
+              top: menuStyle.top,
+              bottom: menuStyle.bottom,
+              left: menuStyle.left,
+              width: menuStyle.width,
+              maxHeight: menuStyle.maxHeight,
+            }}
             className={DROPDOWN_MENU_CLASSNAME}
           >
             {options.map((option, i) => (

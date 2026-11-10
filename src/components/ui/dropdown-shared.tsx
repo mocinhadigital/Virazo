@@ -8,6 +8,42 @@ import { Check } from "lucide-react";
 export const DROPDOWN_MENU_CLASSNAME =
   "z-[100] max-h-64 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#14141f] p-1.5 shadow-2xl shadow-black/50";
 
+// Posição do menu (fixed) em relação ao campo: abre para baixo se couber (ou
+// se houver mais espaço embaixo que em cima); senão abre PARA CIMA. A altura
+// máxima acompanha o espaço livre, então a lista sempre cabe na tela e rola
+// por dentro — nunca fica uma parte das opções fora de alcance.
+export type MenuPlacement = {
+  top?: number;
+  bottom?: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
+const MENU_GAP = 6;
+const MENU_MARGIN = 12; // folga até a borda da tela
+const MENU_MAX_HEIGHT = 256; // = max-h-64
+const MENU_MIN_COMFORT = 160;
+
+export function computeMenuPlacement(rect: DOMRect): MenuPlacement {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  const spaceBelow = viewportHeight - rect.bottom - MENU_GAP - MENU_MARGIN;
+  const spaceAbove = rect.top - MENU_GAP - MENU_MARGIN;
+  const width = Math.min(rect.width, viewportWidth - MENU_MARGIN * 2);
+  const left = Math.max(MENU_MARGIN, Math.min(rect.left, viewportWidth - width - MENU_MARGIN));
+  const openDown = spaceBelow >= Math.min(MENU_MAX_HEIGHT, MENU_MIN_COMFORT) || spaceBelow >= spaceAbove;
+  if (openDown) {
+    return { top: rect.bottom + MENU_GAP, left, width, maxHeight: Math.max(96, Math.min(MENU_MAX_HEIGHT, spaceBelow)) };
+  }
+  return {
+    bottom: viewportHeight - rect.top + MENU_GAP,
+    left,
+    width,
+    maxHeight: Math.max(96, Math.min(MENU_MAX_HEIGHT, spaceAbove)),
+  };
+}
+
 export function DropdownOption({
   label,
   description,

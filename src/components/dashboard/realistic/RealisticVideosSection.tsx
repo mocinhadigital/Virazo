@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Download, Loader2, Play, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { useDashboard } from "../DashboardContext";
+import DownloadVideoLink from "../DownloadVideoLink";
 import type { RealisticVideoRecord } from "@/lib/realistic/constants";
 import { realisticProgressPercent, realisticStageText } from "./RealisticWizard";
 
@@ -188,13 +189,13 @@ export default function RealisticVideosSection() {
                 )}
                 <div className="mt-auto flex flex-wrap items-center gap-1.5">
                   {video.status === "Pronto" && video.videoUrl && (
-                    <a
-                      href={`${video.videoUrl}?download=${encodeURIComponent(video.title || "video-realista")}.mp4`}
+                    <DownloadVideoLink
+                      videoUrl={video.videoUrl} title={video.title} fallbackName="video-realista"
                       className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-2.5 py-1 text-[11px] font-semibold text-white"
                     >
                       <Download className="h-3 w-3" />
                       Baixar
-                    </a>
+                    </DownloadVideoLink>
                   )}
                   {video.status === "Erro" && video.mode !== "series" && video.sceneImageUrls.length > 0 && (
                     <button
@@ -247,13 +248,13 @@ export default function RealisticVideosSection() {
               <X className="h-4 w-4" />
             </button>
             <video src={active.videoUrl} controls autoPlay playsInline className="aspect-[9/16] w-full rounded-2xl bg-black" />
-            <a
-              href={`${active.videoUrl}?download=${encodeURIComponent(active.title || "video-realista")}.mp4`}
+            <DownloadVideoLink
+              videoUrl={active.videoUrl} title={active.title} fallbackName="video-realista"
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2.5 text-sm font-semibold text-white"
             >
               <Download className="h-4 w-4" />
               Baixar vídeo
-            </a>
+            </DownloadVideoLink>
           </div>
         </div>
       )}

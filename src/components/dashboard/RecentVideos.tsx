@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Play, Loader2, Pencil, Clapperboard, Wand2, AlertTriangle, X, Download } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
+import DownloadVideoLink from "./DownloadVideoLink";
 import type { VideoRecord, VideoStatus } from "./types";
 
 const statusStyles: Record<VideoStatus, string> = {
@@ -144,13 +145,13 @@ export default function RecentVideos() {
                   autoPlay
                   className="aspect-[9/16] w-full rounded-2xl bg-black"
                 />
-                <a
-                  href={`${activeVideo.videoUrl}?download=${encodeURIComponent(activeVideo.title || "video")}.mp4`}
+                <DownloadVideoLink
+                  videoUrl={activeVideo.videoUrl} title={activeVideo.title} fallbackName="video"
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2.5 text-sm font-semibold text-white"
                 >
                   <Download className="h-4 w-4" />
                   Baixar vídeo
-                </a>
+                </DownloadVideoLink>
               </>
             ) : (
               <div className="flex flex-col items-center gap-3 py-8 text-center">

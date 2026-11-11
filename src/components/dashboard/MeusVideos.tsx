@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
+import DownloadVideoLink from "./DownloadVideoLink";
 import VideoProgress from "./VideoProgress";
 import { createClient } from "@/utils/supabase/client";
 import type { VideoRecord, VideoStatus } from "./types";
@@ -367,13 +368,13 @@ function VideoRow({
           </button>
         )}
         {canDownload && video.videoUrl && (
-          <a
-            href={`${video.videoUrl}?download=${encodeURIComponent(video.title || "video")}.mp4`}
+          <DownloadVideoLink
+            videoUrl={video.videoUrl} title={video.title} fallbackName="video"
             className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5"
           >
             <Download className="h-3.5 w-3.5" />
             Baixar
-          </a>
+          </DownloadVideoLink>
         )}
         {isFailed && (
           <>
@@ -443,13 +444,13 @@ function VideoModal({ video, onClose }: { video: VideoRecord; onClose: () => voi
               autoPlay
               className="aspect-[9/16] w-full rounded-2xl bg-black"
             />
-            <a
-              href={`${video.videoUrl}?download=${encodeURIComponent(video.title || "video")}.mp4`}
+            <DownloadVideoLink
+              videoUrl={video.videoUrl} title={video.title} fallbackName="video"
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2.5 text-sm font-semibold text-white"
             >
               <Download className="h-4 w-4" />
               Baixar vídeo
-            </a>
+            </DownloadVideoLink>
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 py-8 text-center">

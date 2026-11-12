@@ -214,6 +214,7 @@ export async function runSeriesGeneration(
             duration,
             language: series.idioma,
             seriesMemory,
+            isSeries: true,
           },
           voice: series.voice ?? "",
           visualStyle: series.visual_style,

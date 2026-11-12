@@ -87,6 +87,9 @@ const STOPWORDS = new Set([
   "seus", "suas", "este", "esta", "isso", "essa", "esse", "ele", "ela", "eles", "elas", "ser",
   "foi", "era", "sao", "tem", "ter", "ate", "entre", "sem", "and", "the", "for", "with", "from",
   "that", "this", "are", "was", "were", "about", "into", "onto", "los", "las", "del", "una", "por",
+  // Moldes de nome de série ("O que acontece se…"): fazem parte do formato do
+  // título, não do assunto — exigir essas palavras no roteiro trava sem motivo.
+  "acontece", "acontecer", "acontecesse", "aconteceria", "acontecem",
 ]);
 
 // Extrai as palavras do tema que realmente identificam o assunto (nomes,
@@ -158,14 +161,21 @@ export async function generateScript(input: {
   // Só séries: o que os episódios anteriores já contaram + regras para o novo
   // episódio ser diferente (ver src/lib/series/memory.ts).
   seriesMemory?: string;
+  // Roteiro de episódio de série: se, depois da nova tentativa, o texto ainda
+  // não citar as palavras do nome da série, aceita mesmo assim em vez de falhar
+  // (um episódio novo e diferente quase nunca repete o nome da série).
+  isSeries?: boolean;
 }): Promise<Script> {
   const sceneCount = SCENES_PER_DURATION[input.duration] ?? 5;
   const languageLabel = LANGUAGE_LABELS[input.language ?? "pt"];
   const theme = input.coreTheme ?? input.topic;
 
   async function callModel(reinforceAdherence: boolean): Promise<Script> {
+    const keywords = extractThemeKeywords(theme).slice(0, 6);
     const reinforcement = reinforceAdherence
-      ? `ATENÇÃO: uma tentativa anterior se desviou do assunto pedido. Desta vez siga ESTRITAMENTE a instrução abaixo, sem trocar de assunto.\n\n`
+      ? `ATENÇÃO: uma tentativa anterior se desviou do assunto pedido. Desta vez siga ESTRITAMENTE a instrução abaixo, sem trocar de assunto${
+          keywords.length > 0 ? ` e cite explicitamente o assunto central no roteiro (por exemplo com: ${keywords.join(", ")})` : ""
+        }.\n\n`
       : "";
 
     const message = await anthropic.messages.create({
@@ -216,8 +226,13 @@ Divida em exatamente ${sceneCount} cenas. Cada cena tem 1 ou 2 frases CURTAS de 
     return secondAttempt;
   }
 
+  if (input.isSeries) {
+    console.warn(`[script] roteiro de série sem as palavras do tema "${theme}" após nova tentativa — aceito mesmo assim.`);
+    return secondAttempt;
+  }
+
   throw new Error(
-    `topic_adherence_failed: não foi possível gerar um roteiro aderente ao tema "${theme}" após nova tentativa.`,
+    "Não conseguimos criar um roteiro que combinasse com o tema desta vez. Tente gerar de novo: esse vídeo não foi descontado do seu limite diário nem do seu bônus.",
   );
 }
 

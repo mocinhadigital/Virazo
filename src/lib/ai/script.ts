@@ -155,6 +155,9 @@ export async function generateScript(input: {
   visualStyle: string;
   duration: string;
   language?: "pt" | "en" | "es";
+  // Só séries: o que os episódios anteriores já contaram + regras para o novo
+  // episódio ser diferente (ver src/lib/series/memory.ts).
+  seriesMemory?: string;
 }): Promise<Script> {
   const sceneCount = SCENES_PER_DURATION[input.duration] ?? 5;
   const languageLabel = LANGUAGE_LABELS[input.language ?? "pt"];
@@ -176,7 +179,7 @@ export async function generateScript(input: {
           content: `${reinforcement}Escreva o roteiro de um vídeo curto vertical (estilo Reels/TikTok). O ASSUNTO CENTRAL E OBRIGATÓRIO deste vídeo é: "${input.topic}". Todo o roteiro deve desenvolver diretamente esse assunto — nunca troque por outro tema, nunca invente uma história genérica desconectada, e preserve os nomes/conceitos centrais mencionados nele.
 O "estilo de conteúdo" e o "estilo visual" abaixo controlam APENAS o tom e a estética de como esse mesmo assunto é contado — eles nunca substituem nem alteram o assunto.
 Estilo de conteúdo (tom): ${input.contentStyle}.
-Estilo visual das imagens: ${input.visualStyle}.
+Estilo visual das imagens: ${input.visualStyle}.${input.seriesMemory ? `\n${input.seriesMemory}` : ""}
 Divida em exatamente ${sceneCount} cenas. Cada cena tem 1 ou 2 frases CURTAS de narração em ${languageLabel} — de ${WORDS_PER_SCENE.min} a ${WORDS_PER_SCENE.max} palavras no total (NUNCA menos de ${WORDS_PER_SCENE.min} nem mais de ${WORDS_PER_SCENE.max}), para durar uns 3,5 segundos falados — frases diretas, sem orações longas — e uma descrição visual em inglês para gerar uma imagem nesse estilo visual — sempre representando o mesmo assunto central, nunca um assunto diferente. Cada cena deve ter uma imagem DIFERENTE das outras (outro momento, ângulo ou detalhe da história), mas todas no mesmo estilo visual, com os mesmos personagens/ambiente quando houver, para o vídeo parecer coeso. A narração continua de uma cena para a outra como um texto único.`,
         },
       ],

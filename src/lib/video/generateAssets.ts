@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateExtraScenes, generateScript } from "@/lib/ai/script";
+import { generateExtraScenes, generateScript, type Script } from "@/lib/ai/script";
 import { buildRenderScenes } from "@/lib/video/scenePipeline";
 import { probeVideoDuration, renderFinalVideo, totalSceneSeconds, type RenderScene } from "@/lib/video/render";
 import { durationRule, LAST_RESORT_MIN_TEMPO, planFit, SAFETY_MARGIN, SECONDS_PER_SCENE } from "@/lib/video/durationTarget";
@@ -80,7 +80,7 @@ export async function generateVideoAssets(input: {
   captionStyle: string | null;
   backgroundMusic?: Buffer;
   report: ReportProgress;
-}): Promise<{ finalVideo: Buffer; thumbnail: Buffer | undefined }> {
+}): Promise<{ finalVideo: Buffer; thumbnail: Buffer | undefined; script: Script }> {
   await input.report("roteiro");
   const script = await generateScript(input.script);
 
@@ -140,7 +140,9 @@ export async function generateVideoAssets(input: {
     }
   }
 
-  return { finalVideo, thumbnail: scenes[0]?.image };
+  // `script` volta para quem chamou poder guardá-lo (memória das séries). As
+  // cenas de reforço entram na narração, mas o roteiro base já basta para isso.
+  return { finalVideo, thumbnail: scenes[0]?.image, script };
 }
 
 // Garante o mínimo da faixa alongando a voz de leve (cenas de reforço já

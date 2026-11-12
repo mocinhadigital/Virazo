@@ -14,6 +14,7 @@ import {
 import { publicStorageUrl, REALISTIC_BUCKET, type RealisticVideoRow } from "./row";
 import { extractErrorMessage, parseRealisticDbError, type ServiceClient } from "./common";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
+import { buildSeriesMemory, describeNicho, toPastEpisode } from "@/lib/series/memory";
 
 export { extractErrorMessage, parseRealisticDbError };
 export type { ServiceClient };
@@ -152,13 +153,18 @@ export async function runRealisticSeriesGeneration(
       p_user_id: userId,
     });
 
-  const { data: recent } = await supabase
+  // Memória da série: o que os episódios anteriores já contaram e que episódio
+  // é este (inclui os ainda animando em segundo plano — o roteiro já existe).
+  const { data: recent, count: recentCount } = await supabase
     .from("realistic_videos")
-    .select("title")
+    .select("title, script", { count: "exact" })
     .eq("series_id", series.id)
+    .in("status", ["Pronto", "Processando"])
     .order("created_at", { ascending: false })
-    .limit(5);
-  const recentTitles = ((recent ?? []) as { title: string }[]).map((v) => v.title);
+    .limit(6);
+  const recentRows = (recent ?? []) as { title: string; script: unknown }[];
+  const episodeNumber = (recentCount ?? recentRows.length) + 1;
+  const seriesMemory = buildSeriesMemory({ episodeNumber, past: recentRows.map(toPastEpisode) });
 
   const style = isRealisticStyle(series.visual_style) ? series.visual_style : "Cinematográfico";
   const duration = realisticDurationFromLabel(series.duration);
@@ -221,11 +227,7 @@ export async function runRealisticSeriesGeneration(
           language: series.idioma,
           styleName: style,
           sceneCount,
-          extra: `${
-            recentTitles.length > 0
-              ? `Escolha um ângulo, momento ou aspecto ainda não coberto deste assunto. Não repita nem se aproxime destes já usados na série: ${recentTitles.join("; ")}. `
-              : ""
-          }A categoria "${series.nicho}" define só o tom da narrativa, nunca o assunto. Tom de voz: ${series.tom_de_voz}.`,
+          extra: `${seriesMemory ? `${seriesMemory}\n` : ""}${describeNicho(series.nicho)} Tom de voz: ${series.tom_de_voz}.`,
         });
         await supabase
           .from("realistic_videos")

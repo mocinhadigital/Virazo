@@ -13,6 +13,7 @@ import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import type { SeriesRow } from "@/components/dashboard/seriesMapping";
 import { PLANS, DEFAULT_MAX_CONCURRENT_GENERATIONS } from "@/lib/billing/plans";
+import { isAdminUserId } from "@/lib/admin/requireAdmin";
 import { buildSeriesMemory, describeNicho, toPastEpisode } from "@/lib/series/memory";
 
 // Núcleo da geração de um vídeo a partir de uma série. Recebe o cliente
@@ -60,10 +61,15 @@ export async function checkConcurrencyLimit(
     .limit(1)
     .maybeSingle();
 
+  // Admin não tem limite diário (migration 0030) e pode não ter assinatura: sem
+  // esta exceção ele caía em 0 gerações simultâneas e não conseguia gerar nada.
+  // Vale o teto do maior plano.
   const maxConcurrent = activeSubscription
     ? (PLANS[activeSubscription.plan as keyof typeof PLANS]?.maxConcurrentGenerations ??
       DEFAULT_MAX_CONCURRENT_GENERATIONS)
-    : DEFAULT_MAX_CONCURRENT_GENERATIONS;
+    : (await isAdminUserId(userId))
+      ? PLANS.ultra.maxConcurrentGenerations
+      : DEFAULT_MAX_CONCURRENT_GENERATIONS;
 
   // Chave de serviço: quem "excluiu" um vídeo ainda em geração (ele só fica
   // escondido, migration 0034) continua contando aqui — senão dava para burlar a

@@ -1,19 +1,31 @@
-// América/Manaus é UTC-4 o ano inteiro (sem horário de verão) — por isso dá
-// pra usar um offset fixo aqui, sem precisar de tabela de fusos.
+// América/Manaus é UTC-4 e America/Sao_Paulo é UTC-3 o ano inteiro (o Brasil não
+// tem horário de verão desde 2019) — por isso dá pra usar offsets fixos aqui,
+// sem precisar de tabela de fusos.
 const MANAUS_OFFSET_HOURS = -4;
+const BRASILIA_OFFSET_HOURS = -3;
 
-// Meia-noite em America/Manaus, convertida pro instante UTC correspondente
-// — mesma lógica usada em SQL por
-// `date_trunc('day', now() at time zone 'America/Manaus') at time zone 'America/Manaus'`
-// (ver migration 0019, reserve_daily_video_slot). Mantida em JS aqui só pra
-// exibição no cliente — a checagem que realmente autoriza/bloqueia geração
-// vive no banco, não aqui.
-export function startOfDayInManaus(reference: Date = new Date()): Date {
-  const shifted = new Date(reference.getTime() + MANAUS_OFFSET_HOURS * 3600_000);
+function startOfDayWithOffset(reference: Date, offsetHours: number): Date {
+  const shifted = new Date(reference.getTime() + offsetHours * 3600_000);
   const startOfDayShifted = new Date(
     Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(), 0, 0, 0),
   );
-  return new Date(startOfDayShifted.getTime() - MANAUS_OFFSET_HOURS * 3600_000);
+  return new Date(startOfDayShifted.getTime() - offsetHours * 3600_000);
+}
+
+// Meia-noite em America/Manaus. Só o funil de vendas do admin usa (dia de
+// Manaus nos relatórios); o limite diário de vídeos usa Brasília (abaixo).
+export function startOfDayInManaus(reference: Date = new Date()): Date {
+  return startOfDayWithOffset(reference, MANAUS_OFFSET_HOURS);
+}
+
+// Meia-noite em America/Sao_Paulo (horário de Brasília), convertida pro
+// instante UTC correspondente — mesma lógica usada em SQL por
+// `date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo'`
+// (ver migration 0040, reserve_daily_video_slot). Mantida em JS aqui só pra
+// exibição no cliente — a checagem que realmente autoriza/bloqueia geração
+// vive no banco, não aqui.
+export function startOfDayInBrasilia(reference: Date = new Date()): Date {
+  return startOfDayWithOffset(reference, BRASILIA_OFFSET_HOURS);
 }
 
 // Conta vídeos que já ocupam (ou ocuparam com sucesso) a cota diária do
@@ -23,7 +35,7 @@ export function countVideosUsedToday(
   videos: { status: string; createdAtIso: string }[],
   reference: Date = new Date(),
 ): number {
-  const start = startOfDayInManaus(reference);
+  const start = startOfDayInBrasilia(reference);
   return videos.filter((v) => {
     if (v.status !== "Pronto" && v.status !== "Processando") return false;
     return new Date(v.createdAtIso).getTime() >= start.getTime();

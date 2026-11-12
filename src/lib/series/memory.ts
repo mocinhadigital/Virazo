@@ -63,12 +63,44 @@ export function describeNicho(nicho: string): string {
   return `O cliente descreveu o mundo e o clima da série assim: "${clip(text, NICHO_DESCRIPTION_MAX_CHARS)}". Use isso só como ambientação, estilo visual e tom — NÃO é o acontecimento do episódio: cada episódio mostra algo NOVO e nunca repete essa mesma cena.`;
 }
 
+// Áreas sorteadas a cada episódio para tirar a IA do caminho mais batido. Sem
+// isso, uma série aberta ("O que acontece se…", "curiosidades") cai sempre nas
+// mesmas ideias famosas (Terra parar de girar, Sol sumir…), mesmo sem repetir
+// o texto de nenhum episódio anterior.
+const VARIETY_AREAS = [
+  "o corpo humano",
+  "os oceanos e a vida marinha",
+  "animais",
+  "plantas e florestas",
+  "história antiga",
+  "tecnologia do dia a dia",
+  "clima e fenômenos da atmosfera",
+  "química do cotidiano",
+  "o espaço profundo (estrelas, buracos negros, outros planetas)",
+  "vulcões e terremotos",
+  "medicina e saúde",
+  "comida e cozinha",
+  "cidades e construções",
+  "idiomas e comunicação",
+  "esportes e movimento",
+  "dinheiro e economia",
+  "música e som",
+  "luz e cores",
+  "eletricidade e energia",
+  "micro-organismos",
+];
+
+function varietyHint(): string {
+  const area = VARIETY_AREAS[Math.floor(Math.random() * VARIETY_AREAS.length)];
+  return `VARIEDADE: evite a ideia mais famosa e óbvia sobre o assunto (a primeira que qualquer pessoa citaria). Se a série é de curiosidades ou de temas soltos, procure desta vez uma ideia na área de ${area} — só se combinar com o assunto central; senão ignore essa sugestão e escolha outra ideia pouco batida. Varie também a forma de abrir e de fechar o vídeo.`;
+}
+
 // Bloco de instrução com a memória da série. `past` vem do mais recente para o
 // mais antigo; `episodeNumber` é o número DESTE episódio (já contando os
-// anteriores). Vazio no primeiro episódio.
+// anteriores). No primeiro episódio só há a dica de variedade.
 export function buildSeriesMemory(input: { episodeNumber: number; past: PastEpisode[] }): string {
   const { episodeNumber, past } = input;
-  if (episodeNumber <= 1) return "";
+  if (episodeNumber <= 1) return varietyHint();
 
   const lines: string[] = [`CONTINUIDADE DA SÉRIE: este é o EPISÓDIO ${episodeNumber} desta série.`];
 
@@ -95,5 +127,6 @@ export function buildSeriesMemory(input: { episodeNumber: number; past: PastEpis
     "3. Mantenha o assunto central, o tom e o estilo visual da série.",
     "4. O número do episódio é só para você se orientar: NÃO diga \"episódio\" nem o número na narração e não escreva isso no título.",
   );
+  lines.push(varietyHint());
   return lines.join("\n");
 }

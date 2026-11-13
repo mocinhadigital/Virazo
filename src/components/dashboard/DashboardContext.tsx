@@ -406,7 +406,33 @@ export function DashboardProvider({
     setWizardInitial(initial);
 
     if (!plan) {
-      openPlanModal();
+      // O plano foi lido só quando a página abriu. Se o cliente pagou depois
+      // (webhook da Cakto), esta aba estaria desatualizada e mostraria o pop-up
+      // "Escolha seu plano" mesmo com plano ativo: confere no banco ANTES.
+      void (async () => {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { data } = await supabase
+            .from("subscriptions")
+            .select("plan")
+            .eq("user_id", user.id)
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle<{ plan: PlanKey }>();
+          if (data?.plan) {
+            setPlan(data.plan);
+            setIsWizardOpen(true);
+            void refreshBonus();
+            router.refresh();
+            return;
+          }
+        }
+        openPlanModal();
+      })();
       return;
     }
 
@@ -435,7 +461,7 @@ export function DashboardProvider({
       setPlan(data?.plan ?? null);
       void refreshBonus();
     })();
-  }, [plan, openPlanModal, refreshBonus]);
+  }, [plan, openPlanModal, refreshBonus, router]);
 
   const closeWizard = useCallback(() => setIsWizardOpen(false), []);
 

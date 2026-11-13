@@ -19,6 +19,20 @@ export async function POST() {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
 
+  // Plano já ativo (ex.: o aviso da Cakto — webhook — chegou antes de a tela
+  // perguntar): responde com ele. Sem isto, a verificação dizia "pagamento não
+  // encontrado" (o pedido já estava aplicado) e a tela ficava achando que o
+  // cliente não tinha plano.
+  const { data: active } = await supabase
+    .from("subscriptions")
+    .select("plan")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ plan: string }>();
+  if (active?.plan) return NextResponse.json({ status: "activated", plan: active.plan });
+
   try {
     const result = await syncCaktoPaymentsForUser(user);
     return NextResponse.json(result);

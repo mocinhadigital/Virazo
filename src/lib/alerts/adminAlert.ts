@@ -5,9 +5,9 @@ import { createServiceRoleClient } from "@/utils/supabase/service-role";
 // "tipo" (key). Nunca lança: avisar não pode atrapalhar a geração do vídeo.
 //
 // Precisa de (na Vercel):
-//   RESEND_API_KEY      chave do Resend
-//   ALERT_EMAIL_FROM    ex.: "Virazo <alertas@seudominio.com>" (domínio verificado
-//                       no Resend); se faltar, usa RECOVERY_EMAIL_FROM
+//   RESEND_API_KEY       chave do Resend (a mesma do e-mail de recuperação de Pix)
+//   RECOVERY_EMAIL_FROM  remetente (domínio verificado no Resend), o mesmo do
+//                        e-mail de recuperação de Pix
 // Sem isso o aviso vai só para o log do servidor (linha começando com "[ALERTA]").
 
 const RESEND_TIMEOUT_MS = 8000;
@@ -54,10 +54,10 @@ export async function notifyAdmins(key: string, subject: string, text: string): 
     if (!(await claim(key))) return; // já avisou na última hora
 
     const apiKey = process.env.RESEND_API_KEY?.trim();
-    const from = (process.env.ALERT_EMAIL_FROM ?? process.env.RECOVERY_EMAIL_FROM)?.trim();
+    const from = process.env.RECOVERY_EMAIL_FROM?.trim();
     const to = await adminEmails();
     if (!apiKey || !from || to.length === 0) {
-      console.error("[ALERTA] e-mail não enviado: falta RESEND_API_KEY, ALERT_EMAIL_FROM ou algum admin cadastrado.");
+      console.error("[ALERTA] e-mail não enviado: falta RESEND_API_KEY, RECOVERY_EMAIL_FROM ou algum admin cadastrado.");
       return;
     }
     const response = await fetch("https://api.resend.com/emails", {

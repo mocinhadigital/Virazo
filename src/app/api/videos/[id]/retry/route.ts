@@ -152,6 +152,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           captionStyle: retried.caption_style,
           backgroundMusic,
           report,
+          videoId,
         });
 
         // 5. Sobe pro Storage, sobrescrevendo o arquivo antigo (mesmo video_id).

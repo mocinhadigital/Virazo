@@ -229,6 +229,7 @@ export async function runSeriesGeneration(
           captionStyle: series.caption_style,
           backgroundMusic,
           report,
+          videoId: created.id,
         });
 
         // Guarda o roteiro: é a memória do próximo episódio. Falhar aqui não

@@ -5,7 +5,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import ffmpeg from "@ffmpeg-installer/ffmpeg";
-import { transcribeForCaptions, type Transcript, type WordTiming } from "@/lib/ai/captions";
+import { transcribeResilient, type CaptionState, type Transcript, type WordTiming } from "@/lib/ai/captions";
 
 const execFileAsync = promisify(execFile);
 
@@ -61,13 +61,31 @@ async function concatAudio(audios: Buffer[]): Promise<Buffer> {
 // com os tempos de cada palavra relativos ao início da própria cena (o mesmo
 // formato de antes). As fronteiras vêm das durações medidas de cada áudio; a
 // palavra pertence à cena onde cai o seu ponto médio.
+//
+// A duração de cada cena vem do próprio áudio (medida com ffmpeg); a Groq só
+// fornece o tempo de cada palavra para a legenda. Por isso:
+//  - legenda desligada: nem chama a Groq (poupa o limite de uso);
+//  - Groq falhando de vez: as cenas ficam sem palavras (vídeo sem legenda) e
+//    `opts.state` registra a falha — o vídeo NÃO falha.
 export async function transcribeScenesBatch(
   audios: Buffer[],
   durations: number[],
   language: "pt" | "en" | "es",
+  opts: { enabled?: boolean; state?: CaptionState; context?: string } = {},
 ): Promise<Transcript[]> {
-  const merged = audios.length === 1 ? audios[0] : await concatAudio(audios);
-  const batch = await transcribeForCaptions(merged, "batch.mp3", language);
+  let batchWords: WordTiming[] = [];
+  if (opts.enabled !== false) {
+    const merged = audios.length === 1 ? audios[0] : await concatAudio(audios);
+    const batch = await transcribeResilient({
+      audio: merged,
+      filename: "batch.mp3",
+      language,
+      measuredSeconds: durations.reduce((sum, d) => sum + d, 0),
+      state: opts.state,
+      context: opts.context,
+    });
+    batchWords = batch.words;
+  }
 
   const offsets: number[] = [];
   let acc = 0;
@@ -77,7 +95,7 @@ export async function transcribeScenesBatch(
   }
 
   const perScene: WordTiming[][] = audios.map(() => []);
-  for (const w of batch.words) {
+  for (const w of batchWords) {
     const mid = (w.start + w.end) / 2;
     let idx = offsets.length - 1;
     for (let i = 0; i < offsets.length; i++) {

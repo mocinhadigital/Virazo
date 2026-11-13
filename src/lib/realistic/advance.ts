@@ -1,7 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { synthesizeNarration } from "@/lib/ai/narration";
-import { transcribeForCaptions } from "@/lib/ai/captions";
+import { applyCaptionFailureNoCharge, transcribeResilient, type CaptionState } from "@/lib/ai/captions";
+import { measureAudioSeconds } from "@/lib/video/audioBatch";
 import { loadBackgroundMusic } from "@/lib/video/music";
 import { checkAnimation, submitAnimation } from "./animate";
 import { renderRealisticVideo, type RealisticRenderScene } from "./render";
@@ -106,25 +107,46 @@ async function submitScene(video: RealisticVideoRow, index: number): Promise<str
 // já salva no Storage com os tempos das palavras para a legenda.
 async function narrateAll(service: ServiceClient, video: RealisticVideoRow): Promise<NarrationItem[]> {
   const items: NarrationItem[] = [];
+  // Depois que a Groq falha de vez numa cena, as demais não repetem a espera de
+  // novo (seriam minutos a mais): ficam direto sem legenda.
+  let captionsDown = false;
   for (let i = 0; i < video.script!.scenes.length; i++) {
-    // Rede da máquina/servidor pode cair por alguns segundos: tenta a cena de novo
-    // por até ~1 min (2s, 4s, 8s, 16s, 20s) antes de desistir do vídeo.
-    const { audio, transcript } = await retryTransient(
-      async () => {
-        const audio = await synthesizeNarration(video.script!.scenes[i].narration, video.voice ?? "");
-        const transcript = await transcribeForCaptions(audio, "narration.mp3", video.language);
-        return { audio, transcript };
-      },
+    // Rede da máquina/servidor pode cair por alguns segundos: refaz SÓ a voz por
+    // até ~1 min (2s, 4s, 8s, 16s, 20s) antes de desistir do vídeo.
+    const audio = await retryTransient(
+      () => synthesizeNarration(video.script!.scenes[i].narration, video.voice ?? ""),
       6,
       2_000,
       20_000,
     );
+    // A legenda (Groq) nunca derruba o vídeo: tenta de novo com paciência e, se
+    // continuar falhando, a cena fica sem legenda (e o cliente é ressarcido no
+    // fim). Legenda desligada: nem chama a Groq; a duração vem do próprio áudio.
+    const captionState: CaptionState = { failed: false, reason: null };
+    const measured = await measureAudioSeconds(audio);
+    if (video.captions_enabled && captionsDown) captionState.failed = true;
+    const transcript = video.captions_enabled && !captionsDown
+      ? await transcribeResilient({
+          audio,
+          filename: "narration.mp3",
+          language: video.language,
+          measuredSeconds: measured,
+          state: captionState,
+          context: `vídeo realista ${video.id} cena ${i + 1}`,
+        })
+      : { text: "", durationSeconds: measured, words: [] };
+    if (captionState.failed) captionsDown = true;
     const path = audioPath(video, i);
     const { error } = await retryDb(() =>
       service.storage.from(REALISTIC_BUCKET).upload(path, audio, { contentType: "audio/mpeg", upsert: true }),
     );
     if (error) throw new Error(`Falha ao salvar a narração: ${error.message}`);
-    items.push({ audioPath: path, durationSeconds: transcript.durationSeconds, words: transcript.words });
+    items.push({
+      audioPath: path,
+      durationSeconds: transcript.durationSeconds,
+      words: transcript.words,
+      ...(captionState.failed ? { captionsFailed: true } : {}),
+    });
   }
   return items;
 }
@@ -343,6 +365,9 @@ async function finalize(service: ServiceClient, video: RealisticVideoRow): Promi
     p_thumbnail_url: thumbnailUrl,
   });
   if (error) throw new Error(error.message);
+
+  // Alguma cena ficou sem legenda por falha da Groq: devolve os créditos ao cliente.
+  if (narration.some((n) => n.captionsFailed)) await applyCaptionFailureNoCharge(video.id, "realistic");
 
   // Limpeza dos arquivos temporários (clipes e vozes). Falhar aqui é inofensivo.
   await service.storage

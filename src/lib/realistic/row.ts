@@ -32,6 +32,7 @@ export type RealisticVideoRow = {
   status: RealisticVideoStatus;
   credit_spent: boolean;
   credit_refunded: boolean;
+  caption_failed?: boolean;
   video_url: string | null;
   thumbnail_url: string | null;
   error_message: string | null;
@@ -57,6 +58,8 @@ export type NarrationItem = {
   audioPath: string;
   durationSeconds: number;
   words: { word: string; start: number; end: number }[];
+  // A Groq (legenda) falhou nesta cena: ela fica sem legenda (e o cliente é ressarcido).
+  captionsFailed?: boolean;
 };
 
 export function publicStorageUrl(path: string): string {
@@ -85,6 +88,7 @@ export function mapRealisticRow(row: RealisticVideoRow): RealisticVideoRecord {
     swapsUsed: row.swaps_used,
     status: row.status,
     creditRefunded: row.credit_refunded,
+    captionFailed: row.caption_failed ?? false,
     videoUrl: row.video_url,
     thumbnailUrl: row.thumbnail_url,
     errorMessage: row.error_message,

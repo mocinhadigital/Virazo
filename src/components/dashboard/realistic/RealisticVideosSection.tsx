@@ -1,5 +1,6 @@
 "use client";
 
+import { CAPTION_FAILED_NOTICE } from "@/lib/video/captionNotice";
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Download, Loader2, Play, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { useDashboard } from "../DashboardContext";
@@ -186,6 +187,9 @@ export default function RealisticVideosSection() {
                 <p className="line-clamp-2 text-xs font-semibold text-white">{video.title}</p>
                 {video.status === "Erro" && (
                   <p className="line-clamp-3 text-[11px] text-zinc-400">{video.errorMessage}</p>
+                )}
+                {video.status === "Pronto" && video.captionFailed && (
+                  <p className="line-clamp-3 text-[11px] text-amber-400">{CAPTION_FAILED_NOTICE}</p>
                 )}
                 <div className="mt-auto flex flex-wrap items-center gap-1.5">
                   {video.status === "Pronto" && video.videoUrl && (

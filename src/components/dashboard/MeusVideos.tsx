@@ -1,5 +1,6 @@
 "use client";
 
+import { CAPTION_FAILED_NOTICE } from "@/lib/video/captionNotice";
 import { useEffect, useState } from "react";
 import {
   Play,
@@ -342,6 +343,9 @@ function VideoRow({
             {video.errorMessage ?? "O vídeo não chegou a ser concluído."}
           </p>
         )}
+        {!isFailed && status === "Pronto" && video.captionFailed && (
+          <p className="mt-1 text-[11px] text-amber-400">{CAPTION_FAILED_NOTICE}</p>
+        )}
         {status === "Processando" && (
           <div className="mt-1">
             <VideoProgress
@@ -451,6 +455,11 @@ function VideoModal({ video, onClose }: { video: VideoRecord; onClose: () => voi
               <Download className="h-4 w-4" />
               Baixar vídeo
             </DownloadVideoLink>
+            {video.captionFailed && (
+              <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+                {CAPTION_FAILED_NOTICE}
+              </p>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 py-8 text-center">

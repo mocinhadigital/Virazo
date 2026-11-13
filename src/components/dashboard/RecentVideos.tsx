@@ -1,5 +1,6 @@
 "use client";
 
+import { CAPTION_FAILED_NOTICE } from "@/lib/video/captionNotice";
 import { useState } from "react";
 import { Play, Loader2, Pencil, Clapperboard, Wand2, AlertTriangle, X, Download } from "lucide-react";
 import { useDashboard } from "./DashboardContext";
@@ -152,6 +153,11 @@ export default function RecentVideos() {
                   <Download className="h-4 w-4" />
                   Baixar vídeo
                 </DownloadVideoLink>
+                {activeVideo.captionFailed && (
+                  <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+                    {CAPTION_FAILED_NOTICE}
+                  </p>
+                )}
               </>
             ) : (
               <div className="flex flex-col items-center gap-3 py-8 text-center">

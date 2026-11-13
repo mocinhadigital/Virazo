@@ -130,6 +130,7 @@ export async function POST(request: Request) {
           captionsEnabled: body.captionsEnabled,
           captionStyle: body.captionStyle,
           report,
+          videoId: created.id,
         });
 
         // 5. Sobe pro Storage.

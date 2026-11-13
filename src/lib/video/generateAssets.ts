@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateExtraScenes, generateScript, type Script } from "@/lib/ai/script";
+import { applyCaptionFailureNoCharge, type CaptionState } from "@/lib/ai/captions";
 import { buildRenderScenes } from "@/lib/video/scenePipeline";
 import { probeVideoDuration, renderFinalVideo, totalSceneSeconds, type RenderScene } from "@/lib/video/render";
 import { durationRule, LAST_RESORT_MIN_TEMPO, planFit, SAFETY_MARGIN, SECONDS_PER_SCENE } from "@/lib/video/durationTarget";
@@ -80,11 +81,17 @@ export async function generateVideoAssets(input: {
   captionStyle: string | null;
   backgroundMusic?: Buffer;
   report: ReportProgress;
-}): Promise<{ finalVideo: Buffer; thumbnail: Buffer | undefined; script: Script }> {
+  // Vídeo que está sendo gerado: se a legenda falhar e ele sair sem legenda,
+  // o custo dele (vaga do dia/bônus) é devolvido ao cliente.
+  videoId?: string;
+}): Promise<{ finalVideo: Buffer; thumbnail: Buffer | undefined; script: Script; captionsFailed: boolean }> {
   await input.report("roteiro");
   const script = await generateScript(input.script);
 
-  let scenes = await buildRenderScenes(script, input.voice, input.visualStyle, input.language, input.report);
+  // Se a Groq (legenda) falhar de vez, o vídeo sai sem legenda em vez de falhar.
+  const captionState: CaptionState = { failed: false, reason: null };
+  const captions = { enabled: input.captionsEnabled, state: captionState, context: input.videoId ? `vídeo ${input.videoId}` : undefined };
+  let scenes = await buildRenderScenes(script, input.voice, input.visualStyle, input.language, input.report, captions);
 
   const rule = durationRule(input.script.duration);
   if (rule) {
@@ -107,6 +114,7 @@ export async function generateVideoAssets(input: {
         input.visualStyle,
         input.language,
         input.report,
+        captions,
       );
       scenes = [...scenes, ...extraScenes];
     }
@@ -142,7 +150,9 @@ export async function generateVideoAssets(input: {
 
   // `script` volta para quem chamou poder guardá-lo (memória das séries). As
   // cenas de reforço entram na narração, mas o roteiro base já basta para isso.
-  return { finalVideo, thumbnail: scenes[0]?.image, script };
+  if (captionState.failed && input.videoId) await applyCaptionFailureNoCharge(input.videoId, "video");
+
+  return { finalVideo, thumbnail: scenes[0]?.image, script, captionsFailed: captionState.failed };
 }
 
 // Garante o mínimo da faixa alongando a voz de leve (cenas de reforço já

@@ -2,7 +2,7 @@ import "server-only";
 import type { Script } from "@/lib/ai/script";
 import { synthesizeNarration } from "@/lib/ai/narration";
 import { generateSceneImage } from "@/lib/ai/image";
-import type { Transcript } from "@/lib/ai/captions";
+import type { CaptionState, Transcript } from "@/lib/ai/captions";
 import { CAPTION_BATCH_SIZE, measureAudioSeconds, transcribeScenesBatch } from "@/lib/video/audioBatch";
 import type { RenderScene } from "@/lib/video/render";
 import type { ReportProgress } from "@/lib/video/generateAssets";
@@ -27,6 +27,9 @@ export async function buildRenderScenes(
   visualStyle: string,
   language: "pt" | "en" | "es" = "pt",
   report?: ReportProgress,
+  // Legenda: desligada = não chama a Groq; `captionState` recebe a falha se a
+  // Groq não responder (o vídeo segue sem legenda — ver transcribeResilient).
+  captions: { enabled?: boolean; state?: CaptionState; context?: string } = {},
 ): Promise<RenderScene[]> {
   const total = script.scenes.length;
 
@@ -61,7 +64,7 @@ export async function buildRenderScenes(
     const from = batchStart;
     batchStart = end;
     batchPromises.push(
-      track(transcribeScenesBatch(audios.slice(from, end), durations.slice(from, end), language)),
+      track(transcribeScenesBatch(audios.slice(from, end), durations.slice(from, end), language, captions)),
     );
   };
   for (let i = 0; i < total; i++) {

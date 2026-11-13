@@ -16,6 +16,7 @@ export type VideoRow = {
   video_url: string | null;
   thumbnail_url: string | null;
   error_message: string | null;
+  caption_failed?: boolean;
   created_at: string;
   series_id?: string | null;
   reserved_at?: string | null;
@@ -42,6 +43,7 @@ export function mapVideoRow(row: VideoRow): VideoRecord {
     videoUrl: row.video_url,
     thumbnailUrl: row.thumbnail_url,
     errorMessage: row.error_message,
+    captionFailed: row.caption_failed ?? false,
     seriesId: row.series_id ?? null,
     progressStage: row.progress_stage ?? null,
     progressCurrent: row.progress_current ?? null,

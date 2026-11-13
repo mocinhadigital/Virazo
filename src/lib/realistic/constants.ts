@@ -150,6 +150,8 @@ export type RealisticVideoRecord = {
   swapsUsed: number;
   status: RealisticVideoStatus;
   creditRefunded: boolean;
+  // Saiu sem legenda por falha da Groq (créditos devolvidos).
+  captionFailed?: boolean;
   videoUrl: string | null;
   thumbnailUrl: string | null;
   errorMessage: string | null;

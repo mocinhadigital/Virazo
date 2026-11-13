@@ -17,6 +17,8 @@ export type VideoRecord = {
   videoUrl: string | null;
   thumbnailUrl: string | null;
   errorMessage: string | null;
+  // Saiu sem legenda por falha da Groq (cliente não é cobrado).
+  captionFailed?: boolean;
   seriesId: string | null;
   // Progresso da geração (migration 0025) — só faz sentido em 'Processando'.
   progressStage: string | null;

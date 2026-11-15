@@ -21,6 +21,8 @@ export type SeriesRow = {
   total_videos_gerados: number;
   // Série de Vídeo Realista ✨ (migration 0035). Ausente em respostas antigas.
   realistic?: boolean;
+  // Roteiro do próximo episódio já escrito/editado pelo cliente (migration 0043).
+  next_script?: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -45,6 +47,7 @@ export function mapSeriesRow(row: SeriesRow): SeriesRecord {
     lastGeneratedAt: row.last_generated_at,
     totalVideosGerados: row.total_videos_gerados,
     realistic: row.realistic === true,
+    hasNextScript: !!row.next_script,
     createdAt: row.created_at,
   };
 }

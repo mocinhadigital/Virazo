@@ -8,6 +8,7 @@ import {
 } from "@/lib/video/generateAssets";
 import { effectiveDuration, isLongDuration } from "@/lib/video/durations";
 import { userCanUseLongVideos } from "@/lib/billing/longVideos";
+import { readStoredScript } from "@/lib/script/prepare";
 import { loadBackgroundMusic } from "@/lib/video/music";
 import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
@@ -90,6 +91,53 @@ export async function checkConcurrencyLimit(
   return { ok: true };
 }
 
+// Prepara o episódio da série: que episódio é este, a memória do que já foi contado
+// e a instrução (tema) para escrever o roteiro. Usada tanto na geração do episódio
+// quanto ao escrever o roteiro do PRÓXIMO episódio para o cliente editar (assim os
+// dois usam exatamente a mesma instrução e a mesma memória).
+export async function buildEpisodePlan(series: SeriesRow): Promise<{
+  episodeNumber: number;
+  seriesMemory: string;
+  topic: string;
+}> {
+  // Memória da série: o que os episódios anteriores já contaram (roteiro
+  // guardado em videos.script) e que episódio é este. Chave de serviço de
+  // propósito: o cliente "excluir" um vídeo só o esconde (migration 0034), e um
+  // episódio escondido continua sendo um episódio já contado.
+  const { data: pastRows, count: pastCount } = await createServiceRoleClient()
+    .from("videos")
+    .select("title, script", { count: "exact" })
+    .eq("series_id", series.id)
+    .eq("status", "Pronto")
+    .order("created_at", { ascending: false })
+    .limit(6)
+    .returns<{ title: string; script: unknown }[]>();
+  const episodeNumber = (pastCount ?? pastRows?.length ?? 0) + 1;
+  const seriesMemory = buildSeriesMemory({
+    episodeNumber,
+    past: (pastRows ?? []).map(toPastEpisode),
+  });
+
+  // BUG REAL em produção (confirmado direto no banco): uma série chamada
+  // "A volta de jesus" com nicho "Medieval" gerou vídeos sobre peste
+  // medieval — porque esta instrução usava SÓ o nicho, nunca o título da
+  // série. O usuário digita o assunto de verdade no título ("Nome da
+  // série"); o nicho é só a categoria/estética (igual a "estilo de
+  // conteúdo"), nunca deveria substituir o assunto. Agora o título é o
+  // ASSUNTO CENTRAL obrigatório, e o nicho vira só o "tom"/categoria
+  // narrativa — mesma distinção tema vs. estilo do vídeo avulso.
+  // O que já foi contado vai em `seriesMemory` (abaixo), não aqui: antes a
+  // lista de "ângulos já usados" eram só títulos iguais ("série — data") e a IA
+  // repetia o episódio. O nicho entra como categoria (curto) ou como ambientação
+  // (longo) — ver describeNicho.
+  const topic =
+    episodeNumber > 1
+      ? `O ASSUNTO CENTRAL E OBRIGATÓRIO de todos os vídeos desta série é: "${series.title}". Desenvolva um roteiro que aborde diretamente esse assunto — nunca troque por um assunto diferente. Explore um ângulo, momento ou aspecto específico e ainda não coberto dentro desse mesmo assunto. ${describeNicho(series.nicho)} Tom de voz ${series.tom_de_voz}.`
+      : `O ASSUNTO CENTRAL E OBRIGATÓRIO deste vídeo é: "${series.title}". Desenvolva um roteiro que aborde diretamente esse assunto — nunca troque por um assunto diferente. Escolha um ângulo específico e interessante dentro desse mesmo assunto. ${describeNicho(series.nicho)} Tom de voz ${series.tom_de_voz}.`;
+
+  return { episodeNumber, seriesMemory, topic };
+}
+
 export async function runSeriesGeneration(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
@@ -128,40 +176,8 @@ export async function runSeriesGeneration(
     };
   }
 
-  // Memória da série: o que os episódios anteriores já contaram (roteiro
-  // guardado em videos.script) e que episódio é este. Chave de serviço de
-  // propósito: o cliente "excluir" um vídeo só o esconde (migration 0034), e um
-  // episódio escondido continua sendo um episódio já contado.
-  const { data: pastRows, count: pastCount } = await createServiceRoleClient()
-    .from("videos")
-    .select("title, script", { count: "exact" })
-    .eq("series_id", series.id)
-    .eq("status", "Pronto")
-    .order("created_at", { ascending: false })
-    .limit(6)
-    .returns<{ title: string; script: unknown }[]>();
-  const episodeNumber = (pastCount ?? pastRows?.length ?? 0) + 1;
-  const seriesMemory = buildSeriesMemory({
-    episodeNumber,
-    past: (pastRows ?? []).map(toPastEpisode),
-  });
-
-  // BUG REAL em produção (confirmado direto no banco): uma série chamada
-  // "A volta de jesus" com nicho "Medieval" gerou vídeos sobre peste
-  // medieval — porque esta instrução usava SÓ o nicho, nunca o título da
-  // série. O usuário digita o assunto de verdade no título ("Nome da
-  // série"); o nicho é só a categoria/estética (igual a "estilo de
-  // conteúdo"), nunca deveria substituir o assunto. Agora o título é o
-  // ASSUNTO CENTRAL obrigatório, e o nicho vira só o "tom"/categoria
-  // narrativa — mesma distinção tema vs. estilo do vídeo avulso.
-  // O que já foi contado vai em `seriesMemory` (abaixo), não aqui: antes a
-  // lista de "ângulos já usados" eram só títulos iguais ("série — data") e a IA
-  // repetia o episódio. O nicho entra como categoria (curto) ou como ambientação
-  // (longo) — ver describeNicho.
-  const topic =
-    episodeNumber > 1
-      ? `O ASSUNTO CENTRAL E OBRIGATÓRIO de todos os vídeos desta série é: "${series.title}". Desenvolva um roteiro que aborde diretamente esse assunto — nunca troque por um assunto diferente. Explore um ângulo, momento ou aspecto específico e ainda não coberto dentro desse mesmo assunto. ${describeNicho(series.nicho)} Tom de voz ${series.tom_de_voz}.`
-      : `O ASSUNTO CENTRAL E OBRIGATÓRIO deste vídeo é: "${series.title}". Desenvolva um roteiro que aborde diretamente esse assunto — nunca troque por um assunto diferente. Escolha um ângulo específico e interessante dentro desse mesmo assunto. ${describeNicho(series.nicho)} Tom de voz ${series.tom_de_voz}.`;
+  // Memória da série + instrução do episódio (ver buildEpisodePlan).
+  const { seriesMemory, topic } = await buildEpisodePlan(series);
 
   // Sorteia uma das músicas de fundo selecionadas na série (se houver) —
   // uma faixa diferente por vídeo, igual ao comportamento do AutoShortz.
@@ -209,6 +225,20 @@ export async function runSeriesGeneration(
   try {
     const backgroundMusic = await loadBackgroundMusic(supabase, chosenMusicId);
 
+    // Roteiro do PRÓXIMO episódio que o cliente já escreveu/editou (series.next_script,
+    // migration 0043): usado uma vez, no lugar do roteiro automático. Sem ele, ou se
+    // não tiver o formato esperado, a série segue 100% automática como sempre.
+    const nextStored = readStoredScript(
+      (claimed as { next_script?: unknown }).next_script ?? series.next_script,
+    );
+    if (nextStored) {
+      // Guarda já no vídeo: se a geração falhar, "Tentar de novo" reusa este roteiro.
+      await createServiceRoleClient()
+        .from("videos")
+        .update({ script: { ...nextStored.script, source: nextStored.source }, script_locked: true })
+        .eq("id", created.id);
+    }
+
     const report = createProgressReporter(supabase, created.id, userId);
 
     // Roteiro → cenas → montagem → upload → pronto, contra o prazo da
@@ -228,6 +258,8 @@ export async function runSeriesGeneration(
             seriesMemory,
             isSeries: true,
           },
+          scriptOverride: nextStored?.script,
+          allowExtraScenes: nextStored ? nextStored.source === "ai" : true,
           voice: series.voice ?? "",
           visualStyle: series.visual_style,
           language: series.idioma,
@@ -242,7 +274,7 @@ export async function runSeriesGeneration(
         // derruba o vídeo (só o próximo episódio ficaria sem esta memória).
         const { error: saveScriptError } = await createServiceRoleClient()
           .from("videos")
-          .update({ script })
+          .update({ script: nextStored ? { ...script, source: nextStored.source } : script })
           .eq("id", created.id);
         if (saveScriptError) {
           console.warn("[series/generate] não foi possível guardar o roteiro:", saveScriptError.message);
@@ -293,6 +325,12 @@ export async function runSeriesGeneration(
       p_message: null,
       p_user_id: userId,
     });
+
+    // O roteiro guardado valeu para ESTE episódio; o próximo volta ao automático
+    // (até o cliente escrever outro).
+    if (nextStored) {
+      await createServiceRoleClient().from("series").update({ next_script: null }).eq("id", series.id);
+    }
 
     return { ok: true, video: ready };
   } catch (err) {

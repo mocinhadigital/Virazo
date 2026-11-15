@@ -108,6 +108,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.horario !== undefined) update.horario = body.horario;
   if (body.status !== undefined) update.status = body.status;
 
+  // Mudou algo que o roteiro guardado do próximo episódio usa (assunto, tom, idioma,
+  // estilo visual, duração)? Então ele já não combina com a série: descarta e o
+  // episódio volta a escrever o próprio roteiro. (Só mexe na coluna se há roteiro
+  // guardado — migration 0043.)
+  if (existing.next_script) {
+    const changed =
+      (body.title !== undefined && body.title.trim() !== existing.title) ||
+      (body.nicho !== undefined && body.nicho.trim() !== existing.nicho) ||
+      (body.tomDeVoz !== undefined && body.tomDeVoz.trim() !== existing.tom_de_voz) ||
+      (body.idioma !== undefined && body.idioma !== existing.idioma) ||
+      (body.visualStyle !== undefined && body.visualStyle !== existing.visual_style) ||
+      (body.duration !== undefined && body.duration !== existing.duration);
+    if (changed) update.next_script = null;
+  }
+
   // Reagenda a próxima geração quando o horário muda, ou quando a série sai
   // de "pausada"/"arquivada" de volta para "ativa" — evita disparar
   // imediatamente com uma data antiga que ficou parada durante a pausa.

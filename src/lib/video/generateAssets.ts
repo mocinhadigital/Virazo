@@ -84,9 +84,16 @@ export async function generateVideoAssets(input: {
   // Vídeo que está sendo gerado: se a legenda falhar e ele sair sem legenda,
   // o custo dele (vaga do dia/bônus) é devolvido ao cliente.
   videoId?: string;
+  // Roteiro já aprovado pelo cliente (editado, próprio ou o da IA que ele aceitou):
+  // pula a escrita da IA. `allowExtraScenes` = false para texto que o cliente
+  // escreveu/editou — nunca inventamos cenas com palavras que ele não escreveu
+  // (a duração é garantida pela faixa de palavras e pelo ajuste de velocidade).
+  scriptOverride?: Script;
+  allowExtraScenes?: boolean;
 }): Promise<{ finalVideo: Buffer; thumbnail: Buffer | undefined; script: Script; captionsFailed: boolean }> {
   await input.report("roteiro");
-  const script = await generateScript(input.script);
+  const script = input.scriptOverride ?? (await generateScript(input.script));
+  const allowExtraScenes = input.allowExtraScenes ?? true;
 
   // Se a Groq (legenda) falhar de vez, o vídeo sai sem legenda em vez de falhar.
   const captionState: CaptionState = { failed: false, reason: null };
@@ -99,7 +106,7 @@ export async function generateVideoAssets(input: {
     // roda se a 1ª ainda não bastou); depois, ajuste fino da velocidade.
     for (let round = 0; round < 3; round++) {
       const plan = planFit(totalSceneSeconds(scenes), rule);
-      if (plan.kind !== "extend") break;
+      if (plan.kind !== "extend" || !allowExtraScenes) break;
       const count = Math.min(3, Math.max(1, Math.ceil(plan.missingSeconds / SECONDS_PER_SCENE)));
       const extra = await generateExtraScenes({
         script,

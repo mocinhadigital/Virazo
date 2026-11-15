@@ -16,6 +16,8 @@ import { useDashboard, VideoGenerationError } from "./DashboardContext";
 import VideoProgress from "./VideoProgress";
 import { styleOptions } from "./styleOptions";
 import { VISUAL_STYLES } from "./visualStyles";
+import VideoScriptDialog, { EMPTY_VIDEO_SCRIPT_CACHE, type VideoScriptCache } from "./script/VideoScriptDialog";
+import type { ScriptPayload } from "@/lib/script/limits";
 
 type StepKey =
   | "tema"
@@ -99,6 +101,10 @@ function WizardPanel() {
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [captionsOn, setCaptionsOn] = useState(true);
   const [captionStyle, setCaptionStyle] = useState<string | null>("Destaque");
+  // Quadro "Roteiro do vídeo" (abre depois da revisão final). Ler, editar e refazer o
+  // roteiro não gasta nada do limite: a vaga só é reservada quando o vídeo é gerado.
+  const [scriptDialog, setScriptDialog] = useState<null | "ai" | "own">(null);
+  const [scriptCache, setScriptCache] = useState<VideoScriptCache>(EMPTY_VIDEO_SCRIPT_CACHE);
 
   const [isDone, setIsDone] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -114,7 +120,7 @@ function WizardPanel() {
 
   // Disparada no clique (e não por um efeito): assim limpar o erro para
   // "Tentar de novo" nunca cria um vídeo novo por acidente.
-  async function startGeneration() {
+  async function startGeneration(script?: ScriptPayload) {
     const selectedStyle = styleOptions.find((s) => s.title === style);
     try {
       await addVideo({
@@ -127,6 +133,7 @@ function WizardPanel() {
         captionsEnabled: captionsOn,
         captionStyle: captionsOn ? captionStyle : null,
         gradient: selectedStyle?.gradient ?? "from-[#4C3BFF] to-[#A855F7]",
+        script,
       });
       setIsDone(true);
     } catch (err) {
@@ -188,16 +195,24 @@ function WizardPanel() {
 
   function goNext() {
     if (step === "revisao") {
-      setIsDone(false);
-      setGenError(null);
-      setFailedVideoId(null);
-      setGenerationStartedAt(Date.now());
-      setStep("geracao");
-      void startGeneration();
+      // Antes de gerar, mostra o roteiro para o cliente ler/editar (de graça).
+      setScriptDialog("ai");
       return;
     }
     const next = STEP_ORDER[stepIndex + 1];
     if (next) setStep(next);
+  }
+
+  // Clique em "Gerar com este roteiro" / "Salvar e gerar": só agora começa a geração
+  // (e só agora a vaga do dia é reservada).
+  function handleScriptGenerate(payload: ScriptPayload) {
+    setScriptDialog(null);
+    setIsDone(false);
+    setGenError(null);
+    setFailedVideoId(null);
+    setGenerationStartedAt(Date.now());
+    setStep("geracao");
+    void startGeneration(payload);
   }
 
   function goBack() {
@@ -214,6 +229,8 @@ function WizardPanel() {
     setVoice(null);
     setCaptionsOn(true);
     setCaptionStyle("Destaque");
+    setScriptCache(EMPTY_VIDEO_SCRIPT_CACHE);
+    setScriptDialog(null);
     setIsDone(false);
     setGenError(null);
     setFailedVideoId(null);
@@ -546,6 +563,14 @@ function WizardPanel() {
                 value={captionsOn ? (captionStyle ?? "Ativadas") : "Desativadas"}
                 onEdit={() => setStep("legendas")}
               />
+              <button
+                type="button"
+                onClick={() => setScriptDialog("own")}
+                disabled={!canGoNext}
+                className="mt-1 self-start text-xs font-semibold text-[#A855F7] underline-offset-2 hover:underline disabled:opacity-40"
+              >
+                Prefere escrever a sua própria história?
+              </button>
               {isAdmin ? (
                 <p className="mt-2 text-xs text-zinc-500">
                   Conta de administrador: sem limite diário de vídeos.
@@ -744,6 +769,20 @@ function WizardPanel() {
           </div>
         )}
       </div>
+
+      {scriptDialog && (
+        <VideoScriptDialog
+          mode={scriptDialog}
+          topic={topic.trim()}
+          style={style ?? "Personalizado"}
+          visualStyle={visualStyle ?? "Realista"}
+          duration={duration ?? "30s"}
+          cache={scriptCache}
+          setCache={setScriptCache}
+          onGenerate={handleScriptGenerate}
+          onClose={() => setScriptDialog(null)}
+        />
+      )}
     </div>
   );
 }

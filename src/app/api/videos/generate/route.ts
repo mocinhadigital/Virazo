@@ -10,6 +10,10 @@ import { isLongDuration, OFFERED_LONG_DURATION } from "@/lib/video/durations";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import { checkConcurrencyLimit } from "@/lib/series/generate";
+import { prepareApprovedScript, type ApprovedScript } from "@/lib/script/prepare";
+import { claimScriptRequest } from "@/lib/script/access";
+import { LONG_VIDEO_NOT_ALLOWED_MESSAGE, userCanUseLongVideos } from "@/lib/billing/longVideos";
+import { createServiceRoleClient } from "@/utils/supabase/service-role";
 
 // Usa Node.js (não Edge) porque o pipeline chama child_process/fs (ffmpeg).
 // maxDuration é só relevante em hosts serverless com limite de execução
@@ -48,6 +52,9 @@ type GenerateVideoBody = {
   captionsEnabled: boolean;
   captionStyle: string | null;
   gradient: string;
+  // Roteiro que o cliente aprovou no passo "Roteiro" (editado, próprio ou o da IA).
+  // Ausente = a IA escreve o roteiro aqui, como sempre.
+  script?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -85,6 +92,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: concurrency.error }, { status: 429 });
   }
 
+  // Roteiro aprovado pelo cliente: conferido e com as descrições de imagem
+  // refeitas nas cenas editadas ANTES de reservar a vaga — roteiro inválido ou
+  // falha de IA aqui não gasta nada do limite do dia.
+  let approved: ApprovedScript | null = null;
+  if (body.script !== undefined && body.script !== null) {
+    // 60s sem plano Pro/Ultra é recusado já aqui, antes de gastar IA com o roteiro.
+    if (isLongDuration(body.duration) && !(await userCanUseLongVideos(supabase, user.id))) {
+      return NextResponse.json({ error: LONG_VIDEO_NOT_ALLOWED_MESSAGE }, { status: 403 });
+    }
+    // Texto editado/próprio pede descrição de imagem nova à IA: conta no teto diário de pedidos.
+    if (typeof (body.script as { text?: unknown }).text === "string") {
+      const claim = await claimScriptRequest(user.id, "video");
+      if (!claim.ok) return NextResponse.json({ error: claim.error }, { status: 429 });
+    }
+    const prepared = await prepareApprovedScript(body.script, body.duration, visualStyle, body.title || body.topic);
+    if (!prepared.ok) return NextResponse.json({ error: prepared.error }, { status: 400 });
+    approved = prepared.approved;
+  }
+
   // 1. Reserva atomicamente 1 vaga do limite diário do plano ativo — rejeita
   // sem assinatura ativa ou se o limite de hoje já foi atingido, sem criar
   // vídeo nenhum nesses casos. A trava por usuário (advisory lock, dentro da
@@ -114,6 +140,18 @@ export async function POST(request: Request) {
   try {
     const report = createProgressReporter(supabase, created.id);
 
+    // Guarda o roteiro aprovado no vídeo: "Tentar de novo" reaproveita o mesmo
+    // roteiro (com as edições do cliente) em vez de escrever outro.
+    if (approved) {
+      const { error: saveScriptError } = await createServiceRoleClient()
+        .from("videos")
+        .update({ script: approved.stored, script_locked: true })
+        .eq("id", created.id);
+      if (saveScriptError) {
+        console.warn("[/api/videos/generate] não foi possível guardar o roteiro:", saveScriptError.message);
+      }
+    }
+
     // 2-6 correm contra o prazo de GENERATION_TIME_BUDGET_MS: se estourar,
     // cai no catch abaixo e o vídeo vira "Falhou" em vez de ficar
     // "Gerando" para sempre quando a Vercel encerra a função.
@@ -128,6 +166,8 @@ export async function POST(request: Request) {
             visualStyle,
             duration: body.duration,
           },
+          scriptOverride: approved?.script,
+          allowExtraScenes: approved ? approved.source === "ai" : true,
           voice: body.voice,
           visualStyle,
           captionsEnabled: body.captionsEnabled,

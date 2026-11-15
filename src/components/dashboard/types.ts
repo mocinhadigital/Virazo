@@ -51,5 +51,7 @@ export type SeriesRecord = {
   totalVideosGerados: number;
   // Cada episódio é um Vídeo Realista ✨ (gasta 1 crédito realista).
   realistic: boolean;
+  // Já existe um roteiro do próximo episódio escrito/editado pelo cliente.
+  hasNextScript: boolean;
   createdAt: string;
 };

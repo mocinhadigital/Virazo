@@ -17,6 +17,7 @@ import type { VideoRecord } from "./types";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
 import { countVideosUsedToday, parseGenerationError, type GenerationBlockReason } from "@/lib/billing/dailyLimit";
 import { planAllowsLongVideos } from "@/lib/video/durations";
+import type { ScriptPayload } from "@/lib/script/limits";
 
 export type WizardInitial = {
   topic?: string;
@@ -39,6 +40,9 @@ export class VideoGenerationError extends Error {
 }
 
 export type NewVideoInput = {
+  // Roteiro aprovado no passo "Roteiro" (editado, próprio ou o da IA). Sem ele, a IA
+  // escreve o roteiro na hora de gerar.
+  script?: ScriptPayload;
   title: string;
   topic: string;
   style: string;

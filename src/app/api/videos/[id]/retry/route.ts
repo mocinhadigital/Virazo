@@ -10,6 +10,7 @@ import {
 import { effectiveDuration } from "@/lib/video/durations";
 import { loadBackgroundMusic } from "@/lib/video/music";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
+import { readStoredScript } from "@/lib/script/prepare";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 
 // Reprocessa um vídeo que falhou, no MESMO registro (mesmo id) — nunca cria
@@ -44,6 +45,10 @@ function extractErrorMessage(err: unknown): string {
 type FailedVideoRow = VideoRow & {
   series_id: string | null;
   background_music_id: string | null;
+  // Roteiro aprovado/editado pelo cliente (migration 0043): o "Tentar de novo"
+  // reaproveita ele em vez de escrever outro.
+  script?: unknown;
+  script_locked?: boolean;
 };
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -128,6 +133,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const report = createProgressReporter(supabase, retried.id);
+    const stored = retried.script_locked ? readStoredScript(retried.script) : null;
 
     // 2-6 correm contra o prazo de GENERATION_TIME_BUDGET_MS (ver
     // generateAssets.ts): se estourar, cai no catch e o vídeo volta a
@@ -145,6 +151,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             duration,
             language: idioma,
           },
+          scriptOverride: stored?.script,
+          allowExtraScenes: stored ? stored.source === "ai" : true,
           voice: retried.voice ?? "",
           visualStyle: retried.visual_style ?? "Realista",
           language: idioma,

@@ -12,6 +12,7 @@ import {
   Wand2,
   AlertTriangle,
   CheckCircle2,
+  FileText,
 } from "lucide-react";
 import type { SeriesRecord, SeriesStatus } from "../types";
 import { styleOptions } from "../styleOptions";
@@ -19,6 +20,7 @@ import { VISUAL_STYLES } from "../visualStyles";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import RealisticNotice from "../realistic/RealisticNotice";
+import NextScriptModal from "../script/NextScriptModal";
 import { isLongDuration, planAllowsLongVideos } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import Select from "@/components/ui/Select";
@@ -152,6 +154,8 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Série cujo roteiro do próximo episódio está aberto para ver/editar.
+  const [scriptSeriesId, setScriptSeriesId] = useState<string | null>(null);
   const editingRealistic = editingId ? series.find((s) => s.id === editingId)?.realistic === true : false;
 
   function openCreateModal() {
@@ -403,6 +407,23 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   </button>
                 )}
 
+                {!s.realistic && s.status !== "arquivada" && (
+                  <button
+                    type="button"
+                    disabled={busyId === s.id}
+                    onClick={() => setScriptSeriesId(s.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Roteiro do próximo episódio
+                    {s.hasNextScript && (
+                      <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                        pronto
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => openEditModal(s)}
@@ -425,6 +446,21 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
             </div>
           ))}
         </div>
+      )}
+
+      {scriptSeriesId && series.find((x) => x.id === scriptSeriesId) && (
+        <NextScriptModal
+          series={series.find((x) => x.id === scriptSeriesId)!}
+          onClose={() => setScriptSeriesId(null)}
+          onChanged={(hasScript) =>
+            setSeries((prev) => prev.map((x) => (x.id === scriptSeriesId ? { ...x, hasNextScript: hasScript } : x)))
+          }
+          onGenerateNow={() => {
+            const id = scriptSeriesId;
+            setScriptSeriesId(null);
+            if (id) void handleGenerateNow(id);
+          }}
+        />
       )}
 
       {modalOpen && (

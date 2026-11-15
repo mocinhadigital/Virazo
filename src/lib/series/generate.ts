@@ -66,12 +66,17 @@ export async function checkConcurrencyLimit(
   // Admin não tem limite diário (migration 0030) e pode não ter assinatura: sem
   // esta exceção ele caía em 0 gerações simultâneas e não conseguia gerar nada.
   // Vale o teto do maior plano.
-  const maxConcurrent = activeSubscription
-    ? (PLANS[activeSubscription.plan as keyof typeof PLANS]?.maxConcurrentGenerations ??
-      DEFAULT_MAX_CONCURRENT_GENERATIONS)
-    : (await isAdminUserId(userId))
-      ? PLANS.ultra.maxConcurrentGenerations
-      : DEFAULT_MAX_CONCURRENT_GENERATIONS;
+  let maxConcurrent: number;
+  if (activeSubscription) {
+    maxConcurrent =
+      PLANS[activeSubscription.plan as keyof typeof PLANS]?.maxConcurrentGenerations ??
+      DEFAULT_MAX_CONCURRENT_GENERATIONS;
+  } else if (await isAdminUserId(userId)) {
+    maxConcurrent = PLANS.ultra.maxConcurrentGenerations;
+  } else {
+    // Sem plano ativo: a resposta certa é "assine um plano", não "seu plano permite até 0".
+    return { ok: false, error: "no_subscription: assinatura ativa necessária para gerar vídeos." };
+  }
 
   // Chave de serviço: quem "excluiu" um vídeo ainda em geração (ele só fica
   // escondido, migration 0034) continua contando aqui — senão dava para burlar a

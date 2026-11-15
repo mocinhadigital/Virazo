@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   X,
   Plus,
@@ -18,10 +18,10 @@ import type { SeriesRecord, SeriesStatus } from "../types";
 import { styleOptions } from "../styleOptions";
 import { VISUAL_STYLES } from "../visualStyles";
 import { useDashboard } from "../DashboardContext";
-import { parseGenerationError } from "@/lib/billing/dailyLimit";
+import { countVideosUsedToday, parseGenerationError, startOfDayInBrasilia } from "@/lib/billing/dailyLimit";
 import RealisticNotice from "../realistic/RealisticNotice";
 import NextScriptModal from "../script/NextScriptModal";
-import { isLongDuration, planAllowsLongVideos } from "@/lib/video/durations";
+import { effectiveDuration, isLongDuration, planAllowsLongVideos, videoSlotCost } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
@@ -142,8 +142,18 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function SeriesManager({ initialSeries }: { initialSeries: SeriesRecord[] }) {
-  const { plan, isAdmin, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy, refreshRealisticCredits } =
-    useDashboard();
+  const {
+    plan,
+    isAdmin,
+    longVideosEnabled,
+    videos,
+    dailyVideoLimit,
+    bonusVideos,
+    openPlanModal,
+    realisticCredits,
+    openRealisticBuy,
+    refreshRealisticCredits,
+  } = useDashboard();
   // 60s nas séries normais: chave ligada + plano Pro/Ultra (admin também).
   const canUseLong = longVideosEnabled && (isAdmin || planAllowsLongVideos(plan));
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
@@ -154,9 +164,36 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Dia (Brasília) em que o servidor já recusou por limite do dia: o "Gerar agora" fica
+  // desabilitado até virar o dia, para o cliente não ficar clicando em vão.
+  const [blockedDay, setBlockedDay] = useState<string | null>(null);
+  // Reavalia o limite a cada minuto (o dia pode virar com a página aberta).
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
   // Série cujo roteiro do próximo episódio está aberto para ver/editar.
   const [scriptSeriesId, setScriptSeriesId] = useState<string | null>(null);
   const editingRealistic = editingId ? series.find((s) => s.id === editingId)?.realistic === true : false;
+
+  // O "Gerar agora" desta série vai ser recusado pelo limite do dia? (O servidor continua
+  // sendo quem decide: isto só evita o clique em vão e mostra o motivo.) Série realista usa
+  // créditos realistas, não o limite do dia; admin não tem limite.
+  const todayKey = startOfDayInBrasilia(new Date()).toISOString();
+  const usedToday = countVideosUsedToday(videos);
+  const remainingToday = Math.max(0, dailyVideoLimit - usedToday);
+  function limitMessage(s: SeriesRecord): string | null {
+    if (isAdmin || s.realistic || !plan) return null;
+    if (blockedDay === todayKey) return "Você já usou os vídeos de hoje. O Gerar agora volta amanhã.";
+    const duration = effectiveDuration(s.duration, longVideosEnabled, planAllowsLongVideos(plan));
+    const cost = videoSlotCost(duration);
+    const enough = remainingToday >= cost || (remainingToday === 0 && bonusVideos >= cost);
+    if (enough) return null;
+    return cost > 1 && remainingToday > 0
+      ? "Precisa de 2 vídeos disponíveis para gerar um de 60s."
+      : "Você já usou os vídeos de hoje. O Gerar agora volta amanhã.";
+  }
 
   function openCreateModal() {
     // Sem assinatura ativa, nem abre o formulário — vai direto pro paywall,
@@ -258,6 +295,9 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         if (parsed.reason === "no_subscription") {
           openPlanModal();
         }
+        if (parsed.reason === "daily_limit_reached" || parsed.reason === "not_enough_slots") {
+          setBlockedDay(startOfDayInBrasilia(new Date()).toISOString());
+        }
         if (parsed.message.startsWith("no_realistic_credits:")) {
           openRealisticBuy();
           void refreshRealisticCredits();
@@ -296,6 +336,12 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
           {series.length === 0
             ? "Nenhuma série cadastrada ainda."
             : `${series.length} ${series.length === 1 ? "série cadastrada" : "séries cadastradas"}`}
+          {!isAdmin && plan && (
+            <span className="ml-2 text-zinc-600">
+              · Vídeos de hoje: {Math.min(usedToday, dailyVideoLimit)} de {dailyVideoLimit}
+              {bonusVideos > 0 ? ` (+${bonusVideos} de bônus)` : ""}
+            </span>
+          )}
         </p>
         <button
           type="button"
@@ -374,10 +420,17 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 </div>
               )}
 
+              {s.status !== "arquivada" && limitMessage(s) && (
+                <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-200">
+                  {limitMessage(s)}
+                </p>
+              )}
+
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  disabled={busyId === s.id || s.status === "arquivada"}
+                  disabled={busyId === s.id || s.status === "arquivada" || !!limitMessage(s)}
+                  title={limitMessage(s) ?? undefined}
                   onClick={() => handleGenerateNow(s.id)}
                   className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >

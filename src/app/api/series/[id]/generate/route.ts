@@ -13,6 +13,20 @@ import { createServiceRoleClient } from "@/utils/supabase/service-role";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+// Mensagens vindas do banco (reserve_daily_video_slot) que são recusas, não falhas.
+function classifyRefusal(message: string): { status: number; error: string } | null {
+  if (message.startsWith("daily_limit_reached:")) {
+    return {
+      status: 429,
+      error: "daily_limit_reached: Você já usou os vídeos de hoje. O \"Gerar agora\" volta amanhã (ou faça upgrade para gerar mais por dia).",
+    };
+  }
+  if (message.startsWith("not_enough_slots:")) return { status: 429, error: message };
+  if (message.startsWith("no_subscription:")) return { status: 402, error: message };
+  if (message.startsWith("long_video_not_allowed:")) return { status: 403, error: message };
+  return null;
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: seriesId } = await params;
   const supabase = await createClient();
@@ -43,7 +57,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const concurrency = await checkConcurrencyLimit(supabase, user.id);
   if (!concurrency.ok) {
-    return NextResponse.json({ error: concurrency.error }, { status: 429 });
+    return NextResponse.json(
+      { error: concurrency.error },
+      { status: concurrency.error.startsWith("no_subscription:") ? 402 : 429 },
+    );
   }
 
   // Série de Vídeo Realista ✨: episódio feito pelo pipeline realista (gasta
@@ -68,6 +85,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const result = await runSeriesGeneration(supabase, user.id, series);
 
   if (!result.ok) {
+    // Recusas por regra de negócio (limite do dia, sem plano, 60s só Pro/Ultra) NÃO são
+    // erro do servidor: voltam com o código certo e uma mensagem clara. Só falha técnica
+    // de verdade é 500 — assim o painel da Vercel mostra o erro real.
+    const refusal = classifyRefusal(result.error);
+    if (refusal) {
+      return NextResponse.json({ ...(result.video ?? {}), error: refusal.error }, { status: refusal.status });
+    }
     const status = result.alreadyInProgress ? 409 : 500;
     return NextResponse.json({ ...(result.video ?? {}), error: result.error }, { status });
   }

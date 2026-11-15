@@ -16,6 +16,7 @@ import type { PlanKey } from "@/lib/billing/plans";
 import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/cakto";
 import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
 import { getRealisticCheckoutUrls } from "@/lib/billing/realisticPackages";
+import { isRealisticEntry } from "@/lib/billing/realisticEntry";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import { isAdminUserId } from "@/lib/admin/requireAdmin";
 import VisitOptOut from "@/components/analytics/VisitOptOut";
@@ -101,6 +102,10 @@ export default async function DashboardLayout({
     user.email,
     profile?.full_name ?? metadata?.full_name ?? metadata?.name,
   );
+  // Usa só o Vídeo Realista: entrou pelo link /realista (marca na conta) ou já tem créditos
+  // realistas — e não tem plano. Para essas contas o painel não abre o pop-up de planos.
+  const realisticCredits = realisticResult.error ? 0 : (realisticResult.data?.realistic_credits ?? 0);
+  const realisticAccount = isRealisticEntry(user) || realisticCredits > 0;
   const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (
@@ -111,7 +116,8 @@ export default async function DashboardLayout({
       longVideosEnabled={areLongVideosEnabled()}
       isAdmin={isAdmin}
       initialBonusVideos={bonusResult.error ? 0 : (bonusResult.data?.bonus_videos ?? 0)}
-      initialRealisticCredits={realisticResult.error ? 0 : (realisticResult.data?.realistic_credits ?? 0)}
+      initialRealisticCredits={realisticCredits}
+      realisticAccount={realisticAccount}
     >
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} isAdmin={isAdmin} />

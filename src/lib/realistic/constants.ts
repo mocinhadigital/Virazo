@@ -88,7 +88,7 @@ export function realisticVisualPrompt(name: string): string {
 
 // Pacotes de pagamento único (Cakto). Os ids/links dos produtos ficam em
 // variáveis de ambiente (ver src/lib/billing/realisticPackages.ts).
-export type RealisticPackageKey = "10" | "20";
+export type RealisticPackageKey = "3" | "10" | "20";
 
 export const REALISTIC_PACKAGES: {
   key: RealisticPackageKey;
@@ -97,6 +97,7 @@ export const REALISTIC_PACKAGES: {
   label: string;
   featured: boolean;
 }[] = [
+  { key: "3", credits: 3, priceCents: 5700, label: "3 vídeos realistas", featured: false },
   { key: "10", credits: 10, priceCents: 14700, label: "10 vídeos realistas", featured: false },
   { key: "20", credits: 20, priceCents: 24700, label: "20 vídeos realistas", featured: true },
 ];

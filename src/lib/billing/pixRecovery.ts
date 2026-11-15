@@ -37,7 +37,11 @@ const CHECKOUT_ENV: Record<PlanKey, string> = {
   pro: "CAKTO_CHECKOUT_PRO",
   ultra: "CAKTO_CHECKOUT_ULTRA",
 };
-const REALISTIC_CHECKOUT_ENV = { "10": "CAKTO_CHECKOUT_REALISTA_10", "20": "CAKTO_CHECKOUT_REALISTA_20" } as const;
+const REALISTIC_CHECKOUT_ENV = {
+  "3": "CAKTO_CHECKOUT_REALISTA_3",
+  "10": "CAKTO_CHECKOUT_REALISTA_10",
+  "20": "CAKTO_CHECKOUT_REALISTA_20",
+} as const;
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 

@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import { checkoutPath, parsePlanKey, SELECTED_PLAN_COOKIE } from "@/lib/billing/selectedPlan";
+import {
+  parseRealisticPackageKey,
+  realisticCheckoutPath,
+  SELECTED_REALISTIC_COOKIE,
+} from "@/lib/billing/selectedRealisticPackage";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -16,8 +21,17 @@ export async function GET(request: Request) {
       // lib/billing/selectedPlan.ts) segue para o checkout dele. Um "next"
       // explícito (ex.: recuperação de senha) sempre tem prioridade; sem
       // nenhum dos dois, o painel, como sempre.
-      const selectedPlan = parsePlanKey((await cookies()).get(SELECTED_PLAN_COOKIE)?.value);
-      const next = explicitNext ?? (selectedPlan ? checkoutPath(selectedPlan) : "/dashboard");
+      const cookieStore = await cookies();
+      const selectedPlan = parsePlanKey(cookieStore.get(SELECTED_PLAN_COOKIE)?.value);
+      // Quem escolheu um pacote de Vídeo Realista em /realista segue para o checkout dele.
+      const selectedRealistic = parseRealisticPackageKey(cookieStore.get(SELECTED_REALISTIC_COOKIE)?.value);
+      const next =
+        explicitNext ??
+        (selectedPlan
+          ? checkoutPath(selectedPlan)
+          : selectedRealistic
+            ? realisticCheckoutPath(selectedRealistic)
+            : "/dashboard");
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

@@ -242,7 +242,7 @@ export default async function FunilPage({
               <p className="text-lg font-semibold text-emerald-400">{formatBRL(realisticSales.totalCents)}</p>
             </div>
             <p className="mt-1 text-xs text-zinc-500">
-              Pacote de 10: {realisticSales.byPackage["10"]} · Pacote de 20: {realisticSales.byPackage["20"]}. Valor
+              Pacote de 3: {realisticSales.byPackage["3"]} · Pacote de 10: {realisticSales.byPackage["10"]} · Pacote de 20: {realisticSales.byPackage["20"]}. Valor
               total vendido no período; reembolsos, avisos de teste e contas de administrador ficam de fora.
             </p>
           </>

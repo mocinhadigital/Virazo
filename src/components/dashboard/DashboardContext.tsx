@@ -66,6 +66,10 @@ type DashboardContextValue = {
   plan: PlanKey | null;
   // Conta de administrador (admin_users): sem limite diário de vídeos.
   isAdmin: boolean;
+  // Conta que usa SÓ o Vídeo Realista (entrou pelo link /realista ou comprou créditos) e não tem
+  // plano: o painel não abre o pop-up obrigatório de planos e mostra o resto bloqueado com um
+  // convite discreto. Some sozinho quando a pessoa assina um plano.
+  realisticOnly: boolean;
   dailyVideoLimit: number;
   // Vídeos de bônus (plano Pro): usados quando o limite do dia já acabou.
   bonusVideos: number;
@@ -120,6 +124,7 @@ export function DashboardProvider({
   isAdmin = false,
   initialBonusVideos = 0,
   initialRealisticCredits = 0,
+  realisticAccount = false,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
@@ -129,10 +134,12 @@ export function DashboardProvider({
   isAdmin?: boolean;
   initialBonusVideos?: number;
   initialRealisticCredits?: number;
+  realisticAccount?: boolean;
 }) {
   const router = useRouter();
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [plan, setPlan] = useState<PlanKey | null>(initialPlan);
+  const realisticOnly = realisticAccount && !plan && !isAdmin;
   const [bonusVideos, setBonusVideos] = useState(initialBonusVideos);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardInitial, setWizardInitial] = useState<WizardInitial>({});
@@ -509,6 +516,7 @@ export function DashboardProvider({
         longVideosEnabled,
         plan,
         isAdmin,
+        realisticOnly,
         dailyVideoLimit,
         bonusVideos,
         videosUsedToday,

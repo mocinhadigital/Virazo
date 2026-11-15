@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Sparkles, Zap } from "lucide-react";
+import { BarChart3, Lock, Sparkles, Zap } from "lucide-react";
 import { navItems } from "./navItems";
 import SignOutButton from "./SignOutButton";
 import { useDashboard } from "./DashboardContext";
 
 export default function Sidebar({ userName, isAdmin = false }: { userName: string; isAdmin?: boolean }) {
   const pathname = usePathname();
-  const { openPlanModal, realisticCredits, openRealisticWizard, openRealisticBuy } = useDashboard();
+  const { openPlanModal, realisticCredits, openRealisticWizard, openRealisticBuy, realisticOnly } = useDashboard();
 
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-white/[0.06] lg:bg-[#05050a]">
@@ -43,6 +43,9 @@ export default function Sidebar({ userName, isAdmin = false }: { userName: strin
                 <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
                 {label}
               </span>
+              {realisticOnly && href === "/dashboard/series" && (
+                <Lock className="h-3.5 w-3.5 text-zinc-600" aria-label="Disponível nos planos" />
+              )}
               {soon && (
                 <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
                   em breve

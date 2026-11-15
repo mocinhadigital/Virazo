@@ -25,6 +25,8 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
   // Exemplo cujo arquivo não carregou (some da faixa em vez de mostrar quebrado).
   const [brokenExamples, setBrokenExamples] = useState<string[]>([]);
   const examples = REALISTIC_EXAMPLES.filter((e) => !brokenExamples.includes(e.src));
+  // Só os pacotes que têm link de checkout configurado.
+  const packages = REALISTIC_PACKAGES.filter((pkg) => !!checkoutUrls?.[pkg.key]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -55,13 +57,14 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
   }, []);
 
   function handleBuy(key: RealisticPackageKey) {
-    if (!checkoutUrls) return;
+    const url = checkoutUrls?.[key];
+    if (!url) return;
     setError(null);
     setOpening(key);
     // Na volta, o painel sabe que deve verificar o pagamento (ver
     // CaktoPaymentVerifier), mesmo sem o ?checkout=cakto na URL.
     markCaktoCheckoutStarted();
-    window.location.assign(checkoutUrls[key]);
+    window.location.assign(url);
   }
 
   async function handleVerify() {
@@ -96,7 +99,7 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
       onClick={onClose}
     >
       <div
-        className="m-auto w-full max-w-lg rounded-3xl border border-white/10 bg-[#0a0a12] p-5 sm:p-8"
+        className="m-auto w-full max-w-lg rounded-3xl border border-white/10 bg-[#0a0a12] p-5 sm:max-w-3xl sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -149,8 +152,8 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {REALISTIC_PACKAGES.map((pkg) => (
+        <div className={`mt-6 grid grid-cols-1 gap-4 ${packages.length >= 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          {packages.map((pkg) => (
             <div
               key={pkg.key}
               className={`relative flex flex-col rounded-2xl border p-5 ${
@@ -191,7 +194,7 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
           ))}
         </div>
 
-        {!checkoutUrls && (
+        {packages.length === 0 && (
           <p className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-center text-xs font-medium text-amber-300">
             A compra de vídeos realistas ainda não está disponível. Tente de novo mais tarde.
           </p>

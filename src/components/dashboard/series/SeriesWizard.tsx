@@ -17,6 +17,7 @@ import RealisticNotice from "../realistic/RealisticNotice";
 import { VISUAL_STYLES } from "../visualStyles";
 import type { MusicTrackRecord } from "../musicMapping";
 import { useDashboard } from "../DashboardContext";
+import { LockedFeatureCard } from "../RealisticOnlyLock";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import { planAllowsLongVideos } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
@@ -134,7 +135,8 @@ const EMPTY_FORM: FormState = {
 
 export default function SeriesWizard() {
   const router = useRouter();
-  const { plan, isAdmin, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy } = useDashboard();
+  const { plan, isAdmin, realisticOnly, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy } =
+    useDashboard();
   // 60s nas séries normais: chave ligada + plano Pro/Ultra (admin também).
   const canUseLong = longVideosEnabled && (isAdmin || planAllowsLongVideos(plan));
   const [step, setStep] = useState<StepKey>("nicho");
@@ -156,9 +158,10 @@ export default function SeriesWizard() {
   // Sem assinatura ativa, nem deixa começar a preencher a série — abre
   // direto o paywall (mesmo gate usado por openWizard() do vídeo avulso),
   // em vez de deixar o usuário passar pelas 6 etapas só pra travar no fim.
+  // (Quem usa só o Vídeo Realista não recebe o pop-up: vê o cartão de convite abaixo.)
   useEffect(() => {
-    if (!plan) openPlanModal();
-  }, [plan, openPlanModal]);
+    if (!plan && !realisticOnly) openPlanModal();
+  }, [plan, realisticOnly, openPlanModal]);
 
   useEffect(() => {
     if (step !== "legenda") return;
@@ -305,7 +308,14 @@ export default function SeriesWizard() {
 
   // Sem assinatura ativa: o paywall (aberto pelo useEffect acima) já cobre a
   // tela — não renderiza a wizard atrás dele.
-  if (!plan) return null;
+  if (!plan) {
+    return realisticOnly ? (
+      <LockedFeatureCard
+        title="Séries automáticas"
+        description="Vídeos novos gerados sozinhos, no ritmo que você escolher. Disponível nos planos do Virazo."
+      />
+    ) : null;
+  }
 
   return (
     <div className="mx-auto max-w-[720px]">

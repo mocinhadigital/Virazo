@@ -13,6 +13,12 @@ import {
   readSelectedPlanCookie,
   rememberSelectedPlan,
 } from "@/lib/billing/selectedPlan";
+import {
+  parseRealisticPackageKey,
+  readSelectedRealisticCookie,
+  realisticCheckoutPath,
+  rememberSelectedRealisticPackage,
+} from "@/lib/billing/selectedRealisticPackage";
 
 type Mode = "signin" | "signup";
 
@@ -75,7 +81,21 @@ function LoginForm() {
     // Google.
     if (planFromUrl) rememberSelectedPlan(planFromUrl);
   }, [planFromUrl]);
-  const afterAuthPath = selectedPlan ? checkoutPath(selectedPlan) : "/dashboard";
+  // Pacote de Vídeo Realista escolhido em /realista (mesma ideia, mesmo cookie de 1h). O plano
+  // escolhido em /planos tem prioridade; sem nenhum dos dois, o painel, como sempre.
+  const realisticFromUrl = parseRealisticPackageKey(searchParams.get("realista"));
+  const [realisticFromCookie] = useState(() =>
+    typeof document === "undefined" ? null : readSelectedRealisticCookie(),
+  );
+  const selectedRealistic = realisticFromUrl ?? realisticFromCookie;
+  useEffect(() => {
+    if (realisticFromUrl) rememberSelectedRealisticPackage(realisticFromUrl);
+  }, [realisticFromUrl]);
+  const afterAuthPath = selectedPlan
+    ? checkoutPath(selectedPlan)
+    : selectedRealistic
+      ? realisticCheckoutPath(selectedRealistic)
+      : "/dashboard";
 
   function switchMode(next: Mode) {
     setMode(next);

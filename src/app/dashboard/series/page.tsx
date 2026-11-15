@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { mapSeriesRow, type SeriesRow } from "@/components/dashboard/seriesMapping";
 import SeriesManager from "@/components/dashboard/series/SeriesManager";
+import RealisticOnlyLock from "@/components/dashboard/RealisticOnlyLock";
 
 export default async function SeriesPage() {
   const supabase = await createClient();
@@ -28,7 +29,12 @@ export default async function SeriesPage() {
         </p>
       </div>
 
-      <SeriesManager initialSeries={initialSeries} />
+      <RealisticOnlyLock
+        title="Séries automáticas"
+        description="Vídeos novos gerados sozinhos, no ritmo que você escolher. Disponível nos planos do Virazo."
+      >
+        <SeriesManager initialSeries={initialSeries} />
+      </RealisticOnlyLock>
     </div>
   );
 }

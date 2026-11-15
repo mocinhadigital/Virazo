@@ -23,7 +23,7 @@ type EventRow = {
 // chamada depois de confirmar que quem pede é administrador.
 export async function getRealisticSales(since: Date): Promise<RealisticSales> {
   const products = getRealisticProductIds();
-  const result: RealisticSales = { count: 0, totalCents: 0, byPackage: { "10": 0, "20": 0 } };
+  const result: RealisticSales = { count: 0, totalCents: 0, byPackage: { "3": 0, "10": 0, "20": 0 } };
   if (products.length === 0) return result;
 
   const supabase = createServiceRoleClient();

@@ -9,15 +9,18 @@ export default function FeaturedPlanFrame({
   children,
   className = "",
   radiusClass = "rounded-[22px]",
+  badge = FEATURED_BADGE,
 }: {
   children: ReactNode;
   className?: string;
   radiusClass?: string;
+  // Texto do selo (padrão: "MAIS RECOMENDADO", dos planos).
+  badge?: string;
 }) {
   return (
     <div className={`relative ${className}`}>
       <span className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-[#A855F7] via-[#EC4899] to-[#F97316] px-3.5 py-1 text-[11px] font-extrabold tracking-wider text-white shadow-lg shadow-pink-500/30">
-        {FEATURED_BADGE}
+        {badge}
       </span>
       <div
         className={`h-full bg-gradient-to-br from-[#A855F7] via-[#EC4899] to-[#F97316] p-[2px] shadow-[0_0_44px_-12px_rgba(236,72,153,0.55)] ${radiusClass}`}

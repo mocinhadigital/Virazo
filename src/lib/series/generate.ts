@@ -212,7 +212,14 @@ export async function runSeriesGeneration(
     .returns<VideoRow>();
 
   if (createError || !created) {
-    // Libera o lock e reagenda — não há vídeo pra registrar no log.
+    // Recusa por regra de negócio (limite do dia, sem plano, 60s fora do plano): NÃO é erro da
+    // série e não mexe no horário dela — só solta o lock. (Antes registrava erro e empurrava a
+    // série 1h para a frente a cada "Gerar agora" recusado.)
+    if (/^(daily_limit_reached|no_subscription|long_video_not_allowed|not_enough_slots):/.test(createError?.message ?? "")) {
+      await createServiceRoleClient().from("series").update({ generation_locked_at: null }).eq("id", series.id);
+      return { ok: false, error: createError?.message ?? "", video: null };
+    }
+    // Falha técnica: libera o lock e reagenda — não há vídeo pra registrar no log.
     await supabase.rpc("record_series_generation", {
       p_series_id: series.id,
       p_video_id: null,

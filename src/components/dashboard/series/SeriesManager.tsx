@@ -680,7 +680,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     />
                   </Field>
 
-                  <Field label="Horário">
+                  <Field label="Horário (de Brasília)">
                     <input
                       type="time"
                       value={form.horario}

@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/cakto-subscriptions",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/series/run-scheduled",
+      "schedule": "*/3 * * * *"
     }
   ]
 }

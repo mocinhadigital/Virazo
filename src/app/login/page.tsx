@@ -45,6 +45,10 @@ function LoginForm() {
     searchParams.get("mode") === "signup" ? "signup" : "signin",
   );
   const [email, setEmail] = useState("");
+  // Só no cadastro: o cliente digita o e-mail duas vezes. Um erro de digitação
+  // criava uma conta nova em silêncio (sem confirmação por e-mail) e o cliente
+  // que pagou com o e-mail certo entrava numa conta sem plano.
+  const [confirmEmail, setConfirmEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
     searchParams.get("error")
@@ -77,6 +81,7 @@ function LoginForm() {
     setMode(next);
     setError(null);
     setSignupSent(false);
+    setConfirmEmail("");
   }
 
   async function handleGoogleLogin() {
@@ -102,11 +107,17 @@ function LoginForm() {
     setError(null);
     setLoadingEmail(true);
 
+    if (mode === "signup" && email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
+      setError("Os dois e-mails não são iguais. Confira se digitou certo — é com ele que você entra e recebe o plano.");
+      setLoadingEmail(false);
+      return;
+    }
+
     const supabase = createClient();
 
     if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -283,6 +294,28 @@ function LoginForm() {
                     />
                   </span>
                 </label>
+
+                {mode === "signup" && (
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-medium text-zinc-400">
+                      Confirme seu e-mail
+                    </span>
+                    <span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 transition-colors focus-within:border-[#4C3BFF]/50">
+                      <Mail className="h-4 w-4 shrink-0 text-zinc-500" />
+                      <input
+                        type="email"
+                        required
+                        autoComplete="off"
+                        value={confirmEmail}
+                        onChange={(event) => setConfirmEmail(event.target.value)}
+                        // Colar anularia o objetivo (copiar o erro junto): digite de novo.
+                        onPaste={(event) => event.preventDefault()}
+                        placeholder="digite o e-mail de novo"
+                        className="w-full bg-transparent text-sm text-white placeholder:text-zinc-600 focus:outline-none"
+                      />
+                    </span>
+                  </label>
+                )}
 
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-medium text-zinc-400">

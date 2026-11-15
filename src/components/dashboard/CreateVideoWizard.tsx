@@ -83,6 +83,9 @@ function WizardPanel() {
     isAdmin,
     dailyVideoLimit,
     bonusVideos,
+    longVideosEnabled,
+    longVideoBlock,
+    openPlanModal,
     openRealisticWizard,
     openRealisticBuy,
   } = useDashboard();
@@ -175,6 +178,8 @@ function WizardPanel() {
       case "voz":
         return voice !== null;
       case "revisao":
+        // 60s gasta 2 vídeos: confere a regra própria dele (plano + 2 vagas).
+        if (duration === "60s") return !longVideoBlock;
         return videosRemainingToday > 0 || bonusVideos > 0;
       default:
         return true;
@@ -378,6 +383,42 @@ function WizardPanel() {
                   </button>
                 );
               })}
+              {longVideosEnabled && (
+                <div className="col-span-2">
+                  <button
+                    type="button"
+                    disabled={!!longVideoBlock}
+                    onClick={() => setDuration("60s")}
+                    className={`flex w-full flex-col items-start gap-1 rounded-2xl border p-4 text-left transition-colors ${
+                      longVideoBlock
+                        ? "cursor-not-allowed border-white/10 bg-white/[0.02] opacity-60"
+                        : duration === "60s"
+                          ? "border-[#4C3BFF]/60 bg-white/[0.08]"
+                          : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <span className="text-lg font-bold text-white">
+                      60s{" "}
+                      <span className="text-sm font-medium text-zinc-300">(usa 2 vídeos do seu dia)</span>
+                    </span>
+                    <span className="text-xs text-zinc-400">Vídeo mais longo, de pelo menos 61 segundos</span>
+                  </button>
+                  {longVideoBlock && (
+                    <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2">
+                      <p className="text-xs text-amber-200">{longVideoBlock.message}</p>
+                      {longVideoBlock.reason === "plan" && (
+                        <button
+                          type="button"
+                          onClick={() => openPlanModal()}
+                          className="shrink-0 rounded-lg bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white"
+                        >
+                          Fazer upgrade
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -508,6 +549,19 @@ function WizardPanel() {
               {isAdmin ? (
                 <p className="mt-2 text-xs text-zinc-500">
                   Conta de administrador: sem limite diário de vídeos.
+                </p>
+              ) : duration === "60s" && longVideoBlock ? (
+                <p className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-400">
+                  {longVideoBlock.message}. Volte e escolha 30s, ou gere outro dia.
+                </p>
+              ) : duration === "60s" && videosRemainingToday > 0 ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Este vídeo de 60s vai contar como 2 dos seus vídeos de hoje. Você tem {videosRemainingToday} de{" "}
+                  {dailyVideoLimit} restantes hoje.
+                </p>
+              ) : duration === "60s" ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Você já usou os vídeos de hoje. Este vídeo de 60s vai usar 2 dos seus {bonusVideos} vídeos de bônus.
                 </p>
               ) : videosRemainingToday > 0 ? (
                 <p className="mt-2 text-xs text-zinc-500">

@@ -19,11 +19,12 @@ import { VISUAL_STYLES } from "../visualStyles";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import RealisticNotice from "../realistic/RealisticNotice";
-import { isLongDuration } from "@/lib/video/durations";
+import { isLongDuration, planAllowsLongVideos } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import {
+  LONG_SERIES_DURATION,
   NORMAL_SERIES_DURATIONS,
   SERIES_DURATIONS,
   SERIES_VOICES,
@@ -61,7 +62,7 @@ const EMPTY_FORM: FormState = {
   horario: "09:00",
 };
 
-function formStateFromSeries(series: SeriesRecord): FormState {
+function formStateFromSeries(series: SeriesRecord, keepLong = false): FormState {
   return {
     title: series.title,
     nicho: series.nicho,
@@ -69,8 +70,14 @@ function formStateFromSeries(series: SeriesRecord): FormState {
     idioma: series.idioma,
     visualStyle: series.visualStyle,
     voice: series.voice ?? SERIES_VOICES[0]?.name ?? "Ana",
-    // Série normal antiga em 60s/90s: exibe (e gera) em 30s.
-    duration: !series.realistic && isLongDuration(series.duration) ? "30s" : series.duration,
+    // Série normal em 60s: mantém 60s só se a chave está ligada e o plano permite
+    // (Pro/Ultra); senão exibe (e gera) em 30s. O antigo 90s vira 60s ou 30s.
+    duration:
+      !series.realistic && isLongDuration(series.duration)
+        ? keepLong
+          ? "60s"
+          : "30s"
+        : series.duration,
     captionsEnabled: series.captionsEnabled,
     captionStyle: series.captionStyle,
     frequenciaDias: series.frequenciaDias,
@@ -133,8 +140,10 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function SeriesManager({ initialSeries }: { initialSeries: SeriesRecord[] }) {
-  const { plan, openPlanModal, realisticCredits, openRealisticBuy, refreshRealisticCredits } =
+  const { plan, isAdmin, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy, refreshRealisticCredits } =
     useDashboard();
+  // 60s nas séries normais: chave ligada + plano Pro/Ultra (admin também).
+  const canUseLong = longVideosEnabled && (isAdmin || planAllowsLongVideos(plan));
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -160,7 +169,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
 
   function openEditModal(target: SeriesRecord) {
     setEditingId(target.id);
-    setForm(formStateFromSeries(target));
+    setForm(formStateFromSeries(target, canUseLong));
     setFormError(null);
     setModalOpen(true);
   }
@@ -489,7 +498,12 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                       onChange={(v) => setForm((f) => ({ ...f, duration: v }))}
                       // 60s só existe na série de Vídeo Realista; nos planos
                       // normais a duração é sempre 30s.
-                      options={(editingRealistic ? SERIES_DURATIONS : NORMAL_SERIES_DURATIONS).map((d) => ({
+                      options={(editingRealistic
+                        ? SERIES_DURATIONS
+                        : canUseLong
+                          ? [...NORMAL_SERIES_DURATIONS, LONG_SERIES_DURATION]
+                          : NORMAL_SERIES_DURATIONS
+                      ).map((d) => ({
                         value: d.value,
                         label: d.value,
                         description: editingRealistic
@@ -500,6 +514,18 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                       }))}
                       aria-label="Duração"
                     />
+                    {!editingRealistic && longVideosEnabled && !canUseLong && (
+                      <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2">
+                        <p className="text-xs text-amber-200">Vídeos de 60s disponíveis nos planos Pro e Ultra</p>
+                        <button
+                          type="button"
+                          onClick={() => openPlanModal()}
+                          className="shrink-0 rounded-lg bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white"
+                        >
+                          Fazer upgrade
+                        </button>
+                      </div>
+                    )}
                   </Field>
                 </div>
 

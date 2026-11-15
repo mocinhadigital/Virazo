@@ -6,7 +6,7 @@ import {
   GENERATION_TIME_BUDGET_MS,
   withDeadline,
 } from "@/lib/video/generateAssets";
-import { isLongDuration } from "@/lib/video/durations";
+import { isLongDuration, OFFERED_LONG_DURATION } from "@/lib/video/durations";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import type { VideoRow } from "@/components/dashboard/videoMapping";
 import { checkConcurrencyLimit } from "@/lib/series/generate";
@@ -65,7 +65,10 @@ export async function POST(request: Request) {
 
   // Ver src/lib/video/durations.ts — recusado ANTES de reservar a vaga do
   // dia, então não gasta nada do usuário.
-  if (isLongDuration(body.duration) && !areLongVideosEnabled()) {
+  // Com a chave ligada só o 60s passa (90s nunca é oferecido). Quem pode usar o
+  // 60s (Pro/Ultra) e quantos vídeos ele gasta é decidido no banco, em
+  // reserve_daily_video_slot (migration 0042).
+  if (isLongDuration(body.duration) && (!areLongVideosEnabled() || body.duration !== OFFERED_LONG_DURATION)) {
     return NextResponse.json(
       { error: "Vídeos de 60 segundos ou mais estão temporariamente indisponíveis. Escolha 30 segundos." },
       { status: 400 },

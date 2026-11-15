@@ -1,3 +1,5 @@
+import { videoSlotCost } from "@/lib/video/durations";
+
 // América/Manaus é UTC-4 e America/Sao_Paulo é UTC-3 o ano inteiro (o Brasil não
 // tem horário de verão desde 2019) — por isso dá pra usar offsets fixos aqui,
 // sem precisar de tabela de fusos.
@@ -32,17 +34,25 @@ export function startOfDayInBrasilia(reference: Date = new Date()): Date {
 // usuário — só pra exibição ("X de Y vídeos hoje"); não é o que autoriza
 // geração de verdade (isso é feito atomicamente no banco).
 export function countVideosUsedToday(
-  videos: { status: string; createdAtIso: string }[],
+  videos: { status: string; createdAtIso: string; duration?: string }[],
   reference: Date = new Date(),
 ): number {
   const start = startOfDayInBrasilia(reference);
-  return videos.filter((v) => {
-    if (v.status !== "Pronto" && v.status !== "Processando") return false;
-    return new Date(v.createdAtIso).getTime() >= start.getTime();
-  }).length;
+  // Vídeo de 60s gasta 2 do limite do dia (migration 0042); os demais, 1.
+  return videos
+    .filter((v) => {
+      if (v.status !== "Pronto" && v.status !== "Processando") return false;
+      return new Date(v.createdAtIso).getTime() >= start.getTime();
+    })
+    .reduce((sum, v) => sum + videoSlotCost(v.duration), 0);
 }
 
-export type GenerationBlockReason = "no_subscription" | "daily_limit_reached" | "other";
+export type GenerationBlockReason =
+  | "no_subscription"
+  | "daily_limit_reached"
+  | "long_video_not_allowed"
+  | "not_enough_slots"
+  | "other";
 
 export type ParsedGenerationError = {
   message: string;
@@ -60,6 +70,12 @@ export function parseGenerationError(rawMessage: string): ParsedGenerationError 
   }
   if (rawMessage.startsWith("daily_limit_reached:")) {
     return { message: rawMessage.slice("daily_limit_reached:".length).trim(), reason: "daily_limit_reached" };
+  }
+  if (rawMessage.startsWith("long_video_not_allowed:")) {
+    return { message: rawMessage.slice("long_video_not_allowed:".length).trim(), reason: "long_video_not_allowed" };
+  }
+  if (rawMessage.startsWith("not_enough_slots:")) {
+    return { message: rawMessage.slice("not_enough_slots:".length).trim(), reason: "not_enough_slots" };
   }
   return { message: rawMessage, reason: "other" };
 }

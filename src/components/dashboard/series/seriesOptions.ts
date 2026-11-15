@@ -9,6 +9,10 @@
 // Vídeo Realista, que usa SERIES_DURATIONS abaixo.
 export const NORMAL_SERIES_DURATIONS = [{ value: "30s", label: "30 a 40 segundos" }];
 
+// 60s nas séries normais: só Pro/Ultra (e admin) e só com LONG_VIDEOS_ENABLED
+// ligada. Cada episódio de 60s gasta 2 vídeos do limite do dia.
+export const LONG_SERIES_DURATION = { value: "60s", label: "60s (usa 2 vídeos do seu dia)" };
+
 export const SERIES_DURATIONS = [
   { value: "30s", label: "30 a 40 segundos" },
   { value: "60s", label: "60 a 70 segundos" },

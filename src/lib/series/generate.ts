@@ -6,7 +6,8 @@ import {
   GENERATION_TIME_BUDGET_MS,
   withDeadline,
 } from "@/lib/video/generateAssets";
-import { effectiveDuration } from "@/lib/video/durations";
+import { effectiveDuration, isLongDuration } from "@/lib/video/durations";
+import { userCanUseLongVideos } from "@/lib/billing/longVideos";
 import { loadBackgroundMusic } from "@/lib/video/music";
 import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
@@ -102,7 +103,12 @@ export async function runSeriesGeneration(
   // Série configurada em 60s com a chave de vídeos longos desligada gera
   // em 30s (ver src/lib/video/durations.ts) — melhor que um vídeo que
   // estoura o tempo e falha.
-  const duration = effectiveDuration(series.duration, areLongVideosEnabled());
+  // 60s só para Pro/Ultra/admin (migration 0042): série em 60s de quem hoje é
+  // Diário gera em 30s em vez de falhar.
+  const longAllowed = isLongDuration(series.duration)
+    ? await userCanUseLongVideos(createServiceRoleClient(), userId)
+    : true;
+  const duration = effectiveDuration(series.duration, areLongVideosEnabled(), longAllowed);
 
   // 0. Reivindica a série atomicamente ANTES de criar qualquer vídeo — a
   // trava de verdade contra dupla geração (cron, "Gerar agora", clique

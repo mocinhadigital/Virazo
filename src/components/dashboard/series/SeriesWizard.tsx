@@ -18,8 +18,10 @@ import { VISUAL_STYLES } from "../visualStyles";
 import type { MusicTrackRecord } from "../musicMapping";
 import { useDashboard } from "../DashboardContext";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
+import { planAllowsLongVideos } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
 import {
+  LONG_SERIES_DURATION,
   NORMAL_SERIES_DURATIONS,
   SERIES_VOICES,
   SERIES_CAPTION_STYLES,
@@ -132,7 +134,9 @@ const EMPTY_FORM: FormState = {
 
 export default function SeriesWizard() {
   const router = useRouter();
-  const { plan, openPlanModal, realisticCredits, openRealisticBuy } = useDashboard();
+  const { plan, isAdmin, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy } = useDashboard();
+  // 60s nas séries normais: chave ligada + plano Pro/Ultra (admin também).
+  const canUseLong = longVideosEnabled && (isAdmin || planAllowsLongVideos(plan));
   const [step, setStep] = useState<StepKey>("nicho");
   const [nichoTab, setNichoTab] = useState<"presets" | "personalizado">("presets");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -831,7 +835,20 @@ export default function SeriesWizard() {
                     {d.label}
                   </option>
                 ))}
+                {canUseLong && <option value={LONG_SERIES_DURATION.value}>{LONG_SERIES_DURATION.label}</option>}
               </select>
+              {longVideosEnabled && !canUseLong && (
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2">
+                  <p className="text-xs text-amber-200">Vídeos de 60s disponíveis nos planos Pro e Ultra</p>
+                  <button
+                    type="button"
+                    onClick={() => openPlanModal()}
+                    className="shrink-0 rounded-lg bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white"
+                  >
+                    Fazer upgrade
+                  </button>
+                </div>
+              )}
             </label>
             )}
 

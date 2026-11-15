@@ -15,7 +15,8 @@ import { createClient } from "@/utils/supabase/client";
 import { mapVideoRow, type VideoRow } from "./videoMapping";
 import type { VideoRecord } from "./types";
 import { PLANS, type PlanKey } from "@/lib/billing/plans";
-import { countVideosUsedToday, parseGenerationError } from "@/lib/billing/dailyLimit";
+import { countVideosUsedToday, parseGenerationError, type GenerationBlockReason } from "@/lib/billing/dailyLimit";
+import { planAllowsLongVideos } from "@/lib/video/durations";
 
 export type WizardInitial = {
   topic?: string;
@@ -66,6 +67,10 @@ type DashboardContextValue = {
   bonusVideos: number;
   videosUsedToday: number;
   videosRemainingToday: number;
+  // Por que o vídeo de 60s está bloqueado agora (null = liberado). 60s é só dos
+  // planos Pro/Ultra e gasta 2 vídeos do dia; a regra de verdade está no banco
+  // (reserve_daily_video_slot, migration 0042) — isto só avisa antes.
+  longVideoBlock: { reason: "plan" | "slots"; message: string } | null;
   isWizardOpen: boolean;
   wizardInitial: WizardInitial;
   openWizard: (initial?: WizardInitial) => void;
@@ -212,6 +217,17 @@ export function DashboardProvider({
     ? Number.MAX_SAFE_INTEGER
     : Math.max(0, dailyVideoLimit - videosUsedToday);
 
+  const longVideoBlock = useMemo<{ reason: "plan" | "slots"; message: string } | null>(() => {
+    if (isAdmin) return null;
+    if (!planAllowsLongVideos(plan)) {
+      return { reason: "plan", message: "Vídeos de 60s disponíveis nos planos Pro e Ultra" };
+    }
+    // 2 vagas livres no dia, ou o dia já acabou e há 2 de bônus para gastar. Com
+    // só 1 vaga sobrando o 60s fica bloqueado.
+    const enough = videosRemainingToday >= 2 || (videosRemainingToday === 0 && bonusVideos >= 2);
+    return enough ? null : { reason: "slots", message: "Você precisa de 2 vídeos disponíveis para gerar um de 60s" };
+  }, [isAdmin, plan, videosRemainingToday, bonusVideos]);
+
   const openPlanModal = useCallback(() => setIsPlanModalOpen(true), []);
   const closePlanModal = useCallback(() => setIsPlanModalOpen(false), []);
 
@@ -309,7 +325,7 @@ export function DashboardProvider({
 
     let result: VideoRow | null = null;
     let errorMessage: string | null = null;
-    let reason: "no_subscription" | "daily_limit_reached" | "other" = "other";
+    let reason: GenerationBlockReason = "other";
     let connectionLost = false;
 
     try {
@@ -493,6 +509,7 @@ export function DashboardProvider({
         bonusVideos,
         videosUsedToday,
         videosRemainingToday,
+        longVideoBlock,
         isWizardOpen,
         wizardInitial,
         openWizard,

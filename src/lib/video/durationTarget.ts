@@ -3,7 +3,9 @@
 // Arquivo sem "server-only": só constantes e contas, sem dependências.
 export const DURATION_RULES: Record<string, { min: number; max: number }> = {
   "30s": { min: 30, max: 33 },
-  "60s": { min: 60, max: 64 },
+  // O vídeo de 60s precisa ter pelo menos 61s REAIS (pedido do dono): 1s de folga
+  // sobre os 60s prometidos ao cliente.
+  "60s": { min: 61, max: 65 },
 };
 
 // Roteiro: nº de cenas e palavras por cena. Medido com a voz da ElevenLabs

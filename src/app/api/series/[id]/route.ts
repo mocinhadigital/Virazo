@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { mapSeriesRow, type SeriesRow } from "@/components/dashboard/seriesMapping";
 import { computeNextGenerationAt, HORARIO_PATTERN } from "@/lib/series/schedule";
-import { isLongDuration } from "@/lib/video/durations";
+import { isLongDuration, OFFERED_LONG_DURATION } from "@/lib/video/durations";
+import { LONG_VIDEO_NOT_ALLOWED_MESSAGE, userCanUseLongVideos } from "@/lib/billing/longVideos";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import { isRealisticStyle } from "@/lib/realistic/constants";
 
@@ -60,13 +61,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     body.duration !== undefined &&
     body.duration !== existing.duration &&
     !existing.realistic &&
-    isLongDuration(body.duration) &&
-    !areLongVideosEnabled()
+    isLongDuration(body.duration)
   ) {
-    return NextResponse.json(
-      { error: "Vídeos de 60 segundos estão temporariamente indisponíveis. Escolha 30 segundos." },
-      { status: 400 },
-    );
+    if (!areLongVideosEnabled() || body.duration !== OFFERED_LONG_DURATION) {
+      return NextResponse.json(
+        { error: "Vídeos de 60 segundos estão temporariamente indisponíveis. Escolha 30 segundos." },
+        { status: 400 },
+      );
+    }
+    // Plano Diário não tem 60s (Pro e Ultra sim; admin também).
+    if (!(await userCanUseLongVideos(supabase, user.id))) {
+      return NextResponse.json({ error: LONG_VIDEO_NOT_ALLOWED_MESSAGE }, { status: 403 });
+    }
   }
   if (body.frequenciaDias !== undefined && (!Number.isInteger(body.frequenciaDias) || body.frequenciaDias < 1)) {
     return NextResponse.json({ error: "Frequência inválida." }, { status: 400 });

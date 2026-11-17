@@ -10,6 +10,10 @@ export default function MobileNav() {
   const pathname = usePathname();
   const { realisticOnly } = useDashboard();
 
+  // Durante a criação da série (passo a passo) a barra some: ela cobria o fim da caixa de texto da
+  // história e o contador. O passo a passo tem seus próprios botões Voltar/Continuar.
+  if (pathname === "/dashboard/series/nova") return null;
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.06] bg-[#05050a]/90 backdrop-blur-md lg:hidden">
       <div className="mx-auto flex max-w-md items-center justify-between px-1 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2.5">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   X,
@@ -63,6 +64,12 @@ const EMPTY_FORM: FormState = {
   frequenciaDias: 1,
   horario: "09:00",
 };
+
+// Se a série já tem um valor que não está mais na lista (ex.: um tom ou estilo antigo), a lista
+// ganha esse valor: o campo mostra o que a série tem em vez de "Selecione", e salvar não o perde.
+function withCurrent(options: { value: string; label: string }[], current: string) {
+  return current && !options.some((o) => o.value === current) ? [{ value: current, label: current }, ...options] : options;
+}
 
 function formStateFromSeries(series: SeriesRecord, keepLong = false): FormState {
   return {
@@ -217,19 +224,6 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
       : "Você já usou os vídeos de hoje. O botão “Gerar um vídeo agora” volta amanhã.";
   }
 
-  function openCreateModal() {
-    // Sem assinatura ativa, nem abre o formulário — vai direto pro paywall,
-    // em vez de deixar preencher tudo pra travar só no clique de salvar.
-    if (!plan) {
-      openPlanModal();
-      return;
-    }
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setFormError(null);
-    setModalOpen(true);
-  }
-
   function openEditModal(target: SeriesRecord) {
     setEditingId(target.id);
     setForm(formStateFromSeries(target, canUseLong));
@@ -238,6 +232,8 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   }
 
   async function handleSubmit() {
+    // Este formulário agora só EDITA (criar é o passo a passo em /dashboard/series/nova).
+    if (!editingId) return;
     if (!form.title.trim() || !form.nicho.trim()) {
       setFormError("Preencha pelo menos o nome da série e o nicho.");
       return;
@@ -245,8 +241,8 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
     setSaving(true);
     setFormError(null);
     try {
-      const res = await fetch(editingId ? `/api/series/${editingId}` : "/api/series", {
-        method: editingId ? "PATCH" : "POST",
+      const res = await fetch(`/api/series/${editingId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
@@ -260,9 +256,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         throw new Error(parsed.message);
       }
 
-      setSeries((prev) =>
-        editingId ? prev.map((s) => (s.id === editingId ? data : s)) : [data, ...prev],
-      );
+      setSeries((prev) => prev.map((s) => (s.id === editingId ? data : s)));
       setModalOpen(false);
     } catch (err) {
       setFormError(describeError(err));
@@ -365,14 +359,15 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
             </span>
           )}
         </p>
-        <button
-          type="button"
-          onClick={openCreateModal}
+        {/* Criar série é sempre o passo a passo novo (o mesmo da tela inicial). Quem não tem plano
+            vê o aviso de planos dentro dele. */}
+        <Link
+          href="/dashboard/series/nova"
           className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/20"
         >
           <Plus className="h-4 w-4" />
           Nova série
-        </button>
+        </Link>
       </div>
 
       {notice && (
@@ -559,7 +554,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
           >
             <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-4 sm:px-6">
               <h2 className="text-base font-semibold text-white sm:text-lg">
-                {editingId ? "Editar série" : "Nova série"}
+                Editar série
               </h2>
               <button
                 type="button"
@@ -598,7 +593,10 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   <Select
                     value={form.tomDeVoz}
                     onChange={(v) => setForm((f) => ({ ...f, tomDeVoz: v }))}
-                    options={styleOptions.map((s) => ({ value: s.title, label: s.title }))}
+                    options={withCurrent(
+                      styleOptions.map((s) => ({ value: s.title, label: s.title })),
+                      form.tomDeVoz,
+                    )}
                     aria-label="Tom de voz do conteúdo"
                   />
                 </Field>
@@ -678,7 +676,10 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   <Select
                     value={form.visualStyle}
                     onChange={(v) => setForm((f) => ({ ...f, visualStyle: v }))}
-                    options={(editingRealistic ? REALISTIC_STYLES : VISUAL_STYLES).map((v) => ({ value: v.name, label: v.name }))}
+                    options={withCurrent(
+                      (editingRealistic ? REALISTIC_STYLES : VISUAL_STYLES).map((v) => ({ value: v.name, label: v.name })),
+                      form.visualStyle,
+                    )}
                     aria-label="Estilo visual"
                   />
                 </Field>
@@ -767,7 +768,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 ) : (
                   <CheckCircle2 className="h-4 w-4" />
                 )}
-                {editingId ? "Salvar alterações" : "Criar série"}
+                Salvar alterações
               </button>
             </div>
           </div>

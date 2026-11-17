@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import ScriptDialog, { type DialogScript } from "./ScriptDialog";
 import StoryChoiceDialog from "./StoryChoiceDialog";
@@ -40,12 +40,18 @@ function toDialogScript(api: ApiScript): DialogScript {
 export default function NextScriptModal({
   series,
   intent,
+  first,
   onClose,
   onChanged,
   onGenerateNow,
 }: {
   series: SeriesRecord;
   intent: "generate" | "prepare";
+  // Primeiro vídeo logo depois de criar a série: o que o cliente escolheu NA CRIAÇÃO já vale, então a
+  // pergunta "Qual história você quer usar?" não aparece.
+  //   "saved": ele escreveu a história na criação -> gera direto com ela;
+  //   "ai":    ele escolheu "A IA cria" -> a IA escreve e mostra para ele ler antes de gerar.
+  first?: "saved" | "ai";
   onClose: () => void;
   onChanged: (hasScript: boolean) => void;
   // Fecha o quadro e roda o "Gerar agora" da série (que usa a história guardada).
@@ -76,6 +82,22 @@ export default function NextScriptModal({
       cancelled = true;
     };
   }, [series.id]);
+
+  // Primeiro vídeo da série: segue direto, sem perguntar a história de novo (ver "first" acima).
+  const firstHandled = useRef(false);
+  useEffect(() => {
+    if (loading || !first || firstHandled.current) return;
+    firstHandled.current = true;
+    if (first === "ai") {
+      void writeWithAi();
+    } else if (saved) {
+      onGenerateNow();
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNotice("Não encontramos a história que você escreveu. Escolha como quer a história deste vídeo.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, first]);
 
   function show(next: DialogScript | null) {
     setShown(next);

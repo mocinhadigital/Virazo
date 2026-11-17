@@ -12,7 +12,7 @@ import { helpFor } from "./helpTexts";
 // menu de baixo.
 export default function HelpButton() {
   const pathname = usePathname();
-  const { openGuide } = useDashboard();
+  const { openGuide, helpHidden } = useDashboard();
   // A ajuda aberta "pertence" à tela em que foi aberta: ao mudar de tela ela some sozinha.
   const [openFor, setOpenFor] = useState<string | null>(null);
   const open = openFor !== null && openFor === pathname;
@@ -28,8 +28,10 @@ export default function HelpButton() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Escondido enquanto cobriria o que a pessoa escreve (a ajuda aberta continua aberta).
   return (
     <>
+      {!helpHidden && (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -38,6 +40,7 @@ export default function HelpButton() {
       >
         <HelpCircle className="h-6 w-6" strokeWidth={2} />
       </button>
+      )}
 
       {open && (
         <div

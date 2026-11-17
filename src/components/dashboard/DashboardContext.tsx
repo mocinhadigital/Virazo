@@ -75,6 +75,10 @@ type DashboardContextValue = {
   isGuideOpen: boolean;
   openGuide: () => void;
   closeGuide: () => void;
+  // Telas em que o botão (?) cobriria o que a pessoa está escrevendo (ex.: caixa da história) o
+  // escondem enquanto estão abertas.
+  helpHidden: boolean;
+  setHelpHidden: (hidden: boolean) => void;
   dailyVideoLimit: number;
   // Vídeos de bônus (plano Pro): usados quando o limite do dia já acabou.
   bonusVideos: number;
@@ -151,6 +155,7 @@ export function DashboardProvider({
   // O guia abre sozinho só para quem tem plano e ainda não viu (admin e quem usa só o Vídeo
   // Realista não recebem; podem abrir pelo botão "Como usar").
   const [isGuideOpen, setIsGuideOpen] = useState(!welcomeSeen && initialPlan !== null && !isAdmin);
+  const [helpHidden, setHelpHidden] = useState(false);
   const openGuide = useCallback(() => setIsGuideOpen(true), []);
   const closeGuide = useCallback(() => {
     setIsGuideOpen(false);
@@ -540,6 +545,8 @@ export function DashboardProvider({
         isGuideOpen,
         openGuide,
         closeGuide,
+        helpHidden,
+        setHelpHidden,
         dailyVideoLimit,
         bonusVideos,
         videosUsedToday,

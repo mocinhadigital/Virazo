@@ -176,7 +176,27 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
     return () => clearInterval(t);
   }, []);
   // Série cuja história do próximo vídeo está aberta (e para quê: gerar agora ou só guardar).
-  const [scriptModal, setScriptModal] = useState<{ id: string; intent: "generate" | "prepare" } | null>(null);
+  const [scriptModal, setScriptModal] = useState<{
+    id: string;
+    intent: "generate" | "prepare";
+    first?: "saved" | "ai";
+  } | null>(null);
+
+  // Veio da tela "Sua série está pronta!" (botão "Gerar meu primeiro vídeo agora"): abre direto o
+  // primeiro vídeo com o que o cliente escolheu na criação, sem perguntar a história de novo.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("gerar");
+    if (!id) return;
+    const modo = params.get("modo");
+    window.history.replaceState(null, "", "/dashboard/series");
+    const target = series.find((x) => x.id === id);
+    if (target && !target.realistic) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScriptModal({ id, intent: "generate", first: modo === "own" ? "saved" : modo === "ai" ? "ai" : undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const editingRealistic = editingId ? series.find((s) => s.id === editingId)?.realistic === true : false;
 
   // O "Gerar agora" desta série vai ser recusado pelo limite do dia? (O servidor continua
@@ -515,6 +535,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         <NextScriptModal
           series={series.find((x) => x.id === scriptModal.id)!}
           intent={scriptModal.intent}
+          first={scriptModal.first}
           onClose={() => setScriptModal(null)}
           onChanged={(hasScript) =>
             setSeries((prev) => prev.map((x) => (x.id === scriptModal.id ? { ...x, hasNextScript: hasScript } : x)))
@@ -581,6 +602,30 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     aria-label="Tom de voz do conteúdo"
                   />
                 </Field>
+
+                {/* Onde escrever a história do próximo vídeo (antes o cliente não achava). */}
+                {editingId && !editingRealistic && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-sm font-semibold text-white">História do próximo vídeo</p>
+                    <p className="mt-1 text-[13px] leading-snug text-zinc-400">
+                      {series.find((x) => x.id === editingId)?.hasNextScript
+                        ? "Você já deixou uma história pronta para o próximo vídeo."
+                        : "Nenhuma história guardada: a IA cria sozinha. Se quiser, escreva a sua."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = editingId;
+                        setModalOpen(false);
+                        setScriptModal({ id, intent: "prepare" });
+                      }}
+                      className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/15 text-sm font-semibold text-zinc-100 hover:bg-white/5"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Escrever a história do próximo vídeo
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Idioma">

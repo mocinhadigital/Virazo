@@ -22,6 +22,9 @@ import { VISUAL_STYLES } from "../visualStyles";
 import type { MusicTrackRecord } from "../musicMapping";
 import { useDashboard } from "../DashboardContext";
 import { LockedFeatureCard } from "../RealisticOnlyLock";
+import StoryTextBox from "../script/StoryTextBox";
+import { checkScriptWords, countWords } from "@/lib/script/limits";
+import { suggestTone } from "./tone";
 import { parseGenerationError } from "@/lib/billing/dailyLimit";
 import { planAllowsLongVideos } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
@@ -34,9 +37,9 @@ import {
   FREQUENCIA_OPTIONS,
 } from "./seriesOptions";
 
-type StepKey = "nicho" | "idioma" | "musica" | "visual" | "legenda" | "detalhes" | "agenda";
+type StepKey = "nicho" | "idioma" | "musica" | "visual" | "legenda" | "detalhes" | "historia" | "agenda";
 
-const STEP_ORDER: StepKey[] = ["nicho", "idioma", "musica", "visual", "legenda", "detalhes", "agenda"];
+const STEP_ORDER: StepKey[] = ["nicho", "idioma", "musica", "visual", "legenda", "detalhes", "historia", "agenda"];
 
 const STEP_TITLES: Record<StepKey, string> = {
   nicho: "Sobre o que é a sua série?",
@@ -44,7 +47,8 @@ const STEP_TITLES: Record<StepKey, string> = {
   musica: "Música de fundo",
   visual: "Como as imagens vão parecer?",
   legenda: "Como será a legenda?",
-  detalhes: "Nome e duração",
+  detalhes: "Nome, duração e jeito de contar",
+  historia: "História do primeiro vídeo",
   agenda: "Quando criar os vídeos?",
 };
 
@@ -158,7 +162,7 @@ const EMPTY_FORM: FormState = {
 
 export default function SeriesWizard() {
   const router = useRouter();
-  const { plan, isAdmin, realisticOnly, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy } =
+  const { plan, isAdmin, realisticOnly, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy, setHelpHidden } =
     useDashboard();
   // 60s nas séries normais: chave ligada + plano Pro/Ultra (admin também).
   const canUseLong = longVideosEnabled && (isAdmin || planAllowsLongVideos(plan));
@@ -176,14 +180,30 @@ export default function SeriesWizard() {
   const [musicError, setMusicError] = useState<string | null>(null);
   // Série criada: em vez de largar o cliente na lista, mostra o que vai acontecer agora.
   const [created, setCreated] = useState<null | {
+    id: string;
     title: string;
     manual: boolean;
     manualFailed: boolean;
     firstRun: string | null;
+    // Como foi escolhida a história do primeiro vídeo ("none" = série de Vídeo Realista, sem esse passo).
+    story: "own" | "ai" | "none";
+    storySaved: boolean;
   }>(null);
+  // História do primeiro vídeo (escolhida DURANTE a criação) e tom de voz (o cliente já mexeu nele?).
+  const [storyMode, setStoryMode] = useState<null | "own" | "ai">(null);
+  const [storyText, setStoryText] = useState("");
+  const [tomTouched, setTomTouched] = useState(false);
   const [captionWordIndex, setCaptionWordIndex] = useState(0);
 
-  const stepIndex = STEP_ORDER.indexOf(step);
+  // Série de Vídeo Realista não usa a história escrita (ela tem o fluxo próprio): sem esse passo.
+  const steps = form.realistic ? STEP_ORDER.filter((s) => s !== "historia") : STEP_ORDER;
+  const stepIndex = steps.indexOf(step);
+
+  // No passo da história o botão (?) fica escondido: ele cobriria o fim da caixa de texto no celular.
+  useEffect(() => {
+    setHelpHidden(step === "historia");
+    return () => setHelpHidden(false);
+  }, [step, setHelpHidden]);
 
   // Sem assinatura ativa, nem deixa começar a preencher a série — abre
   // direto o paywall (mesmo gate usado por openWizard() do vídeo avulso),
@@ -291,13 +311,19 @@ export default function SeriesWizard() {
           form.duration.trim().length > 0 &&
           form.tomDeVoz.trim().length > 0
         );
+      case "historia":
+        // Tem que ter escolhido; se escolheu escrever, o texto precisa ter o tamanho certo.
+        return (
+          storyMode === "ai" ||
+          (storyMode === "own" && checkScriptWords(form.duration, countWords(storyText))?.state === "ok")
+        );
       default:
         return true;
     }
   })();
 
   function goBack() {
-    const prev = STEP_ORDER[stepIndex - 1];
+    const prev = steps[stepIndex - 1];
     if (!prev) return;
     setStep(prev);
     if (prev === "musica" && musicTracks.length === 0) void loadMusicTracks();
@@ -305,8 +331,11 @@ export default function SeriesWizard() {
 
   async function goNext() {
     if (step !== "agenda") {
-      const next = STEP_ORDER[stepIndex + 1];
+      const next = steps[stepIndex + 1];
       if (!next) return;
+      // Ao chegar em "Nome, duração e jeito de contar": o tom já vem marcado conforme o tema (o
+      // cliente muda se quiser). Antes, toda série nascia "Motivacional".
+      if (next === "detalhes" && !tomTouched) update("tomDeVoz", suggestTone(form.nicho));
       setStep(next);
       if (next === "musica" && musicTracks.length === 0) void loadMusicTracks();
       return;
@@ -343,11 +372,31 @@ export default function SeriesWizard() {
           manualFailed = true;
         }
       }
+      // A história escrita no passo "História do primeiro vídeo" vira a história do próximo vídeo
+      // da série (o mesmo lugar de "Escrever a história do próximo vídeo"). Criar a série NÃO gera
+      // nenhum vídeo: isto só guarda o texto.
+      const story: "own" | "ai" | "none" = form.realistic ? "none" : (storyMode ?? "ai");
+      let storySaved = false;
+      if (story === "own") {
+        try {
+          const put = await fetch(`/api/series/${data.id}/next-script`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ script: { title: form.title.trim(), source: "custom", scenes: [], text: storyText } }),
+          });
+          storySaved = put.ok;
+        } catch {
+          storySaved = false;
+        }
+      }
       setCreated({
+        id: data.id,
         title: form.title.trim(),
         manual: form.modo === "manual" && !manualFailed,
         manualFailed,
         firstRun: describeFirstRun(data.nextGenerationAt),
+        story,
+        storySaved,
       });
       setSaving(false);
       router.refresh();
@@ -381,19 +430,43 @@ export default function SeriesWizard() {
           <p className="text-[13px] font-semibold uppercase tracking-wide text-zinc-500">O que vai acontecer agora</p>
           {created.manual ? (
             <p className="mt-2 text-[17px] leading-relaxed text-zinc-100">
-              Nada será feito sozinho. Quando você quiser seu vídeo, entre em <strong>Séries</strong> e toque em{" "}
-              <strong>“Gerar um vídeo agora”</strong>. Você escolhe a história antes.
+              Nada será feito sozinho.{" "}
+              {created.story === "own" && created.storySaved ? (
+                <>O primeiro vídeo vai usar a história que você escreveu. Toque no botão abaixo quando quiser gerá-lo.</>
+              ) : created.story === "ai" ? (
+                <>
+                  A IA vai criar a história do primeiro vídeo quando você tocar no botão abaixo — e você lê antes de
+                  gerar.
+                </>
+              ) : (
+                <>
+                  Quando você quiser seu vídeo, toque no botão abaixo (ou, em <strong>Séries</strong>, em{" "}
+                  <strong>“Gerar um vídeo agora”</strong>).
+                </>
+              )}
             </p>
           ) : (
             <p className="mt-2 text-[17px] leading-relaxed text-zinc-100">
+              {created.story === "own" && created.storySaved ? (
+                <>O primeiro vídeo vai usar a história que você escreveu, </>
+              ) : created.story === "ai" ? (
+                <>A IA vai criar a história do primeiro vídeo, </>
+              ) : (
+                <>O primeiro vídeo será feito </>
+              )}
               {created.firstRun ? (
                 <>
-                  Seu primeiro vídeo será feito <strong>{created.firstRun}</strong> (horário de Brasília). Você não
-                  precisa fazer nada.
+                  <strong>{created.firstRun}</strong> (horário de Brasília). Você não precisa fazer nada.
                 </>
               ) : (
-                <>Seu primeiro vídeo será feito no próximo horário da série. Você não precisa fazer nada.</>
+                <>no próximo horário da série. Você não precisa fazer nada.</>
               )}
+            </p>
+          )}
+          {created.story === "own" && !created.storySaved && (
+            <p className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-sm text-amber-200">
+              Não conseguimos guardar a história que você escreveu. Em Séries, toque em “Escrever a história do próximo
+              vídeo” e cole o texto de novo.
             </p>
           )}
           {created.manualFailed && (
@@ -402,15 +475,33 @@ export default function SeriesWizard() {
             </p>
           )}
         </div>
-        <Link
-          href="/dashboard/series"
-          className="mx-auto mt-6 inline-flex h-14 w-full max-w-md items-center justify-center rounded-2xl bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] text-[17px] font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
-        >
-          Ver minhas séries
-        </Link>
-        <Link href="/dashboard" className="mt-3 inline-block text-[15px] font-medium text-zinc-400 hover:text-white">
-          Voltar ao início
-        </Link>
+        {created.manual ? (
+          <>
+            {/* "Só quando eu pedir": o botão grande leva direto a gerar o primeiro vídeo, com o que o
+                cliente escolheu na criação (sem perguntar a história de novo). */}
+            <Link
+              href={`/dashboard/series?gerar=${created.id}${created.story === "own" && created.storySaved ? "&modo=own" : created.story === "ai" ? "&modo=ai" : ""}`}
+              className="mx-auto mt-6 inline-flex h-14 w-full max-w-md items-center justify-center rounded-2xl bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] text-[17px] font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
+            >
+              Gerar meu primeiro vídeo agora
+            </Link>
+            <Link href="/dashboard/series" className="mt-3 inline-block text-[15px] font-medium text-zinc-400 hover:text-white">
+              Gerar depois
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/dashboard/series"
+              className="mx-auto mt-6 inline-flex h-14 w-full max-w-md items-center justify-center rounded-2xl bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] text-[17px] font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
+            >
+              Ver minhas séries
+            </Link>
+            <Link href="/dashboard" className="mt-3 inline-block text-[15px] font-medium text-zinc-400 hover:text-white">
+              Voltar ao início
+            </Link>
+          </>
+        )}
       </div>
     );
   }
@@ -418,7 +509,7 @@ export default function SeriesWizard() {
   return (
     <div className="mx-auto max-w-[720px]">
       <div className="flex gap-2">
-        {STEP_ORDER.map((s, i) => (
+        {steps.map((s, i) => (
           <span
             key={s}
             className={`h-1.5 flex-1 rounded-full ${
@@ -434,7 +525,7 @@ export default function SeriesWizard() {
             {STEP_TITLES[step]}
           </h1>
           <span className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-zinc-400">
-            Passo {stepIndex + 1} de {STEP_ORDER.length}
+            Passo {stepIndex + 1} de {steps.length}
           </span>
           {step === "musica" && (
             <span className="rounded-full border border-white/[0.08] px-3 py-1 text-[12px] font-medium text-white/35">
@@ -448,7 +539,8 @@ export default function SeriesWizard() {
           {step === "musica" && "Escolha quantas quiser — uma delas é sorteada para cada vídeo"}
           {step === "visual" && "Escolha o estilo das imagens dos seus vídeos"}
           {step === "legenda" && "Escolha como as legendas aparecem nos seus vídeos"}
-          {step === "detalhes" && "Dê um nome à série e escolha quanto tempo cada vídeo dura"}
+          {step === "detalhes" && "Dê um nome à série, escolha quanto tempo cada vídeo dura e o jeito de contar"}
+          {step === "historia" && "Escolha como será a história do primeiro vídeo da série"}
           {step === "agenda" && "Escolha se a série cria vídeos sozinha ou só quando você pedir"}
         </p>
       </div>
@@ -961,6 +1053,90 @@ export default function SeriesWizard() {
             </label>
             )}
 
+            <div>
+              <span className="mb-1 block text-[14px] font-medium text-white/92">Jeito de contar</span>
+              <p className="mb-3 text-[13px] leading-snug text-white/50">
+                É o tom das histórias. Já deixamos marcado o que combina com o seu tema — você pode mudar.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {styleOptions.map((s) => {
+                  const Icon = s.icon;
+                  const selected = form.tomDeVoz === s.title;
+                  const suggested = suggestTone(form.nicho) === s.title;
+                  return (
+                    <button
+                      key={s.title}
+                      type="button"
+                      onClick={() => {
+                        setTomTouched(true);
+                        update("tomDeVoz", s.title);
+                      }}
+                      className={`relative flex min-h-[64px] items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors ${
+                        selected
+                          ? "border-[#4C3BFF]/60 bg-white/[0.07] shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                          : "border-white/[0.08] bg-[#141416] hover:border-white/20"
+                      }`}
+                    >
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${s.gradient}`}>
+                        <Icon className="h-4.5 w-4.5 text-white" strokeWidth={2} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[15px] font-semibold leading-tight text-white/92">{s.title}</span>
+                        {suggested && (
+                          <span className="mt-0.5 block text-[11px] font-medium leading-tight text-emerald-400">
+                            Sugerido para este tema
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === "historia" && (
+          <div className="flex flex-col gap-4">
+            {[
+              {
+                value: "own" as const,
+                emoji: "✍️",
+                title: "Quero escrever minha história",
+                description: "Você escreve ou cola o texto do primeiro vídeo.",
+              },
+              {
+                value: "ai" as const,
+                emoji: "✨",
+                title: "A IA cria a história para mim",
+                description: "A IA escreve a história do primeiro vídeo. Você lê antes de gerar.",
+              },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setStoryMode(option.value)}
+                className={`flex items-center gap-4 rounded-[20px] border bg-[#141416] p-4 text-left transition-colors ${
+                  storyMode === option.value
+                    ? "border-[#4C3BFF]/60 shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                    : "border-white/[0.08] hover:border-white/20"
+                }`}
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-2xl" aria-hidden="true">
+                  {option.emoji}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[17px] font-semibold leading-snug text-white/92">{option.title}</span>
+                  <span className="mt-0.5 block text-[14px] leading-snug text-white/55">{option.description}</span>
+                </span>
+              </button>
+            ))}
+            {storyMode === "own" && <StoryTextBox duration={form.duration} value={storyText} onChange={setStoryText} />}
+            {storyMode === "ai" && (
+              <p className="rounded-xl bg-white/[0.04] px-4 py-3 text-[14px] leading-relaxed text-white/60">
+                Tudo certo: a IA cria a história. Quando for gerar o primeiro vídeo, você lê a história antes.
+              </p>
+            )}
           </div>
         )}
 

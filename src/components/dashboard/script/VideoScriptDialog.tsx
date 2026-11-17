@@ -96,7 +96,7 @@ export default function VideoScriptDialog({
 
   function redo() {
     if (cache.redos >= MAX_SCRIPT_REDOS_PER_DRAFT) {
-      setError(`Você já refez o roteiro ${MAX_SCRIPT_REDOS_PER_DRAFT} vezes. Clique em "Editar roteiro" para ajustar o texto atual.`);
+      setError(`Você já pediu outra história ${MAX_SCRIPT_REDOS_PER_DRAFT} vezes. Toque em "Editar a história" para ajustar o texto que você tem.`);
       return;
     }
     void load(true);
@@ -122,11 +122,12 @@ export default function VideoScriptDialog({
       duration={duration}
       script={cached}
       loading={loading}
+      loadingText="A IA está escrevendo a sua história…"
       error={error}
       busy={busy}
       onGenerate={handleGenerate}
       onRedo={cached ? redo : undefined}
-      redoLabel={`Refazer roteiro (${cache.redos}/${MAX_SCRIPT_REDOS_PER_DRAFT})`}
+      redoLabel={`Pedir outra história (${cache.redos}/${MAX_SCRIPT_REDOS_PER_DRAFT})`}
       onRetry={() => void load(false)}
       onClose={onClose}
     />

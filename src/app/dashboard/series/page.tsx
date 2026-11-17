@@ -25,7 +25,7 @@ export default async function SeriesPage() {
       <div>
         <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Minhas Séries</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Configure um nicho, deixe a IA gerar vídeos novos automaticamente e revise antes de publicar.
+          Séries criam vídeos novos para você: sozinhas, todo dia, ou só quando você pedir.
         </p>
       </div>
 

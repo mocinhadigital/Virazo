@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Lock, Sparkles, Zap } from "lucide-react";
-import { navItems } from "./navItems";
+import { navItems, isNavActive } from "./navItems";
 import SignOutButton from "./SignOutButton";
 import { useDashboard } from "./DashboardContext";
 
@@ -24,8 +24,7 @@ export default function Sidebar({ userName, isAdmin = false }: { userName: strin
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map(({ label, href, icon: Icon, soon }) => {
-          const isActive =
-            pathname?.startsWith(href) || (label === "Séries" && pathname === "/dashboard") || false;
+          const isActive = isNavActive(href, pathname);
           return (
             <Link
               key={label}

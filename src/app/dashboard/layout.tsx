@@ -17,6 +17,8 @@ import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/
 import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
 import { getRealisticCheckoutUrls } from "@/lib/billing/realisticPackages";
 import { isRealisticEntry } from "@/lib/billing/realisticEntry";
+import WelcomeGuide from "@/components/dashboard/guide/WelcomeGuide";
+import HelpButton from "@/components/dashboard/help/HelpButton";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import { isAdminUserId } from "@/lib/admin/requireAdmin";
 import VisitOptOut from "@/components/analytics/VisitOptOut";
@@ -118,6 +120,7 @@ export default async function DashboardLayout({
       initialBonusVideos={bonusResult.error ? 0 : (bonusResult.data?.bonus_videos ?? 0)}
       initialRealisticCredits={realisticCredits}
       realisticAccount={realisticAccount}
+      welcomeSeen={!!(user.user_metadata as { welcome_seen?: boolean } | undefined)?.welcome_seen}
     >
       <div className="min-h-screen bg-[#05050a]">
         <Sidebar userName={displayName} isAdmin={isAdmin} />
@@ -133,6 +136,9 @@ export default async function DashboardLayout({
           à página inicial não contarem no funil ("Visitaram a página"). */}
       {(isAdmin || isOwnerEmail(user.email)) && <VisitOptOut />}
       <CreateVideoWizard />
+      {/* Ajuda para quem está perdido: guia "Como usar" (1ª vez) e botão (?) da tela. */}
+      <WelcomeGuide />
+      <HelpButton />
       {/* Vídeo Realista ✨ (produto avulso): assistente e pop-up de compra. */}
       <RealisticWizard />
       <RealisticBuyModal checkoutUrls={realisticCheckoutUrls} />

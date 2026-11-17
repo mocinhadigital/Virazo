@@ -30,13 +30,13 @@ export default function ScriptDialog({
   busy = false,
   busyText = "Preparando…",
   startInEdit = false,
-  generateLabel = "Gerar com este roteiro",
+  generateLabel = "Gerar com esta história",
   saveAndGenerateLabel = "Salvar e gerar",
   saveOnlyLabel,
   onGenerate,
   onSaveOnly,
   onRedo,
-  redoLabel = "Refazer roteiro",
+  redoLabel = "Pedir outra história",
   onRetry,
   onClose,
   footer,
@@ -109,7 +109,7 @@ export default function ScriptDialog({
           <X className="h-4 w-4" />
         </button>
 
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Roteiro do vídeo</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">A história do seu vídeo</p>
         <h2 className="mt-1 pr-8 text-xl font-bold text-white">{script?.title || "Escreva a sua história"}</h2>
 
         {error && (
@@ -149,18 +149,24 @@ export default function ScriptDialog({
               disabled={busy}
               rows={11}
               autoFocus
-              placeholder="Escreva ou cole aqui o texto que será narrado. O app divide em cenas, cria as imagens, a narração e a legenda a partir dele."
+              placeholder="Escreva ou cole aqui a sua história. O Virazo cria as imagens, a voz e a legenda a partir dela."
               className="min-h-[220px] w-full flex-1 resize-none rounded-2xl border border-white/10 bg-[#0a0a0b] p-4 text-[15px] leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none disabled:opacity-60"
-              aria-label="Texto do roteiro"
+              aria-label="Texto da história"
             />
             {check && (
-              <p className={`text-xs ${ok ? "text-zinc-400" : "text-red-400"}`}>
-                {words} {words === 1 ? "palavra" : "palavras"} · para a duração do vídeo ({duration}), entre {check.min} e{" "}
-                {check.max}
-                {ok ? ` (ideal ${check.idealMin} a ${check.idealMax})` : ""}
-              </p>
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
+                <p className="text-[13px] leading-snug text-zinc-300">
+                  Para um vídeo de <strong className="text-white">{duration}</strong>, escreva entre{" "}
+                  <strong className="text-white">{check.min} e {check.max} palavras</strong> (o ideal é de {check.idealMin} a{" "}
+                  {check.idealMax}).
+                </p>
+                <p className={`mt-1 text-[13px] font-semibold ${ok ? "text-emerald-400" : words === 0 ? "text-zinc-500" : "text-red-400"}`}>
+                  Você escreveu {words} {words === 1 ? "palavra" : "palavras"}
+                  {ok ? ": está ótimo!" : "."}
+                </p>
+                {!ok && check.message && words > 0 && <p className="mt-0.5 text-xs text-red-300/80">{check.message}</p>}
+              </div>
             )}
-            {!ok && check?.message && words > 0 && <p className="-mt-1.5 text-xs text-red-300/80">{check.message}</p>}
             <button
               type="button"
               onClick={() => void onGenerate({ ...base, text })}
@@ -195,8 +201,8 @@ export default function ScriptDialog({
               {scenesToParagraphs(script!.scenes)}
             </div>
             <p className="text-xs text-zinc-500">
-              {countWords(scenesToParagraphs(script!.scenes))} palavras · {script!.scenes.length} cenas. Editar ou refazer o
-              roteiro não gasta nada do seu limite: o vídeo só é descontado quando você gerar.
+              {countWords(scenesToParagraphs(script!.scenes))} palavras. Ler, mudar ou pedir outra história não gasta nada do
+              seu limite: o vídeo só é descontado quando você tocar em gerar.
             </p>
             <button
               type="button"
@@ -213,7 +219,7 @@ export default function ScriptDialog({
               disabled={busy}
               className="py-1 text-center text-sm font-semibold text-zinc-300 hover:text-white disabled:opacity-40"
             >
-              Editar roteiro
+              Editar a história
             </button>
             {onRedo && (
               <button

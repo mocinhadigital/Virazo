@@ -70,6 +70,11 @@ type DashboardContextValue = {
   // plano: o painel não abre o pop-up obrigatório de planos e mostra o resto bloqueado com um
   // convite discreto. Some sozinho quando a pessoa assina um plano.
   realisticOnly: boolean;
+  // Guia "Como usar": aparece sozinho UMA vez (a marca fica guardada na conta) e pode ser aberto
+  // de novo pelo botão "Como usar" a qualquer momento.
+  isGuideOpen: boolean;
+  openGuide: () => void;
+  closeGuide: () => void;
   dailyVideoLimit: number;
   // Vídeos de bônus (plano Pro): usados quando o limite do dia já acabou.
   bonusVideos: number;
@@ -125,6 +130,7 @@ export function DashboardProvider({
   initialBonusVideos = 0,
   initialRealisticCredits = 0,
   realisticAccount = false,
+  welcomeSeen = true,
 }: {
   children: ReactNode;
   initialVideos: VideoRecord[];
@@ -135,11 +141,25 @@ export function DashboardProvider({
   initialBonusVideos?: number;
   initialRealisticCredits?: number;
   realisticAccount?: boolean;
+  // A conta já viu o guia de boas-vindas? (user_metadata.welcome_seen)
+  welcomeSeen?: boolean;
 }) {
   const router = useRouter();
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [plan, setPlan] = useState<PlanKey | null>(initialPlan);
   const realisticOnly = realisticAccount && !plan && !isAdmin;
+  // O guia abre sozinho só para quem tem plano e ainda não viu (admin e quem usa só o Vídeo
+  // Realista não recebem; podem abrir pelo botão "Como usar").
+  const [isGuideOpen, setIsGuideOpen] = useState(!welcomeSeen && initialPlan !== null && !isAdmin);
+  const openGuide = useCallback(() => setIsGuideOpen(true), []);
+  const closeGuide = useCallback(() => {
+    setIsGuideOpen(false);
+    // Guarda na conta que já viu (vale em qualquer aparelho). Falhar aqui só faz o guia
+    // aparecer de novo no próximo acesso — nunca atrapalha o uso.
+    void createClient()
+      .auth.updateUser({ data: { welcome_seen: true } })
+      .catch(() => undefined);
+  }, []);
   const [bonusVideos, setBonusVideos] = useState(initialBonusVideos);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardInitial, setWizardInitial] = useState<WizardInitial>({});
@@ -517,6 +537,9 @@ export function DashboardProvider({
         plan,
         isAdmin,
         realisticOnly,
+        isGuideOpen,
+        openGuide,
+        closeGuide,
         dailyVideoLimit,
         bonusVideos,
         videosUsedToday,

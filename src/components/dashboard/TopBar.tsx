@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Sparkles, ChevronRight } from "lucide-react";
 import { useIsCriarVideoActive } from "./useCriarVideoHash";
+import ComoUsarButton from "./guide/ComoUsarButton";
 
 const ROUTE_TITLES: Record<string, string> = {
   "/dashboard/configuracoes": "Configurações",
   "/dashboard/series": "Séries",
-  "/dashboard/videos": "Meus vídeos",
+  "/dashboard/videos": "Vídeos",
   "/dashboard/planos": "Planos",
   "/dashboard/guias": "Guias",
   "/dashboard/contato": "Fale Conosco",
@@ -18,12 +19,12 @@ export default function TopBar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const isCriarVideo = useIsCriarVideoActive();
   const matchedRoute = Object.entries(ROUTE_TITLES).find(([prefix]) => pathname?.startsWith(prefix));
-  const isCreateSeries = pathname === "/dashboard";
+  const isCreateSeries = pathname === "/dashboard/series/nova";
   // A página de Configurações mostra seu próprio título centralizado sobre
   // o conteúdo (igual à referência), então omite o título aqui em cima
   // só nesta rota — nenhuma outra página muda.
   const hideTitle = pathname === "/dashboard/configuracoes";
-  const pageTitle = isCriarVideo ? "Criar vídeo" : (matchedRoute?.[1] ?? "Painel");
+  const pageTitle = isCriarVideo ? "Criar vídeo" : pathname === "/dashboard" ? "Início" : (matchedRoute?.[1] ?? "Painel");
 
   return (
     <header
@@ -58,6 +59,7 @@ export default function TopBar({ isAdmin = false }: { isAdmin?: boolean }) {
         )}
 
         <div className="flex items-center gap-3">
+          <ComoUsarButton />
           {/* Atalho do painel para administradores no celular (no desktop
               o link fica no menu lateral). */}
           {isAdmin && (

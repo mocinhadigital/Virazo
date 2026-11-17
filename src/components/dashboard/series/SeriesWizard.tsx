@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   TrendingUp,
   Loader2,
@@ -11,6 +12,9 @@ import {
   Music,
   UploadCloud,
   Info,
+  CheckCircle2,
+  CalendarClock,
+  Hand,
 } from "lucide-react";
 import { styleOptions } from "../styleOptions";
 import RealisticNotice from "../realistic/RealisticNotice";
@@ -27,20 +31,36 @@ import {
   SERIES_VOICES,
   SERIES_CAPTION_STYLES,
   IDIOMA_OPTIONS,
+  FREQUENCIA_OPTIONS,
 } from "./seriesOptions";
 
-type StepKey = "nicho" | "idioma" | "musica" | "visual" | "legenda" | "detalhes";
+type StepKey = "nicho" | "idioma" | "musica" | "visual" | "legenda" | "detalhes" | "agenda";
 
-const STEP_ORDER: StepKey[] = ["nicho", "idioma", "musica", "visual", "legenda", "detalhes"];
+const STEP_ORDER: StepKey[] = ["nicho", "idioma", "musica", "visual", "legenda", "detalhes", "agenda"];
 
 const STEP_TITLES: Record<StepKey, string> = {
-  nicho: "Escolha seu nicho",
+  nicho: "Sobre o que é a sua série?",
   idioma: "Idioma e voz",
   musica: "Música de fundo",
-  visual: "Estilo visual",
-  legenda: "Estilo de legenda",
-  detalhes: "Detalhes da série",
+  visual: "Como as imagens vão parecer?",
+  legenda: "Como será a legenda?",
+  detalhes: "Nome e duração",
+  agenda: "Quando criar os vídeos?",
 };
+
+// "Sua série vai criar o primeiro vídeo amanhã às 09:00": dia e hora em horário de Brasília.
+function describeFirstRun(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const when = new Date(new Date(iso).getTime() - 3 * 3600_000);
+  const today = new Date(Date.now() - 3 * 3600_000);
+  const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+  const tomorrow = new Date(today.getTime() + 24 * 3600_000);
+  const hhmm = when.toISOString().slice(11, 16);
+  if (dayKey(when) === dayKey(today)) return `hoje às ${hhmm}`;
+  if (dayKey(when) === dayKey(tomorrow)) return `amanhã às ${hhmm}`;
+  const [, m, d] = dayKey(when).split("-");
+  return `no dia ${d}/${m} às ${hhmm}`;
+}
 
 // Prévia animada da Etapa 5 (Estilo de legenda): no AutoShortz os 4 cards de
 // estilo (exceto "Sem legenda") mostram a mesma frase revelada palavra por
@@ -112,6 +132,8 @@ type FormState = {
   horario: string;
   // Série de Vídeo Realista ✨: cada episódio gasta 1 crédito realista.
   realistic: boolean;
+  // "auto" = cria vídeos sozinha; "manual" = só quando o cliente pedir (a série é criada "pausada").
+  modo: "auto" | "manual";
 };
 
 const EMPTY_FORM: FormState = {
@@ -131,6 +153,7 @@ const EMPTY_FORM: FormState = {
   frequenciaDias: 1,
   horario: "09:00",
   realistic: false,
+  modo: "auto",
 };
 
 export default function SeriesWizard() {
@@ -151,6 +174,13 @@ export default function SeriesWizard() {
   const [musicLoading, setMusicLoading] = useState(false);
   const [musicUploading, setMusicUploading] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
+  // Série criada: em vez de largar o cliente na lista, mostra o que vai acontecer agora.
+  const [created, setCreated] = useState<null | {
+    title: string;
+    manual: boolean;
+    manualFailed: boolean;
+    firstRun: string | null;
+  }>(null);
   const [captionWordIndex, setCaptionWordIndex] = useState(0);
 
   const stepIndex = STEP_ORDER.indexOf(step);
@@ -274,7 +304,7 @@ export default function SeriesWizard() {
   }
 
   async function goNext() {
-    if (step !== "detalhes") {
+    if (step !== "agenda") {
       const next = STEP_ORDER[stepIndex + 1];
       if (!next) return;
       setStep(next);
@@ -298,7 +328,28 @@ export default function SeriesWizard() {
         }
         throw new Error(parsed.message);
       }
-      router.push("/dashboard/series");
+      // "Só quando eu pedir": a série nasce automática e é passada para "pausada" (o estado que já
+      // existia), que para o cliente quer dizer exatamente isso.
+      let manualFailed = false;
+      if (form.modo === "manual") {
+        try {
+          const patchRes = await fetch(`/api/series/${data.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "pausada" }),
+          });
+          manualFailed = !patchRes.ok;
+        } catch {
+          manualFailed = true;
+        }
+      }
+      setCreated({
+        title: form.title.trim(),
+        manual: form.modo === "manual" && !manualFailed,
+        manualFailed,
+        firstRun: describeFirstRun(data.nextGenerationAt),
+      });
+      setSaving(false);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível criar a série.");
@@ -315,6 +366,53 @@ export default function SeriesWizard() {
         description="Vídeos novos gerados sozinhos, no ritmo que você escolher. Disponível nos planos do Virazo."
       />
     ) : null;
+  }
+
+  // Série criada: diz o que vai acontecer agora e para onde ir.
+  if (created) {
+    return (
+      <div className="mx-auto max-w-[720px] text-center">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/15">
+          <CheckCircle2 className="h-9 w-9 text-emerald-400" />
+        </span>
+        <h1 className="mt-5 text-[28px] font-bold leading-tight text-white">Sua série está pronta!</h1>
+        <p className="mt-1 text-[16px] text-zinc-400">{created.title}</p>
+        <div className="mx-auto mt-6 max-w-md rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left">
+          <p className="text-[13px] font-semibold uppercase tracking-wide text-zinc-500">O que vai acontecer agora</p>
+          {created.manual ? (
+            <p className="mt-2 text-[17px] leading-relaxed text-zinc-100">
+              Nada será feito sozinho. Quando você quiser seu vídeo, entre em <strong>Séries</strong> e toque em{" "}
+              <strong>“Gerar um vídeo agora”</strong>. Você escolhe a história antes.
+            </p>
+          ) : (
+            <p className="mt-2 text-[17px] leading-relaxed text-zinc-100">
+              {created.firstRun ? (
+                <>
+                  Seu primeiro vídeo será feito <strong>{created.firstRun}</strong> (horário de Brasília). Você não
+                  precisa fazer nada.
+                </>
+              ) : (
+                <>Seu primeiro vídeo será feito no próximo horário da série. Você não precisa fazer nada.</>
+              )}
+            </p>
+          )}
+          {created.manualFailed && (
+            <p className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-sm text-amber-200">
+              Não conseguimos deixar a série como “só quando eu pedir”. Em Séries, toque em “Deixar manual”.
+            </p>
+          )}
+        </div>
+        <Link
+          href="/dashboard/series"
+          className="mx-auto mt-6 inline-flex h-14 w-full max-w-md items-center justify-center rounded-2xl bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] text-[17px] font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
+        >
+          Ver minhas séries
+        </Link>
+        <Link href="/dashboard" className="mt-3 inline-block text-[15px] font-medium text-zinc-400 hover:text-white">
+          Voltar ao início
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -336,7 +434,7 @@ export default function SeriesWizard() {
             {STEP_TITLES[step]}
           </h1>
           <span className="rounded-full border border-white/10 px-3 py-1 text-[12px] font-medium text-zinc-400">
-            Etapa {stepIndex + 1} de {STEP_ORDER.length}
+            Passo {stepIndex + 1} de {STEP_ORDER.length}
           </span>
           {step === "musica" && (
             <span className="rounded-full border border-white/[0.08] px-3 py-1 text-[12px] font-medium text-white/35">
@@ -345,12 +443,13 @@ export default function SeriesWizard() {
           )}
         </div>
         <p className="mt-3 text-[15px] text-zinc-400">
-          {step === "nicho" && "Selecione um preset ou descreva seu próprio nicho"}
+          {step === "nicho" && "Escolha um tema pronto ou escreva o seu"}
           {step === "idioma" && "Escolha o idioma e a voz que vão narrar seus vídeos"}
           {step === "musica" && "Escolha quantas quiser — uma delas é sorteada para cada vídeo"}
           {step === "visual" && "Escolha o estilo das imagens dos seus vídeos"}
           {step === "legenda" && "Escolha como as legendas aparecem nos seus vídeos"}
-          {step === "detalhes" && "Dê um nome à série e escolha a duração dos vídeos"}
+          {step === "detalhes" && "Dê um nome à série e escolha quanto tempo cada vídeo dura"}
+          {step === "agenda" && "Escolha se a série cria vídeos sozinha ou só quando você pedir"}
         </p>
       </div>
 
@@ -862,11 +961,92 @@ export default function SeriesWizard() {
             </label>
             )}
 
-            <div className="rounded-xl bg-surface px-4 py-3 text-[13px] leading-relaxed text-white/55">
-              Sua série vai gerar novos vídeos automaticamente, no ritmo que você configurar. Você
-              recebe cada vídeo pronto e pode <strong className="font-bold text-white/92">baixar</strong>,
-              pausar ou pedir uma geração extra a qualquer momento em &ldquo;Séries&rdquo;.
+          </div>
+        )}
+
+        {step === "agenda" && (
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              {[
+                {
+                  value: "auto" as const,
+                  icon: CalendarClock,
+                  title: "Criar um vídeo novo automaticamente",
+                  description: "A IA escreve a história e faz um vídeo novo no ritmo que você escolher, sem você precisar fazer nada.",
+                },
+                {
+                  value: "manual" as const,
+                  icon: Hand,
+                  title: "Só criar quando eu pedir",
+                  description: "Nada é feito sozinho. Quando quiser um vídeo, você toca em “Gerar um vídeo agora” e escolhe a história.",
+                },
+              ].map((option) => {
+                const Icon = option.icon;
+                const selected = form.modo === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => update("modo", option.value)}
+                    className={`flex items-center gap-4 rounded-[20px] border bg-[#141416] p-4 text-left transition-colors ${
+                      selected
+                        ? "border-[#4C3BFF]/60 shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
+                        : "border-white/[0.08] hover:border-white/20"
+                    }`}
+                  >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/[0.06]">
+                      <Icon className="h-6 w-6 text-white/80" strokeWidth={1.8} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[17px] font-semibold leading-snug text-white/92">{option.title}</span>
+                      <span className="mt-0.5 block text-[14px] leading-snug text-white/55">{option.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+
+            {form.modo === "auto" && (
+              <div className="flex flex-col gap-5 rounded-2xl border border-white/[0.08] bg-[#0a0a0b] p-4">
+                <div>
+                  <span className="mb-2 block text-[14px] font-medium text-white/92">Com que frequência?</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {FREQUENCIA_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => update("frequenciaDias", option.value)}
+                        className={`h-12 rounded-xl border px-3 text-[15px] font-medium transition-colors ${
+                          form.frequenciaDias === option.value
+                            ? "border-[#4C3BFF]/60 bg-white/[0.07] text-white"
+                            : "border-white/[0.08] text-white/70 hover:border-white/20"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="block">
+                  <span className="mb-2 block text-[14px] font-medium text-white/92">Que horas? (horário de Brasília)</span>
+                  <select
+                    value={form.horario}
+                    onChange={(e) => update("horario", e.target.value)}
+                    className="h-12 w-full rounded-xl border border-white/[0.08] bg-[#141416] px-3.5 text-[15px] text-white/92 focus:border-[#4C3BFF]/50 focus:outline-none"
+                  >
+                    {Array.from({ length: 19 }, (_, i) => `${String(i + 5).padStart(2, "0")}:00`).map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="text-[13px] leading-relaxed text-white/50">
+                  Você pode escolher a história de um vídeo antes dele ser feito, em “Séries”, tocando em “Escrever a
+                  história do próximo vídeo”. Se não escolher, a IA cria.
+                </p>
+              </div>
+            )}
 
             {error && (
               <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-xs font-medium text-red-400">
@@ -899,8 +1079,8 @@ export default function SeriesWizard() {
           className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-medium text-white/92 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          {step === "detalhes"
-            ? "Criar série"
+          {step === "agenda"
+            ? "Criar a série"
             : step === "musica" && form.backgroundMusicIds.length === 0
               ? "Pular"
               : "Continuar"}

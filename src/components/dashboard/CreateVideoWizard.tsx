@@ -16,6 +16,7 @@ import { useDashboard, VideoGenerationError } from "./DashboardContext";
 import VideoProgress from "./VideoProgress";
 import { styleOptions } from "./styleOptions";
 import { VISUAL_STYLES } from "./visualStyles";
+import StoryChoiceDialog from "./script/StoryChoiceDialog";
 import VideoScriptDialog, { EMPTY_VIDEO_SCRIPT_CACHE, type VideoScriptCache } from "./script/VideoScriptDialog";
 import type { ScriptPayload } from "@/lib/script/limits";
 
@@ -41,13 +42,13 @@ const STEP_ORDER: StepKey[] = [
 
 const STEP_TITLES: Record<StepKey, string> = {
   tema: "Sobre o que é o vídeo?",
-  estiloVisual: "Escolha o estilo visual",
-  estilo: "Escolha um estilo",
-  duracao: "Duração do vídeo",
-  voz: "Escolha uma voz",
-  legendas: "Legendas",
-  revisao: "Revisão final",
-  geracao: "Gerando seu vídeo",
+  estiloVisual: "Como as imagens vão parecer?",
+  estilo: "Qual o jeito de contar?",
+  duracao: "Quanto tempo vai durar?",
+  voz: "Quem vai narrar?",
+  legendas: "Como será a legenda?",
+  revisao: "Confira e continue",
+  geracao: "Fazendo seu vídeo",
 };
 
 const DURATIONS = [
@@ -103,7 +104,7 @@ function WizardPanel() {
   const [captionStyle, setCaptionStyle] = useState<string | null>("Destaque");
   // Quadro "Roteiro do vídeo" (abre depois da revisão final). Ler, editar e refazer o
   // roteiro não gasta nada do limite: a vaga só é reservada quando o vídeo é gerado.
-  const [scriptDialog, setScriptDialog] = useState<null | "ai" | "own">(null);
+  const [scriptDialog, setScriptDialog] = useState<null | "choose" | "ai" | "own">(null);
   const [scriptCache, setScriptCache] = useState<VideoScriptCache>(EMPTY_VIDEO_SCRIPT_CACHE);
 
   const [isDone, setIsDone] = useState(false);
@@ -195,8 +196,9 @@ function WizardPanel() {
 
   function goNext() {
     if (step === "revisao") {
-      // Antes de gerar, mostra o roteiro para o cliente ler/editar (de graça).
-      setScriptDialog("ai");
+      // Antes de gerar, o cliente escolhe a história: escrever a dele ou deixar a IA criar. Só
+      // depois ele lê/edita e manda gerar (nada é gerado sem essa escolha).
+      setScriptDialog("choose");
       return;
     }
     const next = STEP_ORDER[stepIndex + 1];
@@ -261,7 +263,7 @@ function WizardPanel() {
           <div className="flex items-center justify-between">
             <div>
               {isFormStep && (
-                <span className="text-xs font-medium text-zinc-500">
+                <span className="text-[13px] font-semibold text-zinc-400">
                   Passo {stepIndex + 1} de {STEP_ORDER.length}
                 </span>
               )}
@@ -315,7 +317,7 @@ function WizardPanel() {
                 className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4C3BFF]/50 focus:outline-none"
               />
               <p className="text-xs text-zinc-500">
-                Descreva o tema em poucas palavras — a IA escreve o roteiro completo.
+                Escreva em poucas palavras sobre o que é o vídeo. No fim, você escolhe se escreve a história ou se a IA cria.
               </p>
             </div>
           )}
@@ -563,14 +565,6 @@ function WizardPanel() {
                 value={captionsOn ? (captionStyle ?? "Ativadas") : "Desativadas"}
                 onEdit={() => setStep("legendas")}
               />
-              <button
-                type="button"
-                onClick={() => setScriptDialog("own")}
-                disabled={!canGoNext}
-                className="mt-1 self-start text-xs font-semibold text-[#A855F7] underline-offset-2 hover:underline disabled:opacity-40"
-              >
-                Prefere escrever a sua própria história?
-              </button>
               {isAdmin ? (
                 <p className="mt-2 text-xs text-zinc-500">
                   Conta de administrador: sem limite diário de vídeos.
@@ -757,7 +751,7 @@ function WizardPanel() {
               {step === "revisao" ? (
                 <>
                   <Wand2 className="h-4 w-4" />
-                  Gerar vídeo
+                  Escolher a história
                 </>
               ) : (
                 <>
@@ -770,7 +764,29 @@ function WizardPanel() {
         )}
       </div>
 
-      {scriptDialog && (
+      {scriptDialog === "choose" && (
+        <StoryChoiceDialog
+          onClose={() => setScriptDialog(null)}
+          options={[
+            {
+              id: "own",
+              emoji: "✍️",
+              title: "Quero escrever minha história",
+              description: "Você escreve ou cola o texto, e a gente faz o vídeo com ele.",
+              onPick: () => setScriptDialog("own"),
+            },
+            {
+              id: "ai",
+              emoji: "✨",
+              title: "A IA cria a história para mim",
+              description: "A IA escreve, você lê, muda o que quiser e só depois gera.",
+              onPick: () => setScriptDialog("ai"),
+            },
+          ]}
+        />
+      )}
+
+      {(scriptDialog === "ai" || scriptDialog === "own") && (
         <VideoScriptDialog
           mode={scriptDialog}
           topic={topic.trim()}

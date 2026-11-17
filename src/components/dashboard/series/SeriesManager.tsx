@@ -87,9 +87,11 @@ function formStateFromSeries(series: SeriesRecord, keepLong = false): FormState 
   };
 }
 
+// "Pausada" é o estado que já existia; para o cliente ele quer dizer "só quando eu pedir": a série
+// não gera vídeos sozinha, só quando ele toca em "Gerar um vídeo agora".
 const STATUS_LABEL: Record<SeriesStatus, string> = {
-  ativa: "Ativa",
-  pausada: "Pausada",
+  ativa: "Automática",
+  pausada: "Só quando eu pedir",
   arquivada: "Arquivada",
 };
 
@@ -173,8 +175,8 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
     const t = setInterval(() => setTick((n) => n + 1), 60_000);
     return () => clearInterval(t);
   }, []);
-  // Série cujo roteiro do próximo episódio está aberto para ver/editar.
-  const [scriptSeriesId, setScriptSeriesId] = useState<string | null>(null);
+  // Série cuja história do próximo vídeo está aberta (e para quê: gerar agora ou só guardar).
+  const [scriptModal, setScriptModal] = useState<{ id: string; intent: "generate" | "prepare" } | null>(null);
   const editingRealistic = editingId ? series.find((s) => s.id === editingId)?.realistic === true : false;
 
   // O "Gerar agora" desta série vai ser recusado pelo limite do dia? (O servidor continua
@@ -185,14 +187,14 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   const remainingToday = Math.max(0, dailyVideoLimit - usedToday);
   function limitMessage(s: SeriesRecord): string | null {
     if (isAdmin || s.realistic || !plan) return null;
-    if (blockedDay === todayKey) return "Você já usou os vídeos de hoje. O Gerar agora volta amanhã.";
+    if (blockedDay === todayKey) return "Você já usou os vídeos de hoje. O botão “Gerar um vídeo agora” volta amanhã.";
     const duration = effectiveDuration(s.duration, longVideosEnabled, planAllowsLongVideos(plan));
     const cost = videoSlotCost(duration);
     const enough = remainingToday >= cost || (remainingToday === 0 && bonusVideos >= cost);
     if (enough) return null;
     return cost > 1 && remainingToday > 0
       ? "Precisa de 2 vídeos disponíveis para gerar um de 60s."
-      : "Você já usou os vídeos de hoje. O Gerar agora volta amanhã.";
+      : "Você já usou os vídeos de hoje. O botão “Gerar um vídeo agora” volta amanhã.";
   }
 
   function openCreateModal() {
@@ -310,8 +312,8 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
       void refreshRealisticCredits();
       setNotice(
         data?.status === "Processando"
-          ? 'Episódio realista começou a ser gerado — leva alguns minutos e aparece em "Meus vídeos" quando ficar pronto.'
-          : `Vídeo gerado com sucesso a partir desta série — confira em "Meus vídeos" no painel.`,
+          ? 'Seu vídeo realista começou a ser feito — leva alguns minutos e aparece em "Vídeos" quando ficar pronto.'
+          : `Seu vídeo ficou pronto — confira em “Vídeos”.`,
       );
       // Reflete o novo total/agendamento sem precisar recarregar a página.
       // GET idempotente — pode tentar de novo em falha de rede sem risco.
@@ -334,8 +336,8 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-zinc-500">
           {series.length === 0
-            ? "Nenhuma série cadastrada ainda."
-            : `${series.length} ${series.length === 1 ? "série cadastrada" : "séries cadastradas"}`}
+            ? "Você ainda não criou nenhuma série. Toque em “Nova série” para começar."
+            : `${series.length} ${series.length === 1 ? "série" : "séries"}`}
           {!isAdmin && plan && (
             <span className="ml-2 text-zinc-600">
               · Vídeos de hoje: {Math.min(usedToday, dailyVideoLimit)} de {dailyVideoLimit}
@@ -404,19 +406,27 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
               </div>
 
               <div className="flex items-center justify-between text-xs text-zinc-500">
-                <span>{s.totalVideosGerados} vídeo(s) gerado(s)</span>
                 <span>
-                  {s.status === "ativa" ? `Próxima: ${formatDateTime(s.nextGenerationAt)}` : "—"}
+                  {s.totalVideosGerados === 0
+                    ? "Nenhum vídeo feito ainda"
+                    : `${s.totalVideosGerados} ${s.totalVideosGerados === 1 ? "vídeo feito" : "vídeos feitos"}`}
+                </span>
+                <span>
+                  {s.status === "ativa"
+                    ? `Próximo vídeo: ${formatDateTime(s.nextGenerationAt)}`
+                    : s.status === "pausada"
+                      ? "Gera só quando você pedir"
+                      : "—"}
                 </span>
               </div>
 
               {s.realistic && s.status === "pausada" && realisticCredits < 1 && (
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200">
-                  Série pausada: seus créditos de Vídeo Realista acabaram.{" "}
+                  Série parada: seus créditos de Vídeo Realista acabaram.{" "}
                   <button type="button" onClick={openRealisticBuy} className="font-semibold underline">
                     Comprar mais
                   </button>{" "}
-                  e depois toque em Retomar.
+                  e depois toque em “Ligar automático”.
                 </div>
               )}
 
@@ -431,7 +441,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   type="button"
                   disabled={busyId === s.id || s.status === "arquivada" || !!limitMessage(s)}
                   title={limitMessage(s) ?? undefined}
-                  onClick={() => handleGenerateNow(s.id)}
+                  onClick={() => (s.realistic ? handleGenerateNow(s.id) : setScriptModal({ id: s.id, intent: "generate" }))}
                   className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {busyId === s.id ? (
@@ -439,7 +449,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   ) : (
                     <Wand2 className="h-3.5 w-3.5" />
                   )}
-                  Gerar agora
+                  Gerar um vídeo agora
                 </button>
 
                 {s.status !== "arquivada" && (
@@ -456,7 +466,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     ) : (
                       <Play className="h-3.5 w-3.5" />
                     )}
-                    {s.status === "ativa" ? "Pausar" : "Retomar"}
+                    {s.status === "ativa" ? "Deixar manual" : "Ligar automático"}
                   </button>
                 )}
 
@@ -464,14 +474,14 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   <button
                     type="button"
                     disabled={busyId === s.id}
-                    onClick={() => setScriptSeriesId(s.id)}
+                    onClick={() => setScriptModal({ id: s.id, intent: "prepare" })}
                     className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5 disabled:opacity-40"
                   >
                     <FileText className="h-3.5 w-3.5" />
-                    Roteiro do próximo episódio
+                    Escrever a história do próximo vídeo
                     {s.hasNextScript && (
                       <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
-                        pronto
+                        história pronta
                       </span>
                     )}
                   </button>
@@ -501,17 +511,18 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         </div>
       )}
 
-      {scriptSeriesId && series.find((x) => x.id === scriptSeriesId) && (
+      {scriptModal && series.find((x) => x.id === scriptModal.id) && (
         <NextScriptModal
-          series={series.find((x) => x.id === scriptSeriesId)!}
-          onClose={() => setScriptSeriesId(null)}
+          series={series.find((x) => x.id === scriptModal.id)!}
+          intent={scriptModal.intent}
+          onClose={() => setScriptModal(null)}
           onChanged={(hasScript) =>
-            setSeries((prev) => prev.map((x) => (x.id === scriptSeriesId ? { ...x, hasNextScript: hasScript } : x)))
+            setSeries((prev) => prev.map((x) => (x.id === scriptModal.id ? { ...x, hasNextScript: hasScript } : x)))
           }
           onGenerateNow={() => {
-            const id = scriptSeriesId;
-            setScriptSeriesId(null);
-            if (id) void handleGenerateNow(id);
+            const id = scriptModal.id;
+            setScriptModal(null);
+            void handleGenerateNow(id);
           }}
         />
       )}

@@ -218,17 +218,17 @@ export default function MeusVideos() {
           <Clapperboard className="h-5 w-5 text-zinc-500" strokeWidth={2} />
         </span>
         <div>
-          <p className="text-sm font-medium text-white">Você ainda não tem nenhum vídeo</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Crie um vídeo manualmente ou configure uma série para gerar automaticamente.
+          <p className="text-base font-semibold text-white">Você ainda não tem nenhum vídeo</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            Toque no botão abaixo para criar o seu primeiro vídeo. Ele fica pronto em cerca de 1 minuto.
           </p>
         </div>
         <button
           type="button"
           onClick={() => openWizard()}
-          className="mt-1 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-4 py-2 text-xs font-semibold text-white"
+          className="mt-1 inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 text-[15px] font-semibold text-white"
         >
-          <Wand2 className="h-3.5 w-3.5" />
+          <Wand2 className="h-4 w-4" />
           Criar meu primeiro vídeo
         </button>
       </div>

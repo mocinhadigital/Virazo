@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Lock } from "lucide-react";
-import { navItems } from "./navItems";
+import { navItems, isNavActive } from "./navItems";
 import { useDashboard } from "./DashboardContext";
 
 export default function MobileNav() {
@@ -12,10 +12,9 @@ export default function MobileNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.06] bg-[#05050a]/90 backdrop-blur-md lg:hidden">
-      <div className="mx-auto flex max-w-md items-center justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2.5">
-        {navItems.map(({ label, href, icon: Icon }) => {
-          const isActive =
-            pathname?.startsWith(href) || (label === "Séries" && pathname === "/dashboard") || false;
+      <div className="mx-auto flex max-w-md items-center justify-between px-1 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2.5">
+        {navItems.map(({ label, mobileLabel, href, icon: Icon }) => {
+          const isActive = isNavActive(href, pathname);
           return (
             <Link
               key={label}
@@ -26,7 +25,7 @@ export default function MobileNav() {
             >
               <Icon className="h-5 w-5" strokeWidth={2} />
               <span className="flex items-center gap-0.5 text-[10px] font-medium">
-                {label}
+                {mobileLabel ?? label}
                 {realisticOnly && href === "/dashboard/series" && <Lock className="h-2.5 w-2.5" aria-label="Disponível nos planos" />}
               </span>
             </Link>

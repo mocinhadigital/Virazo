@@ -51,13 +51,7 @@ export async function checkGenerationGate(userId: string, seriesDuration: string
     )
     .reduce((sum, v) => sum + videoSlotCost(v.duration), 0);
 
-  if (used >= limit) {
-    const { data: profile } = await service
-      .from("profiles")
-      .select("bonus_videos")
-      .eq("id", userId)
-      .maybeSingle<{ bonus_videos: number }>();
-    return (profile?.bonus_videos ?? 0) >= cost ? { ok: true } : { ok: false, reason: "limit" };
-  }
+  // O agendador NÃO usa o bônus do Pro (só o clique do cliente usa): acabou o limite do dia = adia.
+  if (used >= limit) return { ok: false, reason: "limit" };
   return used + cost > limit ? { ok: false, reason: "not_enough_slots" } : { ok: true };
 }

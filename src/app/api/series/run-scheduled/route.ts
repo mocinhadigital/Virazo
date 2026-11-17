@@ -160,7 +160,7 @@ async function handle(request: Request) {
     attempts++;
     const result = series.realistic
       ? await runRealisticSeriesGeneration(supabase, series.user_id, series, url.origin)
-      : await runSeriesGeneration(supabase, series.user_id, series, deadline);
+      : await runSeriesGeneration(supabase, series.user_id, series, deadline, false); // false = sem bônus
     results.push(
       result.ok
         ? { seriesId: series.id, ok: true }

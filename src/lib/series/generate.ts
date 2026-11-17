@@ -152,6 +152,9 @@ export async function runSeriesGeneration(
   // gera UM vídeo ("Gerar agora"); o agendador, que gera várias séries na
   // mesma invocação, passa o prazo da invocação inteira.
   deadline: number = Date.now() + GENERATION_TIME_BUDGET_MS,
+  // false no agendador automático: série automática usa SÓ o limite do dia, nunca o bônus do Pro.
+  // O clique do próprio cliente ("Gerar agora") mantém o padrão (true) e pode usar o bônus.
+  allowBonus: boolean = true,
 ): Promise<SeriesGenerationResult> {
   // Série configurada em 60s com a chave de vídeos longos desligada gera
   // em 30s (ver src/lib/video/durations.ts) — melhor que um vídeo que
@@ -207,6 +210,7 @@ export async function runSeriesGeneration(
       p_background_music_id: chosenMusicId,
       p_series_id: series.id,
       p_user_id: userId,
+      p_allow_bonus: allowBonus,
     })
     .single()
     .returns<VideoRow>();

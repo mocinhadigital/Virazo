@@ -11,6 +11,22 @@ import { markCaktoCheckoutStarted } from "../CaktoPaymentVerifier";
 // Pop-up "Comprar vídeos realistas": 2 pacotes de pagamento único na Cakto.
 // O crédito entra sozinho quando o pagamento é aprovado (webhook / consulta à
 // API da Cakto); "Já paguei" força a verificação na hora.
+// Selo de cada pacote (o do meio não tem).
+const PACKAGE_BADGES: Partial<Record<RealisticPackageKey, { text: string; className: string }>> = {
+  "3": { text: "PARA TESTAR", className: "bg-gradient-to-r from-[#4C3BFF] to-[#A855F7]" },
+  "20": { text: "MAIS VANTAJOSO", className: "bg-gradient-to-r from-[#EC4899] to-[#F97316]" },
+};
+
+// "R$ 19" (inteiro) ou "R$ 14,70" / "R$ 12,35" (sempre 2 casas quando tem centavos).
+function formatPerVideo(priceCents: number, credits: number): string {
+  const cents = Math.round(priceCents / credits);
+  const value = (cents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+  return `R$ ${value}`;
+}
+
 export default function RealisticBuyModal({ checkoutUrls }: { checkoutUrls: RealisticCheckoutUrls | null }) {
   const { isRealisticBuyOpen, closeRealisticBuy } = useDashboard();
   if (!isRealisticBuyOpen) return null;
@@ -152,47 +168,54 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
           </div>
         )}
 
-        <div className={`mt-6 grid grid-cols-1 gap-4 ${packages.length >= 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          {packages.map((pkg) => (
-            <div
-              key={pkg.key}
-              className={`relative flex flex-col rounded-2xl border p-5 ${
-                pkg.featured
-                  ? "border-pink-400/40 bg-gradient-to-b from-[#A855F7]/15 to-white/[0.02]"
-                  : "border-white/10 bg-white/[0.02]"
-              }`}
-            >
-              {pkg.featured && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-[#EC4899] to-[#F97316] px-3 py-1 text-[11px] font-bold tracking-wide text-white">
-                  MAIS VANTAJOSO
-                </span>
-              )}
-              <p className="text-3xl font-extrabold text-white">{pkg.credits}</p>
-              <p className="text-sm font-medium text-zinc-300">créditos de vídeo realista</p>
-              <p className="mt-3 text-2xl font-bold text-white">{formatBRL(pkg.priceCents)}</p>
-              <p className="text-xs text-zinc-500">
-                {formatBRL(Math.round(pkg.priceCents / pkg.credits))} por crédito
-              </p>
-              <ul className="mt-3 flex flex-col gap-1.5 text-xs text-zinc-300">
-                {["1 crédito = vídeo de 30s", "2 créditos = vídeo de 60s", "Créditos sem prazo de validade"].map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400" strokeWidth={3} />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                disabled={!checkoutUrls || opening !== null}
-                onClick={() => handleBuy(pkg.key)}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        <div className={`mt-6 grid grid-cols-1 gap-3.5 sm:gap-4 ${packages.length >= 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          {packages.map((pkg) => {
+            const badge = PACKAGE_BADGES[pkg.key];
+            return (
+              <div
+                key={pkg.key}
+                className={`relative flex items-center justify-between gap-3 rounded-2xl border p-4 sm:flex-col sm:items-stretch sm:justify-start sm:p-5 ${
+                  pkg.featured
+                    ? "border-pink-400/40 bg-gradient-to-b from-[#A855F7]/15 to-white/[0.02]"
+                    : "border-white/10 bg-white/[0.02]"
+                }`}
               >
-                {opening === pkg.key && <Loader2 className="h-4 w-4 animate-spin" />}
-                Comprar
-              </button>
-            </div>
-          ))}
+                {badge && (
+                  <span
+                    className={`absolute -top-3 left-4 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-bold tracking-wide text-white sm:left-1/2 sm:-translate-x-1/2 ${badge.className}`}
+                  >
+                    {badge.text}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="whitespace-nowrap text-xl font-extrabold leading-tight text-white sm:text-2xl">
+                    {pkg.credits} vídeos <span className="text-base font-bold text-zinc-300">de 30s</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-400 sm:text-sm">sai {formatPerVideo(pkg.priceCents, pkg.credits)} cada</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2 sm:mt-3 sm:items-stretch">
+                  <p className="text-xl font-bold text-white sm:text-2xl">{formatBRL(pkg.priceCents)}</p>
+                  <button
+                    type="button"
+                    disabled={!checkoutUrls || opening !== null}
+                    onClick={() => handleBuy(pkg.key)}
+                    className="inline-flex h-10 w-28 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-full"
+                  >
+                    {opening === pkg.key && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Comprar
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {packages.length > 0 && (
+          <p className="mt-4 flex items-center justify-center gap-2 text-xs text-zinc-300">
+            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400" strokeWidth={3} />
+            Créditos sem prazo de validade
+          </p>
+        )}
 
         {packages.length === 0 && (
           <p className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-center text-xs font-medium text-amber-300">

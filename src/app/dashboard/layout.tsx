@@ -17,6 +17,7 @@ import { claimCaktoPendingPurchases, getCaktoCheckoutUrls } from "@/lib/billing/
 import { isCaktoApiConfigured } from "@/lib/billing/caktoApi";
 import { getRealisticCheckoutUrls } from "@/lib/billing/realisticPackages";
 import { isRealisticEntry } from "@/lib/billing/realisticEntry";
+import ManualModeNotice from "@/components/dashboard/series/ManualModeNotice";
 import WelcomeGuide from "@/components/dashboard/guide/WelcomeGuide";
 import HelpButton from "@/components/dashboard/help/HelpButton";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
@@ -108,6 +109,19 @@ export default async function DashboardLayout({
   // realistas — e não tem plano. Para essas contas o painel não abre o pop-up de planos.
   const realisticCredits = realisticResult.error ? 0 : (realisticResult.data?.realistic_credits ?? 0);
   const realisticAccount = isRealisticEntry(user) || realisticCredits > 0;
+  // Aviso "a série agora gera só quando você pedir": só para quem tem a marca na conta (ids das séries
+  // que mudaram) e só para as que ainda estão paradas.
+  const noticeIds = (user.user_metadata as { manual_notice_series?: unknown } | undefined)?.manual_notice_series;
+  let manualNoticeSeries: { id: string; title: string }[] = [];
+  if (Array.isArray(noticeIds) && noticeIds.length > 0) {
+    const { data: noticeRows } = await supabase
+      .from("series")
+      .select("id,title,status")
+      .in("id", noticeIds.filter((x): x is string => typeof x === "string"))
+      .eq("user_id", user.id)
+      .eq("status", "pausada");
+    manualNoticeSeries = (noticeRows ?? []).map((r) => ({ id: r.id as string, title: r.title as string }));
+  }
   const displayName = profile?.full_name?.trim() || user.email?.split("@")[0] || "Usuário";
 
   return (
@@ -127,6 +141,7 @@ export default async function DashboardLayout({
         <div className="flex min-h-screen flex-col lg:pl-64">
           <TopBar isAdmin={isAdmin} />
           <main className="flex-1 px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10">
+            <ManualModeNotice series={manualNoticeSeries} />
             {children}
           </main>
         </div>

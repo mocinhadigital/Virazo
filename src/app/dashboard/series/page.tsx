@@ -25,13 +25,13 @@ export default async function SeriesPage() {
       <div>
         <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Minhas Séries</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Séries criam vídeos novos para você: sozinhas, todo dia, ou só quando você pedir.
+          Séries criam vídeos novos para você: só quando você pedir (o padrão) ou todo dia, no automático.
         </p>
       </div>
 
       <RealisticOnlyLock
-        title="Séries automáticas"
-        description="Vídeos novos gerados sozinhos, no ritmo que você escolher. Disponível nos planos do Virazo."
+        title="Séries"
+        description="Séries que criam vídeos novos para você, só quando você pedir ou todo dia. Disponível nos planos do Virazo."
       >
         <SeriesManager initialSeries={initialSeries} />
       </RealisticOnlyLock>

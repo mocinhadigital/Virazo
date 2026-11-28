@@ -9,7 +9,7 @@ const HELP: { prefix: string; help: HelpText }[] = [
       title: "Criando uma série",
       lines: [
         "Responda um passo de cada vez. No alto você vê em que passo está.",
-        "No último passo você escolhe: a série cria vídeos sozinha, ou só quando você pedir.",
+        "No último passo você escolhe: “Gerar só quando eu pedir” (já vem marcado) ou “Gerar um vídeo novo todo dia automático”, em que você escolhe o horário.",
         "Pode voltar a qualquer momento para mudar o que escolheu.",
       ],
     },
@@ -21,7 +21,7 @@ const HELP: { prefix: string; help: HelpText }[] = [
       lines: [
         "“Gerar um vídeo agora” cria um vídeo na hora. Antes, você escolhe a história: escrever a sua ou deixar a IA criar.",
         "“Escrever a história do próximo vídeo” deixa a história pronta para o vídeo seguinte.",
-        "“Só quando eu pedir” quer dizer que a série não cria vídeos sozinha. Toque em “Ligar automático” para ela voltar a criar.",
+        "Cada série mostra se está em “Automático” (um vídeo por dia, no horário marcado) ou “Manual” (só quando você pedir). Toque em “Ligar automático” ou “Desligar automático” para trocar quando quiser.",
       ],
     },
   },

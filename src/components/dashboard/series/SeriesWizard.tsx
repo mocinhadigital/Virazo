@@ -35,7 +35,6 @@ import {
   SERIES_VOICES,
   SERIES_CAPTION_STYLES,
   IDIOMA_OPTIONS,
-  FREQUENCIA_OPTIONS,
 } from "./seriesOptions";
 
 type StepKey = "nicho" | "idioma" | "musica" | "visual" | "legenda" | "detalhes" | "historia" | "agenda";
@@ -158,7 +157,8 @@ const EMPTY_FORM: FormState = {
   frequenciaDias: 1,
   horario: "09:00",
   realistic: false,
-  modo: "auto",
+  // Padrão: só quando o cliente pedir. A série só gera sozinha se ele escolher o automático.
+  modo: "manual",
 };
 
 export default function SeriesWizard() {
@@ -428,8 +428,8 @@ export default function SeriesWizard() {
   if (!plan) {
     return realisticOnly ? (
       <LockedFeatureCard
-        title="Séries automáticas"
-        description="Vídeos novos gerados sozinhos, no ritmo que você escolher. Disponível nos planos do Virazo."
+        title="Séries"
+        description="Séries que criam vídeos novos para você, só quando você pedir ou todo dia. Disponível nos planos do Virazo."
       />
     ) : null;
   }
@@ -1174,16 +1174,16 @@ export default function SeriesWizard() {
             <div className="flex flex-col gap-3">
               {[
                 {
-                  value: "auto" as const,
-                  icon: CalendarClock,
-                  title: "Criar um vídeo novo automaticamente",
-                  description: "A IA escreve a história e faz um vídeo novo no ritmo que você escolher, sem você precisar fazer nada.",
-                },
-                {
                   value: "manual" as const,
                   icon: Hand,
-                  title: "Só criar quando eu pedir",
+                  title: "Gerar só quando eu pedir",
                   description: "Nada é feito sozinho. Quando quiser um vídeo, você toca em “Gerar um vídeo agora” e escolhe a história.",
+                },
+                {
+                  value: "auto" as const,
+                  icon: CalendarClock,
+                  title: "Gerar um vídeo novo todo dia automático",
+                  description: "A IA escreve a história e faz um vídeo novo todo dia no horário que você escolher, sem você precisar fazer nada.",
                 },
               ].map((option) => {
                 const Icon = option.icon;
@@ -1213,25 +1213,6 @@ export default function SeriesWizard() {
 
             {form.modo === "auto" && (
               <div className="flex flex-col gap-5 rounded-2xl border border-white/[0.08] bg-[#0a0a0b] p-4">
-                <div>
-                  <span className="mb-2 block text-[14px] font-medium text-white/92">Com que frequência?</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {FREQUENCIA_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => update("frequenciaDias", option.value)}
-                        className={`h-12 rounded-xl border px-3 text-[15px] font-medium transition-colors ${
-                          form.frequenciaDias === option.value
-                            ? "border-[#4C3BFF]/60 bg-white/[0.07] text-white"
-                            : "border-white/[0.08] text-white/70 hover:border-white/20"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
                 <label className="block">
                   <span className="mb-2 block text-[14px] font-medium text-white/92">Que horas? (horário de Brasília)</span>
                   <select

@@ -11,7 +11,7 @@ const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Sparkles,
     title: "Primeiro: o que você quer criar?",
-    body: "Você pode criar um vídeo só (fica pronto em cerca de 1 minuto) ou uma série, que faz vídeos novos sozinha, no ritmo que você escolher.",
+    body: "Você pode criar um vídeo só (fica pronto em cerca de 1 minuto) ou uma série. Na série, você escolhe: gerar só quando você pedir (o padrão) ou um vídeo novo todo dia, automático.",
   },
   {
     icon: Clapperboard,

@@ -27,8 +27,8 @@ export default function HomeChoice({ seriesCount }: { seriesCount: number }) {
         <RealisticTopCard />
         {realisticOnly && (
           <LockedFeatureCard
-            title="Vídeos e séries automáticas"
-            description="Criar vídeos do dia a dia e séries que geram sozinhas está disponível nos planos do Virazo."
+            title="Vídeos e séries"
+            description="Criar vídeos do dia a dia e séries está disponível nos planos do Virazo."
           />
         )}
       </div>
@@ -75,7 +75,7 @@ export default function HomeChoice({ seriesCount }: { seriesCount: number }) {
           <span className="min-w-0">
             <span className="block text-[20px] font-bold leading-snug text-white">Criar uma série</span>
             <span className="mt-1 block text-[15px] leading-snug text-zinc-300">
-              Vídeos novos automáticos, no ritmo que você escolher.
+              Vídeos novos quando você pedir, ou todo dia no automático, se preferir.
             </span>
           </span>
         </Link>

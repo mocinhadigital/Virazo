@@ -96,6 +96,13 @@ function formStateFromSeries(series: SeriesRecord, keepLong = false): FormState 
   };
 }
 
+// "Todo dia 09:00" / "a cada 2 dias 09:00" / "toda semana 09:00" (séries antigas podem ter outro ritmo).
+function automaticLabel(frequenciaDias: number): string {
+  if (frequenciaDias === 1) return "todo dia";
+  if (frequenciaDias === 7) return "toda semana";
+  return `a cada ${frequenciaDias} dias`;
+}
+
 // "Pausada" é o estado que já existia; para o cliente ele quer dizer "só quando eu pedir": a série
 // não gera vídeos sozinha, só quando ele toca em "Gerar um vídeo agora".
 const STATUS_LABEL: Record<SeriesStatus, string> = {
@@ -402,7 +409,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         <div className="card-glass flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
           <Wand2 className="h-8 w-8 text-[#4C3BFF]" strokeWidth={1.5} />
           <p className="text-sm text-zinc-400">
-            Crie sua primeira série pra gerar vídeos automaticamente, no ritmo que você definir.
+            Crie sua primeira série para gerar vídeos novos quando você pedir, ou todo dia no automático.
           </p>
         </div>
       ) : (
@@ -421,6 +428,20 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 </span>
               </div>
 
+              {s.status !== "arquivada" && (
+                <div
+                  className={`rounded-xl border px-3 py-2 text-[13px] font-semibold ${
+                    s.status === "ativa"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                  }`}
+                >
+                  {s.status === "ativa"
+                    ? `Automático · ${automaticLabel(s.frequenciaDias)} ${s.horario.slice(0, 5)}`
+                    : "Manual · só quando eu pedir"}
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-1.5 text-[11px] text-zinc-400">
                 {s.realistic && (
                   <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-amber-200">
@@ -432,11 +453,13 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                 <span className="rounded-full border border-white/10 px-2 py-0.5">
                   {IDIOMA_OPTIONS.find((o) => o.value === s.idioma)?.label ?? s.idioma}
                 </span>
-                <span className="rounded-full border border-white/10 px-2 py-0.5">
-                  {FREQUENCIA_OPTIONS.find((f) => f.value === s.frequenciaDias)?.label ??
-                    `A cada ${s.frequenciaDias}d`}{" "}
-                  · {s.horario.slice(0, 5)}
-                </span>
+                {s.status === "ativa" && (
+                  <span className="rounded-full border border-white/10 px-2 py-0.5">
+                    {FREQUENCIA_OPTIONS.find((f) => f.value === s.frequenciaDias)?.label ??
+                      `A cada ${s.frequenciaDias}d`}{" "}
+                    · {s.horario.slice(0, 5)}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center justify-between text-xs text-zinc-500">
@@ -504,7 +527,7 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                     ) : (
                       <Play className="h-3.5 w-3.5" />
                     )}
-                    {s.status === "ativa" ? "Deixar manual" : "Ligar automático"}
+                    {s.status === "ativa" ? "Desligar automático" : "Ligar automático"}
                   </button>
                 )}
 

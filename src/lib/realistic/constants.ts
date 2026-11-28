@@ -102,6 +102,17 @@ export const REALISTIC_PACKAGES: {
   { key: "20", credits: 20, priceCents: 24700, label: "20 vídeos realistas", featured: true },
 ];
 
+// Preço de cada vídeo/crédito de um pacote: "R$ 19" (inteiro) ou "R$ 14,70" (sempre 2 casas com centavos).
+// Usado no pop-up de compra do painel e na página /realista.
+export function formatPricePerCredit(priceCents: number, credits: number): string {
+  const cents = Math.round(priceCents / credits);
+  const value = (cents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+  return `R$ ${value}`;
+}
+
 export function formatBRL(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 });
 }

@@ -5,7 +5,7 @@ import Footer from "@/components/landing/Footer";
 import RealistaExamples from "@/components/landing/RealistaExamples";
 import RealisticChoiceLink from "@/components/checkout/RealisticChoiceLink";
 import FeaturedPlanFrame from "@/components/checkout/FeaturedPlanFrame";
-import { REALISTIC_PACKAGES, formatBRL } from "@/lib/realistic/constants";
+import { REALISTIC_PACKAGES, formatBRL, formatPricePerCredit } from "@/lib/realistic/constants";
 
 export const metadata: Metadata = {
   title: "Vídeo Realista — Virazo",
@@ -103,14 +103,14 @@ export default function RealistaPage() {
                     className={
                       pkg.featured
                         ? "flex h-full flex-col rounded-[20px] bg-[#0b0b14] p-6 sm:p-8"
-                        : "flex flex-col rounded-[20px] border border-white/10 bg-white/[0.03] p-6 sm:p-7"
+                        : "flex h-full flex-col rounded-[20px] border border-white/10 bg-white/[0.03] p-6 sm:p-7"
                     }
                   >
                     <p className="text-4xl font-extrabold text-white">{pkg.credits}</p>
                     <p className="text-sm font-medium text-zinc-300">créditos de vídeo realista</p>
                     <p className="mt-5 text-3xl font-bold tracking-tight text-white">{formatBRL(pkg.priceCents)}</p>
                     <p className="text-xs text-zinc-500">
-                      {formatBRL(Math.round(pkg.priceCents / pkg.credits))} por crédito • pagamento único
+                      {formatPricePerCredit(pkg.priceCents, pkg.credits)} por crédito • pagamento único
                     </p>
                     <ul className="mt-4 flex flex-col gap-1.5">
                       {PACKAGE_BULLETS.map((item) => (
@@ -138,6 +138,14 @@ export default function RealistaPage() {
                   >
                     {card}
                   </FeaturedPlanFrame>
+                ) : pkg.key === "3" ? (
+                  // Pacote de entrada: selo "PARA TESTAR" (o mesmo do pop-up de compra do painel).
+                  <div key={pkg.key} className="relative mt-3 md:mt-0">
+                    <span className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-3 py-1 text-[11px] font-bold tracking-wide text-white">
+                      PARA TESTAR
+                    </span>
+                    {card}
+                  </div>
                 ) : (
                   <div key={pkg.key} className="contents">
                     {card}

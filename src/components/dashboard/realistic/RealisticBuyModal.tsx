@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Loader2, Sparkles, X } from "lucide-react";
-import { REALISTIC_PACKAGES, formatBRL, type RealisticPackageKey } from "@/lib/realistic/constants";
+import { REALISTIC_PACKAGES, formatBRL, formatPricePerCredit, type RealisticPackageKey } from "@/lib/realistic/constants";
 import type { RealisticCheckoutUrls } from "@/lib/billing/realisticPackages";
 import { useDashboard } from "../DashboardContext";
 import { REALISTIC_EXAMPLES } from "./realisticExamples";
@@ -16,16 +16,6 @@ const PACKAGE_BADGES: Partial<Record<RealisticPackageKey, { text: string; classN
   "3": { text: "PARA TESTAR", className: "bg-gradient-to-r from-[#4C3BFF] to-[#A855F7]" },
   "20": { text: "MAIS VANTAJOSO", className: "bg-gradient-to-r from-[#EC4899] to-[#F97316]" },
 };
-
-// "R$ 19" (inteiro) ou "R$ 14,70" / "R$ 12,35" (sempre 2 casas quando tem centavos).
-function formatPerVideo(priceCents: number, credits: number): string {
-  const cents = Math.round(priceCents / credits);
-  const value = (cents / 100).toLocaleString("pt-BR", {
-    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
-  return `R$ ${value}`;
-}
 
 export default function RealisticBuyModal({ checkoutUrls }: { checkoutUrls: RealisticCheckoutUrls | null }) {
   const { isRealisticBuyOpen, closeRealisticBuy } = useDashboard();
@@ -191,7 +181,7 @@ function BuyPanel({ checkoutUrls, onClose }: { checkoutUrls: RealisticCheckoutUr
                   <p className="whitespace-nowrap text-xl font-extrabold leading-tight text-white sm:text-2xl">
                     {pkg.credits} vídeos <span className="text-base font-bold text-zinc-300">de 30s</span>
                   </p>
-                  <p className="mt-0.5 text-xs text-zinc-400 sm:text-sm">sai {formatPerVideo(pkg.priceCents, pkg.credits)} cada</p>
+                  <p className="mt-0.5 text-xs text-zinc-400 sm:text-sm">sai {formatPricePerCredit(pkg.priceCents, pkg.credits)} cada</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2 sm:mt-3 sm:items-stretch">
                   <p className="text-xl font-bold text-white sm:text-2xl">{formatBRL(pkg.priceCents)}</p>

@@ -7,6 +7,7 @@ import { isLongDuration, OFFERED_LONG_DURATION } from "@/lib/video/durations";
 import { LONG_VIDEO_NOT_ALLOWED_MESSAGE, userCanUseLongVideos } from "@/lib/billing/longVideos";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import { isRealisticStyle } from "@/lib/realistic/constants";
+import { realisticSeriesCreditsRefusal } from "@/lib/realistic/seriesGate";
 
 type CreateSeriesBody = {
   title: string;
@@ -93,6 +94,11 @@ export async function POST(request: Request) {
   const realistic = body.realistic === true;
   if (realistic && !isRealisticStyle(body.visualStyle)) {
     return NextResponse.json({ error: "Escolha um estilo realista para a série." }, { status: 400 });
+  }
+  if (realistic) {
+    // Vídeo Realista é vendido à parte: sem créditos não salva a série (nunca vira erro ao gerar).
+    const refusal = await realisticSeriesCreditsRefusal(user.id, body.duration);
+    if (refusal) return NextResponse.json({ error: refusal }, { status: 402 });
   }
   if (!realistic && isLongDuration(body.duration)) {
     if (!areLongVideosEnabled() || body.duration !== OFFERED_LONG_DURATION) {

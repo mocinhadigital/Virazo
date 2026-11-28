@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   X,
@@ -21,6 +22,7 @@ import { VISUAL_STYLES } from "../visualStyles";
 import { useDashboard } from "../DashboardContext";
 import { countVideosUsedToday, parseGenerationError, startOfDayInBrasilia } from "@/lib/billing/dailyLimit";
 import RealisticNotice from "../realistic/RealisticNotice";
+import { RealisticNoCreditsModal } from "../realistic/RealisticNoCreditsNotice";
 import NextScriptModal from "../script/NextScriptModal";
 import { effectiveDuration, isLongDuration, planAllowsLongVideos, videoSlotCost } from "@/lib/video/durations";
 import { REALISTIC_STYLES } from "@/lib/realistic/constants";
@@ -165,6 +167,11 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   } = useDashboard();
   // 60s nas séries normais: chave ligada + plano Pro/Ultra (admin também).
   const canUseLong = longVideosEnabled && (isAdmin || planAllowsLongVideos(plan));
+  const router = useRouter();
+  // Aviso amigável de "sem créditos realistas" (no lugar do erro técnico).
+  const [noCreditsOpen, setNoCreditsOpen] = useState(false);
+  const lacksRealisticCredits = (s: SeriesRecord) =>
+    s.realistic && !isAdmin && realisticCredits < (s.duration === "60s" ? 2 : 1);
   const [series, setSeries] = useState<SeriesRecord[]>(initialSeries);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -274,7 +281,14 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
         body: JSON.stringify(patch),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Não foi possível atualizar a série.");
+      if (!res.ok) {
+        if (String(data.error ?? "").startsWith("no_realistic_credits")) {
+          void refreshRealisticCredits();
+          setNoCreditsOpen(true);
+          return;
+        }
+        throw new Error(data.error ?? "Não foi possível atualizar a série.");
+      }
       setSeries((prev) => prev.map((s) => (s.id === id ? data : s)));
     } catch (err) {
       setNotice(describeError(err));
@@ -301,6 +315,11 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
   }
 
   async function handleGenerateNow(id: string) {
+    const target = series.find((x) => x.id === id);
+    if (target && lacksRealisticCredits(target)) {
+      setNoCreditsOpen(true);
+      return;
+    }
     setBusyId(id);
     setNotice(null);
     try {
@@ -315,11 +334,11 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
           setBlockedDay(startOfDayInBrasilia(new Date()).toISOString());
         }
         if (parsed.message.startsWith("no_realistic_credits:")) {
-          openRealisticBuy();
           void refreshRealisticCredits();
-          // A série foi pausada pelo servidor: reflete na lista.
-          setSeries((prev) => prev.map((x) => (x.id === id ? { ...x, status: "pausada" } : x)));
-          throw new Error(parsed.message.replace("no_realistic_credits:", "").trim());
+          setNoCreditsOpen(true);
+          // Se o servidor pausou a série por falta de créditos, reflete na lista.
+          setSeries((prev) => prev.map((x) => (x.id === id && x.status === "ativa" ? { ...x, status: "pausada" } : x)));
+          return;
         }
         throw new Error(parsed.message);
       }
@@ -471,9 +490,13 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
                   <button
                     type="button"
                     disabled={busyId === s.id}
-                    onClick={() =>
-                      patchSeries(s.id, { status: s.status === "ativa" ? "pausada" : "ativa" })
-                    }
+                    onClick={() => {
+                      if (s.status !== "ativa" && lacksRealisticCredits(s)) {
+                        setNoCreditsOpen(true);
+                        return;
+                      }
+                      void patchSeries(s.id, { status: s.status === "ativa" ? "pausada" : "ativa" });
+                    }}
                     className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5 disabled:opacity-40"
                   >
                     {s.status === "ativa" ? (
@@ -524,6 +547,14 @@ export default function SeriesManager({ initialSeries }: { initialSeries: Series
             </div>
           ))}
         </div>
+      )}
+
+      {noCreditsOpen && (
+        <RealisticNoCreditsModal
+          onClose={() => setNoCreditsOpen(false)}
+          normalLabel="Criar série de vídeo normal"
+          onUseNormal={() => router.push("/dashboard/series/nova")}
+        />
       )}
 
       {scriptModal && series.find((x) => x.id === scriptModal.id) && (

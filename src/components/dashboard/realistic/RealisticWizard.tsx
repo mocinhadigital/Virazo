@@ -1,5 +1,6 @@
 "use client";
 
+import RealisticNoCreditsNotice from "./RealisticNoCreditsNotice";
 import RealisticNotice from "./RealisticNotice";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -471,20 +472,12 @@ function WizardPanel() {
               </div>
 
               {noCredits && (
-                <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-300">
-                  Você ainda não tem créditos realistas. Compre um pacote para criar.
-                </p>
-              )}
-
-              {noCredits && (
-                <button
-                  type="button"
-                  onClick={openRealisticBuy}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4C3BFF] to-[#A855F7] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#4C3BFF]/25"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Comprar vídeos realistas
-                </button>
+                <RealisticNoCreditsNotice
+                  onUseNormal={() => {
+                    closeRealisticWizard();
+                    openWizard();
+                  }}
+                />
               )}
 
               <button
@@ -951,21 +944,21 @@ function WizardPanel() {
             </div>
           )}
 
-          {error && (
+          {error && needsCredits && (
+            <RealisticNoCreditsNotice
+              className="mt-4"
+              onUseNormal={() => {
+                closeRealisticWizard();
+                openWizard();
+              }}
+            />
+          )}
+          {error && !needsCredits && (
             <div className="mt-4 flex flex-col gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-xs font-medium text-red-400">
               <span className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 {error}
               </span>
-              {needsCredits && (
-                <button
-                  type="button"
-                  onClick={openRealisticBuy}
-                  className="self-start rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/15"
-                >
-                  Comprar vídeos realistas
-                </button>
-              )}
             </div>
           )}
         </div>

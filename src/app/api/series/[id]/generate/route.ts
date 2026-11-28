@@ -4,6 +4,7 @@ import type { SeriesRow } from "@/components/dashboard/seriesMapping";
 import { checkConcurrencyLimit, runSeriesGeneration } from "@/lib/series/generate";
 import { runRealisticSeriesGeneration } from "@/lib/realistic/pipeline";
 import { createServiceRoleClient } from "@/utils/supabase/service-role";
+import { realisticSeriesCreditsRefusal } from "@/lib/realistic/seriesGate";
 
 // Disparo manual ("Gerar agora") de um vídeo a partir de uma série já
 // cadastrada. A lógica de geração em si vive em src/lib/series/generate.ts
@@ -66,6 +67,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Série de Vídeo Realista ✨: episódio feito pelo pipeline realista (gasta
   // 1 crédito realista; sem saldo, a série pausa).
   if (series.realistic) {
+    // Confere o saldo ANTES de começar: sem créditos nada é criado nem pausado, só o aviso.
+    const noCredits = await realisticSeriesCreditsRefusal(user.id, series.duration);
+    if (noCredits) return NextResponse.json({ error: noCredits }, { status: 402 });
     const realistic = await runRealisticSeriesGeneration(
       createServiceRoleClient(),
       user.id,

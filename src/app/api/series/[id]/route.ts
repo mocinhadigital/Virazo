@@ -6,6 +6,7 @@ import { isLongDuration, OFFERED_LONG_DURATION } from "@/lib/video/durations";
 import { LONG_VIDEO_NOT_ALLOWED_MESSAGE, userCanUseLongVideos } from "@/lib/billing/longVideos";
 import { areLongVideosEnabled } from "@/lib/video/featureFlags";
 import { isRealisticStyle } from "@/lib/realistic/constants";
+import { realisticSeriesCreditsRefusal } from "@/lib/realistic/seriesGate";
 
 type UpdateSeriesBody = Partial<{
   title: string;
@@ -50,6 +51,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (existing.realistic && body.visualStyle !== undefined && !isRealisticStyle(body.visualStyle)) {
     return NextResponse.json({ error: "Escolha um estilo realista para a série." }, { status: 400 });
+  }
+  // Religar o automático de uma série Realista sem créditos: avisa antes (não deixa ligar para falhar depois).
+  if (existing.realistic && body.status === "ativa" && existing.status !== "ativa") {
+    const refusal = await realisticSeriesCreditsRefusal(user.id, body.duration ?? existing.duration);
+    if (refusal) return NextResponse.json({ error: refusal }, { status: 402 });
   }
   if (body.idioma !== undefined && !["pt", "en", "es"].includes(body.idioma)) {
     return NextResponse.json({ error: "Idioma inválido." }, { status: 400 });

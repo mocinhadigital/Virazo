@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { styleOptions } from "../styleOptions";
 import RealisticNotice from "../realistic/RealisticNotice";
+import RealisticNoCreditsNotice, { REALISTIC_NO_CREDITS_TEXT } from "../realistic/RealisticNoCreditsNotice";
 import { VISUAL_STYLES } from "../visualStyles";
 import type { MusicTrackRecord } from "../musicMapping";
 import { useDashboard } from "../DashboardContext";
@@ -162,7 +163,7 @@ const EMPTY_FORM: FormState = {
 
 export default function SeriesWizard() {
   const router = useRouter();
-  const { plan, isAdmin, realisticOnly, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy, setHelpHidden } =
+  const { plan, isAdmin, realisticOnly, longVideosEnabled, openPlanModal, realisticCredits, openRealisticBuy, setHelpHidden, refreshRealisticCredits } =
     useDashboard();
   // 60s nas séries normais: chave ligada + plano Pro/Ultra (admin também).
   const canUseLong = longVideosEnabled && (isAdmin || planAllowsLongVideos(plan));
@@ -293,7 +294,17 @@ export default function SeriesWizard() {
     }
   }
 
-  const canContinue = (() => {
+  // Vídeo Realista sem créditos suficientes (1 para 30s, 2 para 60s): não deixa avançar nem salvar.
+  // Administradores ficam livres.
+  const realisticNeeded = form.duration === "60s" ? 2 : 1;
+  const lacksRealisticCredits = form.realistic && !isAdmin && realisticCredits < realisticNeeded;
+
+  function useNormalVideo() {
+    setForm((f) => (f.realistic ? { ...f, realistic: false, visualStyle: "", duration: "30s" } : f));
+    setError(null);
+  }
+
+  const canContinue = !lacksRealisticCredits && (() => {
     switch (step) {
       case "nicho":
         return form.nicho.trim().length > 0;
@@ -354,6 +365,12 @@ export default function SeriesWizard() {
         const parsed = parseGenerationError(data.error ?? "Não foi possível criar a série.");
         if (parsed.reason === "no_subscription") {
           openPlanModal();
+        }
+        if (String(data.error ?? "").startsWith("no_realistic_credits")) {
+          // O servidor recusou por falta de créditos realistas: volta ao 1º passo, onde aparece o aviso.
+          await refreshRealisticCredits();
+          setStep("nicho");
+          throw new Error(REALISTIC_NO_CREDITS_TEXT);
         }
         throw new Error(parsed.message);
       }
@@ -591,7 +608,10 @@ export default function SeriesWizard() {
                 </button>
               ))}
             </div>
-            {form.realistic && (
+            {form.realistic && lacksRealisticCredits && (
+              <RealisticNoCreditsNotice className="mb-6" onUseNormal={useNormalVideo} />
+            )}
+            {form.realistic && !lacksRealisticCredits && (
               <div className="mb-6 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-[13px] leading-relaxed text-zinc-300">
                 Você tem <strong className="text-white">{realisticCredits}</strong>{" "}
                 {realisticCredits === 1 ? "crédito realista" : "créditos realistas"}. Quando acabarem, a série pausa
@@ -1005,8 +1025,9 @@ export default function SeriesWizard() {
                     <button
                       key={option.value}
                       type="button"
+                      disabled={!isAdmin && option.value === "60s" && realisticCredits < 2}
                       onClick={() => update("duration", option.value)}
-                      className={`rounded-[20px] border bg-[#141416] px-4 py-3 text-left transition-colors ${
+                      className={`rounded-[20px] border bg-[#141416] px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                         form.duration === option.value
                           ? "border-[#4C3BFF]/60 shadow-[0_0_0_1px_rgba(76,59,255,0.35)]"
                           : "border-white/[0.08] hover:border-white/20"
@@ -1017,6 +1038,14 @@ export default function SeriesWizard() {
                     </button>
                   ))}
                 </div>
+                {!isAdmin && realisticCredits < 2 && (
+                  <p className="mt-2 text-[13px] text-amber-200">
+                    Para 60 segundos você precisa de 2 créditos.{" "}
+                    <button type="button" onClick={openRealisticBuy} className="font-semibold underline">
+                      Ver pacotes
+                    </button>
+                  </p>
+                )}
               </div>
             )}
 

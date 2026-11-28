@@ -6,6 +6,7 @@ import { AlertTriangle, Download, Loader2, Play, RefreshCw, Sparkles, Trash2, X 
 import { useDashboard } from "../DashboardContext";
 import DownloadVideoLink from "../DownloadVideoLink";
 import type { RealisticVideoRecord } from "@/lib/realistic/constants";
+import RealisticNoCreditsNotice from "./RealisticNoCreditsNotice";
 import { realisticProgressPercent, realisticStageText } from "./RealisticWizard";
 
 const POLL_MS = 5000;
@@ -13,12 +14,13 @@ const POLL_MS = 5000;
 // Bloco "Vídeo Realista ✨" da tela Meus vídeos: saldo de créditos, botões
 // Criar / Comprar e a lista dos vídeos realistas do cliente.
 export default function RealisticVideosSection() {
-  const { realisticCredits, openRealisticWizard, openRealisticBuy, refreshRealisticCredits } = useDashboard();
+  const { realisticCredits, openRealisticWizard, openRealisticBuy, openWizard, refreshRealisticCredits } = useDashboard();
   const [videos, setVideos] = useState<RealisticVideoRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [active, setActive] = useState<RealisticVideoRecord | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [noCredits, setNoCredits] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -50,13 +52,18 @@ export default function RealisticVideosSection() {
 
   async function handleRetry(video: RealisticVideoRecord) {
     setError(null);
+    setNoCredits(false);
     setBusyId(video.id);
     try {
       const res = await fetch(`/api/realistic/${video.id}/animate`, { method: "POST" });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
         const raw = data?.error ?? "Não foi possível tentar de novo.";
-        if (raw.startsWith("no_realistic_credits")) openRealisticBuy();
+        if (raw.startsWith("no_realistic_credits")) {
+          setNoCredits(true);
+          void refreshRealisticCredits();
+          return;
+        }
         throw new Error(raw.replace(/^[a-z_]+:\s*/, ""));
       }
       await load();
@@ -122,6 +129,8 @@ export default function RealisticVideosSection() {
           </div>
         </div>
       </div>
+
+      {noCredits && <RealisticNoCreditsNotice onUseNormal={() => openWizard()} />}
 
       {error && (
         <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
